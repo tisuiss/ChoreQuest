@@ -46,6 +46,7 @@ async def init_db():
             # i18n
             ("users", "language", "VARCHAR(5)"),
             ("notifications", "params", "TEXT"),
+            ("users", "avatar_photo_url", "VARCHAR(255)"),
         ]
         for table, col, typedef in _migrations:
             try:

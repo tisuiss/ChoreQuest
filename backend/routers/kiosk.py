@@ -42,6 +42,7 @@ async def list_kiosk_kids(db: AsyncSession = Depends(get_db)):
             id=k.id,
             display_name=k.display_name or k.username,
             avatar_config=k.avatar_config,
+            avatar_photo_url=k.avatar_photo_url,
             has_pin=k.pin_hash is not None,
         )
         for k in kids

@@ -317,6 +317,7 @@ export default function QuestAssignModal({
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <AvatarDisplay
                         config={kid.avatar_config}
+                        photoUrl={kid.avatar_photo_url}
                         size="xs"
                         name={kid.display_name || kid.username}
                         animate
@@ -553,6 +554,7 @@ export default function QuestAssignModal({
                         >
                           <AvatarDisplay
                             config={kid.avatar_config}
+                            photoUrl={kid.avatar_photo_url}
                             size="xs"
                             name={kid.display_name || kid.username}
                             animate

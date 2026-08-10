@@ -128,6 +128,10 @@ class AvatarConfig(BaseModel):
     config: dict
 
 
+class AvatarPhoto(BaseModel):
+    photo_url: str | None = None
+
+
 # ---------- GET /parts ----------
 @router.get("/parts")
 async def get_avatar_parts():
@@ -149,3 +153,19 @@ async def save_avatar(
     await db.refresh(user)
     await ws_manager.broadcast({"type": "data_changed", "data": {"entity": "user"}}, exclude_user=user.id)
     return {"detail": "Avatar updated", "avatar_config": user.avatar_config}
+
+
+# ---------- PUT /photo ----------
+@router.put("/photo")
+async def save_avatar_photo(
+    body: AvatarPhoto,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Set or clear the user's profile photo. photo_url=None reverts to the drawn avatar."""
+    user.avatar_photo_url = body.photo_url
+    user.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(user)
+    await ws_manager.broadcast({"type": "data_changed", "data": {"entity": "user"}}, exclude_user=user.id)
+    return {"detail": "Photo updated", "avatar_photo_url": user.avatar_photo_url}

@@ -206,8 +206,19 @@ function SvgAvatar({ config, size }) {
   );
 }
 
-export default function AvatarDisplay({ config, size = 'md', name = '', animate = false }) {
+export default function AvatarDisplay({ config, photoUrl, size = 'md', name = '', animate = false }) {
   const px = SIZES[size] || SIZES.md;
+
+  if (photoUrl) {
+    return (
+      <div
+        className="rounded-full overflow-hidden flex-shrink-0"
+        style={{ width: px, height: px }}
+      >
+        <img src={photoUrl} alt={name || ''} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
 
   if (config && typeof config === 'object' && Object.keys(config).length > 0) {
     // Deterministic delay so grouped avatars desync their animations

@@ -107,6 +107,7 @@ export default function Leaderboard() {
                 <div className="flex-shrink-0">
                   <AvatarDisplay
                     config={entry.avatar_config}
+                    photoUrl={entry.avatar_photo_url}
                     size={isTop3 ? 'md' : 'sm'}
                     name={entry.display_name || entry.username}
                     animate

@@ -162,6 +162,7 @@ export default function Layout({ children }) {
             >
               <AvatarDisplay
                 config={user.avatar_config}
+                photoUrl={user.avatar_photo_url}
                 size="sm"
                 name={user.display_name || user.username}
                 animate
@@ -351,6 +352,7 @@ export default function Layout({ children }) {
               >
                 <AvatarDisplay
                   config={user.avatar_config}
+                  photoUrl={user.avatar_photo_url}
                   size="sm"
                   name={user.display_name || user.username}
                   animate

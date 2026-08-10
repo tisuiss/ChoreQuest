@@ -124,6 +124,7 @@ export default function Kiosk() {
 
             <AvatarDisplay
               config={selectedKid.avatar_config}
+              photoUrl={selectedKid.avatar_photo_url}
               size="lg"
               name={selectedKid.display_name}
             />
@@ -179,7 +180,7 @@ export default function Kiosk() {
                     className="flex flex-col items-center gap-2 min-w-[96px] group"
                   >
                     <div className="rounded-full ring-2 ring-transparent group-hover:ring-accent transition-all">
-                      <AvatarDisplay config={kid.avatar_config} size="xl" name={kid.display_name} animate />
+                      <AvatarDisplay config={kid.avatar_config} photoUrl={kid.avatar_photo_url} size="xl" name={kid.display_name} animate />
                     </div>
                     <span className="text-cream text-sm font-medium">{kid.display_name}</span>
                   </button>

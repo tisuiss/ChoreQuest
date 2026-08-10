@@ -341,6 +341,7 @@ export default function Profile() {
         >
           <AvatarDisplay
             config={user?.avatar_config}
+            photoUrl={user?.avatar_photo_url}
             size="lg"
             name={user?.display_name || user?.username}
             animate

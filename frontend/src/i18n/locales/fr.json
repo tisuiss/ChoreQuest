@@ -716,6 +716,11 @@
     "extra": "Extra",
     "selectMultiple": "(sélection multiple)",
     "clearAllGear": "Tout retirer",
+    "tabAvatar": "Avatar",
+    "tabPhoto": "Photo",
+    "choosePhoto": "Choisir une photo",
+    "removePhoto": "Retirer la photo",
+    "uploadError": "Échec de l'envoi de la photo",
     "scrollLeft": "Défiler à gauche",
     "scrollRight": "Défiler à droite",
     "categories": {

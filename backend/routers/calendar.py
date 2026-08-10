@@ -159,6 +159,7 @@ def _build_assignment_entry(
             "current_streak": a.user.current_streak,
             "longest_streak": a.user.longest_streak,
             "avatar_config": a.user.avatar_config,
+            "avatar_photo_url": a.user.avatar_photo_url,
             "is_active": a.user.is_active,
             "created_at": a.user.created_at.isoformat() if a.user.created_at else None,
         }

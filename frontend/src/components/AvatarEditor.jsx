@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import AvatarDisplay from './AvatarDisplay';
-import { Save, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Save, Loader2, ChevronLeft, ChevronRight, ArrowLeft, Image, X } from 'lucide-react';
 
 const HEAD_OPTIONS = [
   { id: 'round', labelKey: 'avatarEditor.head.round' },
@@ -491,6 +491,10 @@ export default function AvatarEditor() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [openCategory, setOpenCategory] = useState('head');
+  const [mode, setMode] = useState(user?.avatar_photo_url ? 'photo' : 'avatar');
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoMsg, setPhotoMsg] = useState('');
+  const [photoMsgOk, setPhotoMsgOk] = useState(true);
 
   const goBack = useCallback(() => navigate(-1), [navigate]);
 
@@ -534,6 +538,45 @@ export default function AvatarEditor() {
     }
   };
 
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoUploading(true);
+    setPhotoMsg('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const uploaded = await api('/api/uploads', { method: 'POST', body: fd });
+      const res = await api('/api/avatar/photo', { method: 'PUT', body: { photo_url: uploaded.path } });
+      updateUser({ avatar_photo_url: res.avatar_photo_url });
+      setPhotoMsg(t('avatarEditor.saved'));
+      setPhotoMsgOk(true);
+    } catch (err) {
+      setPhotoMsg(err.message || t('avatarEditor.uploadError'));
+      setPhotoMsgOk(false);
+    } finally {
+      setPhotoUploading(false);
+      setTimeout(() => setPhotoMsg(''), 3000);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setPhotoUploading(true);
+    setPhotoMsg('');
+    try {
+      const res = await api('/api/avatar/photo', { method: 'PUT', body: { photo_url: null } });
+      updateUser({ avatar_photo_url: res.avatar_photo_url });
+      setMode('avatar');
+    } catch (err) {
+      setPhotoMsg(err.message || t('avatarEditor.uploadError'));
+      setPhotoMsgOk(false);
+    } finally {
+      setPhotoUploading(false);
+      setTimeout(() => setPhotoMsg(''), 3000);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-surface">
       {/* ─── Pinned top: back button + avatar preview ─── */}
@@ -549,35 +592,82 @@ export default function AvatarEditor() {
             </button>
             <h2 className="font-heading text-cream text-sm font-semibold">{t('avatarEditor.title')}</h2>
           </div>
-          <button
-            onClick={save}
-            disabled={saving}
-            className="game-btn game-btn-blue flex items-center gap-1.5 !py-1.5 !px-4 !text-xs"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {saving ? t('avatarEditor.saving') : msg || t('common.save')}
-          </button>
+          {mode === 'avatar' && (
+            <button
+              onClick={save}
+              disabled={saving}
+              className="game-btn game-btn-blue flex items-center gap-1.5 !py-1.5 !px-4 !text-xs"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {saving ? t('avatarEditor.saving') : msg || t('common.save')}
+            </button>
+          )}
         </div>
         <div className="flex justify-center">
           <div className="avatar-idle rounded-md transition-shadow duration-300">
-            <AvatarDisplay config={config} size="xl" />
+            <AvatarDisplay config={config} photoUrl={user?.avatar_photo_url} size="xl" />
           </div>
         </div>
       </div>
 
-      {/* ─── Category strip (pinned, horizontal scroll with arrows) ─── */}
-      <CategoryStrip openCategory={openCategory} onSelect={setOpenCategory} />
-
-      {/* ─── Scrollable options area ─── */}
-      <div className="flex-1 overflow-y-auto overscroll-contain p-4">
-        {openCategory && (
-          <CategoryContent
-            category={openCategory}
-            config={config}
-            set={set}
-          />
-        )}
+      {/* ─── Avatar / Photo tabs ─── */}
+      <div className="flex-shrink-0 flex border-b border-border bg-surface">
+        {[
+          { id: 'avatar', labelKey: 'avatarEditor.tabAvatar' },
+          { id: 'photo', labelKey: 'avatarEditor.tabPhoto' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setMode(tab.id)}
+            className={`flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+              mode === tab.id
+                ? 'border-accent text-accent'
+                : 'border-transparent text-muted hover:text-cream'
+            }`}
+          >
+            {t(tab.labelKey)}
+          </button>
+        ))}
       </div>
+
+      {mode === 'photo' ? (
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 flex flex-col items-center gap-4">
+          <label className="game-btn game-btn-blue flex items-center gap-1.5 !py-1.5 !px-4 !text-xs cursor-pointer">
+            {photoUploading ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
+            {photoUploading ? t('avatarEditor.saving') : t('avatarEditor.choosePhoto')}
+            <input type="file" accept="image/*" className="hidden" disabled={photoUploading} onChange={handlePhotoChange} />
+          </label>
+          {user?.avatar_photo_url && (
+            <button
+              onClick={handleRemovePhoto}
+              disabled={photoUploading}
+              className="game-btn game-btn-red flex items-center gap-1.5 !py-1.5 !px-4 !text-xs"
+            >
+              <X size={14} />
+              {t('avatarEditor.removePhoto')}
+            </button>
+          )}
+          {photoMsg && (
+            <p className={`text-xs ${photoMsgOk ? 'text-emerald' : 'text-crimson'}`}>{photoMsg}</p>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* ─── Category strip (pinned, horizontal scroll with arrows) ─── */}
+          <CategoryStrip openCategory={openCategory} onSelect={setOpenCategory} />
+
+          {/* ─── Scrollable options area ─── */}
+          <div className="flex-1 overflow-y-auto overscroll-contain p-4">
+            {openCategory && (
+              <CategoryContent
+                category={openCategory}
+                config={config}
+                set={set}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

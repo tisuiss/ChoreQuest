@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Star,
@@ -11,8 +10,8 @@ import {
   Camera,
   Loader2,
   AlertTriangle,
-  ChevronRight,
   ShieldOff,
+  X,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -21,6 +20,7 @@ import { themedTitle } from '../utils/questThemeText';
 import PointCounter from '../components/PointCounter';
 import StreakDisplay from '../components/StreakDisplay';
 import ConfettiAnimation from '../components/ConfettiAnimation';
+import ChoreIcon from '../components/ChoreIcon';
 
 // ---------- helpers ----------
 
@@ -37,21 +37,6 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function difficultyLabel(difficulty, t) {
-  switch (difficulty) {
-    case 'easy':
-      return { text: t('chores.difficulty.easy'), color: 'text-emerald bg-emerald/10 border-emerald/20' };
-    case 'medium':
-      return { text: t('chores.difficulty.medium'), color: 'text-gold bg-gold/10 border-gold/20' };
-    case 'hard':
-      return { text: t('chores.difficulty.hard'), color: 'text-orange-400 bg-orange-400/10 border-orange-400/20' };
-    case 'expert':
-      return { text: t('chores.difficulty.expert'), color: 'text-crimson bg-crimson/10 border-crimson/20' };
-    default:
-      return { text: t('chores.difficulty.easy'), color: 'text-emerald bg-emerald/10 border-emerald/20' };
-  }
-}
-
 // ---------- card animation variants ----------
 
 const cardVariants = {
@@ -62,13 +47,73 @@ const cardVariants = {
   }),
 };
 
+// ---------- chore card ----------
+
+function ChoreActionCard({ chore, idx, completing, photoFile, onPhotoChange, onComplete, colorTheme, t }) {
+  const categoryColor = chore.category?.colour || '#14b8a6';
+  const iconName = chore.icon || chore.category?.icon;
+  const needsPhoto = chore.requires_photo && !photoFile;
+
+  return (
+    <motion.div
+      className="game-panel p-3 flex flex-col items-center gap-2 text-center"
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      custom={idx}
+    >
+      <div
+        className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: `${categoryColor}26`, color: categoryColor }}
+      >
+        <ChoreIcon name={iconName} size={30} />
+      </div>
+
+      <h3 className="text-cream text-sm font-semibold leading-tight line-clamp-2">
+        {themedTitle(chore.title, colorTheme)}
+      </h3>
+
+      <span className="inline-flex items-center gap-1 text-gold text-xs font-semibold">
+        <Star size={12} fill="currentColor" />
+        {t('chores.starsCount', { count: chore.points })}
+      </span>
+
+      {chore.requires_photo && (
+        <label className="inline-flex items-center gap-1.5 text-[11px] text-muted cursor-pointer hover:text-cream transition-colors bg-surface-raised px-2 py-1 rounded-md border border-border w-full justify-center">
+          <Camera size={11} />
+          <span className="truncate">{photoFile ? photoFile.name : t('chores.attachPhoto')}</span>
+          <input type="file" accept="image/*" className="hidden" onChange={onPhotoChange} />
+        </label>
+      )}
+
+      <div className="flex items-center gap-2 w-full mt-1">
+        <button
+          onClick={onComplete}
+          disabled={completing || needsPhoto}
+          className={`flex-1 rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 transition-opacity bg-emerald text-navy ${
+            completing || needsPhoto ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90'
+          }`}
+        >
+          {completing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+          {t('common.yes')}
+        </button>
+        <button
+          className="flex-1 rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 bg-crimson/70 text-white cursor-default"
+        >
+          <X size={14} />
+          {t('common.no')}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 // ---------- component ----------
 
 export default function KidDashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
-  const navigate = useNavigate();
 
   // data state
   const [assignments, setAssignments] = useState([]);
@@ -79,6 +124,10 @@ export default function KidDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  // completion state
+  const [completingId, setCompletingId] = useState(null);
+  const [photoFiles, setPhotoFiles] = useState({});
 
   // ---- data fetching ----
 
@@ -128,6 +177,31 @@ export default function KidDashboard() {
     window.addEventListener('ws:message', handler);
     return () => window.removeEventListener('ws:message', handler);
   }, [fetchData]);
+
+  // ---- chore completion ----
+
+  const handleComplete = async (chore) => {
+    const choreId = chore.id;
+    if (chore.requires_photo && !photoFiles[choreId]) return;
+
+    setCompletingId(choreId);
+    try {
+      if (chore.requires_photo && photoFiles[choreId]) {
+        const fd = new FormData();
+        fd.append('file', photoFiles[choreId]);
+        await api(`/api/chores/${choreId}/complete`, { method: 'POST', body: fd });
+      } else {
+        await api(`/api/chores/${choreId}/complete`, { method: 'POST' });
+      }
+      setPhotoFiles((prev) => { const next = { ...prev }; delete next[choreId]; return next; });
+      setShowConfetti(true);
+      await fetchData();
+    } catch (err) {
+      setError(err.message || t('chores.completeError'));
+    } finally {
+      setCompletingId(null);
+    }
+  };
 
   // ---- render ----
 
@@ -213,72 +287,28 @@ export default function KidDashboard() {
         }
 
         return (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {pendingAssignments.map((assignment, idx) => {
               const chore = assignment.chore;
               if (!chore) return null;
 
-              const diff = difficultyLabel(chore.difficulty, t);
-              const categoryColor = chore.category?.colour || '#14b8a6';
-
               return (
-                <motion.div
+                <ChoreActionCard
                   key={assignment.id}
-                  className="game-panel p-4 transition-all cursor-pointer hover:border-accent/40"
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
-                  custom={idx}
-                  onClick={() => navigate('/chores')}
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Category indicator */}
-                    <div
-                      className="mt-0.5 w-1 h-12 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: categoryColor }}
-                    />
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      {/* Title row */}
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <h3 className="text-cream text-sm font-semibold truncate">
-                          {themedTitle(chore.title, colorTheme)}
-                        </h3>
-                        <ChevronRight size={16} className="text-muted flex-shrink-0" />
-                      </div>
-
-                      {/* Meta row */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Stars */}
-                        <span className="inline-flex items-center gap-1 text-gold text-xs font-semibold">
-                          <Star size={12} fill="currentColor" />
-                          {t('chores.starsCount', { count: chore.points })}
-                        </span>
-
-                        {/* Difficulty */}
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border ${diff.color}`}>
-                          {diff.text}
-                        </span>
-
-                        {/* Category */}
-                        {chore.category?.name && (
-                          <span className="text-muted text-xs">
-                            {chore.category.name}
-                          </span>
-                        )}
-
-                        {/* Photo indicator */}
-                        {chore.requires_photo && (
-                          <span className="inline-flex items-center gap-1 text-muted text-xs">
-                            <Camera size={10} />
-                            {t('chores.photo')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+                  chore={chore}
+                  idx={idx}
+                  completing={completingId === chore.id}
+                  photoFile={photoFiles[chore.id]}
+                  onPhotoChange={(e) =>
+                    setPhotoFiles((prev) => ({
+                      ...prev,
+                      [chore.id]: e.target.files?.[0] || null,
+                    }))
+                  }
+                  onComplete={() => handleComplete(chore)}
+                  colorTheme={colorTheme}
+                  t={t}
+                />
               );
             })}
           </div>

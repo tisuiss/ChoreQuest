@@ -221,6 +221,7 @@ export default function ParentDashboard() {
               <div className="flex items-center gap-3 mb-3">
                 <AvatarDisplay
                   config={kid.avatar_config}
+                  photoUrl={kid.avatar_photo_url}
                   size="md"
                   name={kid.display_name}
                   animate

@@ -716,6 +716,11 @@
     "extra": "Extra",
     "selectMultiple": "(select multiple)",
     "clearAllGear": "Clear all gear",
+    "tabAvatar": "Avatar",
+    "tabPhoto": "Photo",
+    "choosePhoto": "Choose a photo",
+    "removePhoto": "Remove photo",
+    "uploadError": "Failed to upload photo",
     "scrollLeft": "Scroll left",
     "scrollRight": "Scroll right",
     "categories": {

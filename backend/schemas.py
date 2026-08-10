@@ -35,6 +35,7 @@ class KioskKidResponse(BaseModel):
     id: int
     display_name: str
     avatar_config: dict | None
+    avatar_photo_url: str | None = None
     has_pin: bool
 
     model_config = {"from_attributes": True}
@@ -63,6 +64,7 @@ class UserResponse(BaseModel):
     streak_freezes_used: int = 0
     streak_freeze_month: int | None = None
     avatar_config: dict | None
+    avatar_photo_url: str | None = None
     language: str | None = None
     is_active: bool
     created_at: datetime

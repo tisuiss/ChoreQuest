@@ -121,6 +121,7 @@ export default function KidQuests() {
         <div className="flex items-center gap-3">
           <AvatarDisplay
             config={kid.avatar_config}
+            photoUrl={kid.avatar_photo_url}
             size="md"
             name={kid.display_name}
             animate
