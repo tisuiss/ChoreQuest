@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import AvatarDisplay from '../components/AvatarDisplay';
-import RankBadge from '../components/RankBadge';
-import PetLevelBadge from '../components/PetLevelBadge';
 import ShoutoutPanel from '../components/ShoutoutPanel';
 import EmoteBar from '../components/EmoteBar';
 import {
@@ -20,15 +19,15 @@ import {
   Send,
 } from 'lucide-react';
 
-function timeAgo(dateStr) {
+function timeAgo(dateStr, t) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('layout.justNow');
+  if (mins < 60) return t('layout.minutesAgo', { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return t('layout.hoursAgo', { count: hrs });
+  return t('layout.daysAgo', { count: Math.floor(hrs / 24) });
 }
 
 function ProgressRing({ completed, total, size = 72 }) {
@@ -68,6 +67,7 @@ function ProgressRing({ completed, total, size = 72 }) {
 }
 
 export default function Party() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const isParent = user?.role === 'parent' || user?.role === 'admin';
   const [data, setData] = useState(null);
@@ -139,7 +139,7 @@ export default function Party() {
     return (
       <div className="text-center py-20 text-muted">
         <Users size={48} className="mx-auto mb-3 opacity-40" />
-        <p className="text-sm">Could not load party data.</p>
+        <p className="text-sm">{t('party.loadError')}</p>
       </div>
     );
   }
@@ -155,11 +155,11 @@ export default function Party() {
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-cream text-lg font-semibold flex items-center gap-2">
             <Users size={20} className="text-purple" />
-            The Party
+            {t('party.title')}
           </h1>
           <div className="flex items-center gap-1 text-gold text-sm font-medium">
             <Star size={14} className="fill-gold" />
-            {family_total_xp.toLocaleString()} XP
+            {t('chores.starsCount', { count: family_total_xp })}
           </div>
         </div>
 
@@ -168,11 +168,11 @@ export default function Party() {
             <span className="flex items-center gap-2">
               <Flame size={16} className="text-crimson flex-shrink-0" />
               <span className="text-cream text-sm font-medium">
-                Family Streak: {family_streak} day{family_streak !== 1 ? 's' : ''}
+                {t('party.familyStreak', { count: family_streak })}
               </span>
             </span>
             <span className="text-muted text-xs ml-auto">
-              Everyone completed at least one quest!
+              {t('party.everyoneCompleted')}
             </span>
           </div>
         )}
@@ -185,7 +185,7 @@ export default function Party() {
 
       {/* Members */}
       <div className="game-panel p-4">
-        <h2 className="text-cream text-sm font-semibold mb-3">Heroes</h2>
+        <h2 className="text-cream text-sm font-semibold mb-3">{t('party.heroes')}</h2>
         <div className="flex flex-wrap justify-center gap-4">
           {kids.map((kid) => {
             const ringSize = 72;
@@ -204,24 +204,20 @@ export default function Party() {
                 <span className="text-cream text-sm font-medium text-center leading-tight">
                   {kid.display_name}
                 </span>
-                {/* Rank badge */}
-                {kid.rank && <RankBadge rank={kid.rank} size="sm" />}
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="flex items-center gap-1 text-gold text-xs font-medium">
                     <Star size={10} className="fill-gold" />
-                    {kid.points_balance} XP
+                    {t('chores.starsCount', { count: kid.points_balance })}
                   </span>
                   <span className="text-muted text-[11px]">
-                    {kid.today_completed || 0}/{kid.today_total || 0} today
+                    {t('party.todayProgress', { completed: kid.today_completed || 0, total: kid.today_total || 0 })}
                   </span>
                   {kid.current_streak > 0 && (
                     <span className="flex items-center gap-0.5 text-crimson text-[11px]">
                       <Flame size={10} />
-                      {kid.current_streak}d streak
+                      {t('leaderboard.streakDays', { count: kid.current_streak })}
                     </span>
                   )}
-                  {/* Pet level */}
-                  {kid.pet && <PetLevelBadge pet={kid.pet} compact />}
                 </div>
               </div>
             );
@@ -236,7 +232,7 @@ export default function Party() {
                 <div key={p.id} className="flex flex-col items-center gap-1.5">
                   <AvatarDisplay config={p.avatar_config} size="md" name={p.display_name} animate />
                   <span className="text-cream text-sm font-medium">{p.display_name}</span>
-                  <span className="text-muted text-[11px] capitalize">{p.role}</span>
+                  <span className="text-muted text-[11px] capitalize">{t(`common.roles.${p.role}`)}</span>
                 </div>
               ))}
             </div>
@@ -252,7 +248,7 @@ export default function Party() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-cream text-sm font-semibold flex items-center gap-2">
             <Megaphone size={14} className="text-accent" />
-            Bulletin Board
+            {t('party.bulletinBoard')}
           </h2>
           {isParent && (
             <button
@@ -260,7 +256,7 @@ export default function Party() {
               className="text-accent text-xs hover:text-accent/80 flex items-center gap-1"
             >
               <Plus size={12} />
-              Post
+              {t('party.post')}
             </button>
           )}
         </div>
@@ -272,14 +268,14 @@ export default function Party() {
               type="text"
               value={announcementForm.title}
               onChange={e => setAnnouncementForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="Announcement title"
+              placeholder={t('party.announcementTitle')}
               maxLength={200}
               className="field-input !text-sm"
             />
             <textarea
               value={announcementForm.message}
               onChange={e => setAnnouncementForm(f => ({ ...f, message: e.target.value }))}
-              placeholder="What's the news?"
+              placeholder={t('party.whatsTheNews')}
               maxLength={1000}
               rows={2}
               className="field-input !text-sm resize-none"
@@ -293,7 +289,7 @@ export default function Party() {
                   className="rounded border-border"
                 />
                 <Pin size={10} />
-                Pin to top
+                {t('party.pinToTop')}
               </label>
               <button
                 onClick={handlePostAnnouncement}
@@ -301,7 +297,7 @@ export default function Party() {
                 className="game-btn game-btn-blue !py-1.5 !px-3 flex items-center gap-1 text-xs"
               >
                 <Send size={12} />
-                {announcementSubmitting ? 'Posting...' : 'Post'}
+                {announcementSubmitting ? t('party.posting') : t('party.post')}
               </button>
             </div>
           </div>
@@ -309,7 +305,7 @@ export default function Party() {
 
         {announcements.length === 0 ? (
           <p className="text-muted text-sm text-center py-4">
-            No announcements yet.
+            {t('party.noAnnouncements')}
           </p>
         ) : (
           <div className="space-y-2">
@@ -329,14 +325,14 @@ export default function Party() {
                     <p className="text-muted text-xs mt-1">{a.message}</p>
                     <p className="text-muted/50 text-[10px] mt-1">
                       {a.creator_name && <span>{a.creator_name} &middot; </span>}
-                      {timeAgo(a.created_at)}
+                      {timeAgo(a.created_at, t)}
                     </p>
                   </div>
                   {isParent && (
                     <button
                       onClick={() => handleDeleteAnnouncement(a.id)}
                       className="p-1 text-muted hover:text-crimson transition-colors flex-shrink-0"
-                      title="Delete"
+                      title={t('common.delete')}
                     >
                       <Trash2 size={12} />
                     </button>
@@ -352,12 +348,12 @@ export default function Party() {
       <div className="game-panel p-4">
         <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
           <Sparkles size={14} className="text-gold" />
-          Recent Activity
+          {t('party.recentActivity')}
         </h2>
 
         {activity.length === 0 ? (
           <p className="text-muted text-sm text-center py-6">
-            No activity yet. Complete some quests!
+            {t('party.noActivity')}
           </p>
         ) : (
           <div className="space-y-2">
@@ -367,28 +363,20 @@ export default function Party() {
                 className="flex items-start gap-3 px-3 py-2.5 rounded-md border border-border/50 bg-surface-raised/20"
               >
                 <div className="mt-0.5 flex-shrink-0">
-                  {a.type === 'avatar_drop' ? (
-                    <Sparkles size={14} className="text-purple" />
-                  ) : (
-                    <Swords size={14} className="text-accent" />
-                  )}
+                  <Swords size={14} className="text-accent" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-cream text-sm">
                     <span className="font-medium">{a.user_name}</span>
                     {' '}
-                    {a.type === 'avatar_drop' ? (
-                      <span className="text-purple">{a.description}</span>
-                    ) : (
-                      <>
-                        <span className="text-muted">{a.description}</span>
-                        {a.xp && (
-                          <span className="text-gold font-medium ml-1">+{a.xp} XP</span>
-                        )}
-                      </>
+                    <span className="text-muted">{a.description}</span>
+                    {!!a.xp && (
+                      <span className={`font-medium ml-1 ${a.xp > 0 ? 'text-gold' : 'text-crimson'}`}>
+                        {a.xp > 0 ? '+' : ''}{t('chores.starsCount', { count: a.xp })}
+                      </span>
                     )}
                   </p>
-                  <p className="text-muted/60 text-xs mt-0.5">{timeAgo(a.timestamp)}</p>
+                  <p className="text-muted/60 text-xs mt-0.5">{timeAgo(a.timestamp, t)}</p>
                 </div>
               </div>
             ))}

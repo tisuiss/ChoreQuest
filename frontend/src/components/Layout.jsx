@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, KIOSK_SESSION_KEY } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
+import { useLanguage } from '../hooks/useLanguage';
 import { useNotifications } from '../hooks/useNotifications';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { useIdleKioskLogout } from '../hooks/useIdleKioskLogout';
 import {
   Bell,
   Swords,
@@ -14,43 +17,50 @@ import {
   Home,
   CheckCheck,
   X,
-  Sparkles,
   ArrowLeft,
   Loader2,
   Users,
   Trophy,
   MoreHorizontal,
+  LogOut,
 } from 'lucide-react';
 import AvatarDisplay from './AvatarDisplay';
 
 const ALL_NAV_ITEMS = [
-  { label: 'Home', icon: Home, path: '/' },
-  { label: 'Quests', icon: Swords, path: '/chores' },
-  { label: 'Party', icon: Users, path: '/party', mobileMore: true },
-  { label: 'Leaderboard', icon: Trophy, path: '/leaderboard', settingKey: 'leaderboard_enabled', mobileMore: true },
-  { label: 'Rewards', icon: Gift, path: '/rewards' },
-  { label: 'Calendar', icon: CalendarDays, path: '/calendar', mobileMore: true },
-  { label: 'Events', icon: Sparkles, path: '/events', parentOnly: true, mobileMore: true },
+  { labelKey: 'nav.home', icon: Home, path: '/' },
+  { labelKey: 'nav.quests', icon: Swords, path: '/chores' },
+  { labelKey: 'nav.party', icon: Users, path: '/party', mobileMore: true },
+  { labelKey: 'nav.leaderboard', icon: Trophy, path: '/leaderboard', settingKey: 'leaderboard_enabled', mobileMore: true },
+  { labelKey: 'nav.rewards', icon: Gift, path: '/rewards' },
+  { labelKey: 'nav.calendar', icon: CalendarDays, path: '/calendar', mobileMore: true },
 ];
 
-function timeAgo(dateStr) {
+function timeAgo(dateStr, t) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('layout.justNow');
+  if (mins < 60) return t('layout.minutesAgo', { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return t('layout.hoursAgo', { count: hrs });
+  return t('layout.daysAgo', { count: Math.floor(hrs / 24) });
 }
 
 export default function Layout({ children }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const settings = useSettings();
+  const isKioskSession = typeof window !== 'undefined' && sessionStorage.getItem(KIOSK_SESSION_KEY) === '1';
+  useIdleKioskLogout();
+
+  const backToSelection = () => {
+    logout().finally(() => navigate('/kiosk'));
+  };
   const { chore_trading_enabled } = settings;
   const { syncFromUser } = useTheme();
+  const { syncFromUser: syncLanguageFromUser } = useLanguage();
   const { notifications, unreadCount, markRead, markAllRead, refresh } = useNotifications();
 
   const handlePullRefresh = useCallback(async () => {
@@ -60,8 +70,11 @@ export default function Layout({ children }) {
   const { pulling, pullDistance, refreshing } = usePullToRefresh(handlePullRefresh);
 
   useEffect(() => {
-    if (user) syncFromUser(user);
-  }, [user, syncFromUser]);
+    if (user) {
+      syncFromUser(user);
+      syncLanguageFromUser(user);
+    }
+  }, [user, syncFromUser, syncLanguageFromUser]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const panelRef = useRef(null);
@@ -117,7 +130,7 @@ export default function Layout({ children }) {
           <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center">
             <Swords size={14} className="text-navy" />
           </div>
-          <span className="text-cream text-[15px] font-semibold">ChoreQuest</span>
+          <span className="text-cream text-[15px] font-semibold">{t('common.appName')}</span>
         </div>
 
         <nav className="flex flex-col gap-0.5 px-3 mt-1 flex-1">
@@ -135,29 +148,41 @@ export default function Layout({ children }) {
                 }`}
               >
                 <Icon size={16} className={active ? 'text-accent' : ''} />
-                <span className="font-medium">{item.label}</span>
+                <span className="font-medium">{t(item.labelKey)}</span>
               </button>
             );
           })}
         </nav>
 
         {user && (
-          <div
-            className="flex items-center gap-2.5 px-4 py-3 border-t border-border cursor-pointer hover:bg-surface-raised transition-colors"
-            onClick={() => navigate('/profile')}
-          >
-            <AvatarDisplay
-              config={user.avatar_config}
-              size="sm"
-              name={user.display_name || user.username}
-              animate
-            />
-            <div className="min-w-0">
-              <p className="text-cream text-sm font-medium truncate">
-                {user.display_name || user.username}
-              </p>
-              <p className="text-muted text-xs capitalize">{user.role}</p>
+          <div className="flex items-center gap-1 border-t border-border">
+            <div
+              className="flex items-center gap-2.5 px-4 py-3 flex-1 min-w-0 cursor-pointer hover:bg-surface-raised transition-colors"
+              onClick={() => navigate('/profile')}
+            >
+              <AvatarDisplay
+                config={user.avatar_config}
+                size="sm"
+                name={user.display_name || user.username}
+                animate
+              />
+              <div className="min-w-0">
+                <p className="text-cream text-sm font-medium truncate">
+                  {user.display_name || user.username}
+                </p>
+                <p className="text-muted text-xs capitalize">{t(`common.roles.${user.role}`)}</p>
+              </div>
             </div>
+            {isKioskSession && (
+              <button
+                onClick={backToSelection}
+                className="p-2 mr-2 rounded-md text-muted hover:text-cream hover:bg-surface-raised transition-colors flex-shrink-0"
+                title={t('layout.backToSelection')}
+                aria-label={t('layout.backToSelection')}
+              >
+                <LogOut size={16} />
+              </button>
+            )}
           </div>
         )}
       </aside>
@@ -171,7 +196,7 @@ export default function Layout({ children }) {
               <button
                 onClick={() => navigate(-1)}
                 className="p-1.5 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-cream"
-                aria-label="Go back"
+                aria-label={t('layout.goBack')}
               >
                 <ArrowLeft size={18} />
               </button>
@@ -183,7 +208,7 @@ export default function Layout({ children }) {
               <div className="w-6 h-6 rounded bg-accent flex items-center justify-center">
                 <Swords size={12} className="text-navy" />
               </div>
-              <span className="text-cream text-sm font-semibold">ChoreQuest</span>
+              <span className="text-cream text-sm font-semibold">{t('common.appName')}</span>
             </div>
           </div>
 
@@ -198,7 +223,7 @@ export default function Layout({ children }) {
                   });
                 }}
                 className="relative p-2 rounded-md hover:bg-surface-raised transition-colors"
-                aria-label="Notifications"
+                aria-label={t('layout.notifications')}
               >
                 <Bell size={18} className="text-muted hover:text-cream transition-colors" />
                 {unreadCount > 0 && (
@@ -212,13 +237,13 @@ export default function Layout({ children }) {
               {showNotifs && (
                 <div className="fixed right-2 left-2 sm:left-auto sm:absolute sm:right-0 top-12 sm:top-full sm:mt-1 sm:w-80 max-h-96 bg-surface border border-border rounded-md overflow-hidden z-50">
                   <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-                    <span className="text-cream text-sm font-semibold">Notifications</span>
+                    <span className="text-cream text-sm font-semibold">{t('layout.notifications')}</span>
                     <div className="flex items-center gap-1">
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllRead}
                           className="text-muted hover:text-cream text-xs flex items-center justify-center gap-1 transition-colors min-w-[44px] min-h-[44px]"
-                          title="Mark all read"
+                          title={t('layout.markAllRead')}
                         >
                           <CheckCheck size={18} />
                         </button>
@@ -235,11 +260,17 @@ export default function Layout({ children }) {
                   <div className="overflow-y-auto max-h-80">
                     {notifications.length === 0 ? (
                       <div className="p-6 text-center text-muted text-sm">
-                        No notifications yet.
+                        {t('layout.noNotifications')}
                       </div>
                     ) : (
                       notifications.map((n) => {
                         const isTrade = chore_trading_enabled && n.type === 'trade_proposed' && !n.is_read;
+                        const notifTitle = n.params?.key
+                          ? t(`notifications.${n.params.key}.title`, n.params)
+                          : n.title;
+                        const notifMessage = n.params?.key
+                          ? t(`notifications.${n.params.key}.message`, n.params)
+                          : n.message;
                         return (
                           <div
                             key={n.id}
@@ -254,10 +285,10 @@ export default function Layout({ children }) {
                               )}
                               <div className="min-w-0 flex-1">
                                 <p className="text-cream text-sm font-medium truncate">
-                                  {n.title}
+                                  {notifTitle}
                                 </p>
                                 <p className="text-muted text-xs mt-0.5 line-clamp-2">
-                                  {n.message}
+                                  {notifMessage}
                                 </p>
                                 {isTrade && (
                                   <div className="flex items-center gap-2 mt-2">
@@ -270,7 +301,7 @@ export default function Layout({ children }) {
                                       }}
                                       className="game-btn game-btn-blue !py-1.5 !px-3 !text-[10px]"
                                     >
-                                      Accept
+                                      {t('common.accept')}
                                     </button>
                                     <button
                                       onClick={(e) => {
@@ -281,12 +312,12 @@ export default function Layout({ children }) {
                                       }}
                                       className="game-btn game-btn-red !py-1.5 !px-3 !text-[10px]"
                                     >
-                                      Deny
+                                      {t('common.deny')}
                                     </button>
                                   </div>
                                 )}
                                 <p className="text-muted/60 text-xs mt-1">
-                                  {timeAgo(n.created_at)}
+                                  {timeAgo(n.created_at, t)}
                                 </p>
                               </div>
                             </div>
@@ -299,12 +330,24 @@ export default function Layout({ children }) {
               )}
             </div>
 
+            {/* Back to selection (mobile, kiosk session only) */}
+            {user && isKioskSession && (
+              <button
+                onClick={backToSelection}
+                className="md:hidden p-2 rounded-md text-muted hover:text-cream transition-colors"
+                title={t('layout.backToSelection')}
+                aria-label={t('layout.backToSelection')}
+              >
+                <LogOut size={16} />
+              </button>
+            )}
+
             {/* User Avatar (mobile) */}
             {user && (
               <button
                 onClick={() => navigate('/profile')}
                 className="md:hidden"
-                aria-label="Profile"
+                aria-label={t('layout.profile')}
               >
                 <AvatarDisplay
                   config={user.avatar_config}
@@ -355,7 +398,7 @@ export default function Layout({ children }) {
                   }`}
                 >
                   <Icon size={16} className={active ? 'text-accent' : ''} />
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-medium">{t(item.labelKey)}</span>
                 </button>
               );
             })}
@@ -376,7 +419,7 @@ export default function Layout({ children }) {
               >
                 <Icon size={18} />
                 <span className="text-[10px] font-medium leading-none truncate">
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
               </button>
             );
@@ -393,7 +436,7 @@ export default function Layout({ children }) {
             >
               <MoreHorizontal size={18} />
               <span className="text-[10px] font-medium leading-none truncate">
-                More
+                {t('layout.more')}
               </span>
             </button>
           )}

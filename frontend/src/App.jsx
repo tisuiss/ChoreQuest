@@ -7,6 +7,7 @@ import UpdatePrompt from './components/UpdatePrompt';
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const Kiosk = lazy(() => import('./pages/Kiosk'));
 const KidDashboard = lazy(() => import('./pages/KidDashboard'));
 const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -17,7 +18,6 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const Settings = lazy(() => import('./pages/Settings'));
-const Events = lazy(() => import('./pages/Events'));
 const KidQuests = lazy(() => import('./pages/KidQuests'));
 const Party = lazy(() => import('./pages/Party'));
 const AvatarEditor = lazy(() => import('./components/AvatarEditor'));
@@ -50,6 +50,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/kiosk" element={<Kiosk />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
@@ -76,7 +77,6 @@ export default function App() {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/avatar" element={<AvatarEditor />} />
-          <Route path="/events" element={<Events />} />
           <Route path="/kids/:kidId" element={<KidQuests />} />
           <Route path="/settings" element={<Settings />} />
           {user.role === 'admin' && <Route path="/admin" element={<AdminDashboard />} />}

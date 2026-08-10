@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -23,7 +24,7 @@ import {
 } from 'lucide-react';
 
 const DIFFICULTY_LEVEL = { easy: 1, medium: 2, hard: 3, expert: 4 };
-const DIFFICULTY_LABELS = ['Trivial', 'Easy', 'Medium', 'Hard', 'Legendary'];
+const DIFFICULTY_LABEL_KEYS = ['choreDetail.difficultyLabels.trivial', 'choreDetail.difficultyLabels.easy', 'choreDetail.difficultyLabels.medium', 'choreDetail.difficultyLabels.hard', 'choreDetail.difficultyLabels.legendary'];
 const DIFFICULTY_COLORS = [
   'text-muted',
   'text-emerald',
@@ -31,7 +32,7 @@ const DIFFICULTY_COLORS = [
   'text-purple',
   'text-gold',
 ];
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
 
 const CATEGORY_COLORS = {
   cleaning: 'bg-accent/20 text-accent border-accent/40',
@@ -45,6 +46,7 @@ const CATEGORY_COLORS = {
 };
 
 function DifficultyStars({ level }) {
+  const { t } = useTranslation();
   // level can be a string ("easy") or number — normalise to 1-based int
   const num = typeof level === 'string' ? (DIFFICULTY_LEVEL[level] || 1) : (level || 1);
   return (
@@ -57,13 +59,14 @@ function DifficultyStars({ level }) {
         />
       ))}
       <span className={`ml-2 text-sm ${DIFFICULTY_COLORS[num - 1] || 'text-muted'}`}>
-        {DIFFICULTY_LABELS[num - 1] || 'Unknown'}
+        {DIFFICULTY_LABEL_KEYS[num - 1] ? t(DIFFICULTY_LABEL_KEYS[num - 1]) : t('choreDetail.difficultyLabels.unknown')}
       </span>
     </div>
   );
 }
 
 function StatusBadge({ status }) {
+  const { t } = useTranslation();
   const styles = {
     pending: 'bg-gold/20 text-gold border-gold/40',
     completed: 'bg-emerald/20 text-emerald border-emerald/40',
@@ -77,12 +80,14 @@ function StatusBadge({ status }) {
         styles[status] || styles.pending
       }`}
     >
-      {status || 'pending'}
+      {t(`chores.status.${status || 'pending'}`, status || 'pending')}
     </span>
   );
 }
 
 export default function ChoreDetail() {
+  const { t } = useTranslation();
+  const DAY_NAMES = DAY_KEYS.map((k) => t(k));
   const { id } = useParams();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
@@ -95,6 +100,7 @@ export default function ChoreDetail() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const [actionOk, setActionOk] = useState(true);
 
   // Rotation state (parent only)
   const [rotation, setRotation] = useState(null);
@@ -125,11 +131,11 @@ export default function ChoreDetail() {
       const data = await api(`/api/chores/${id}`);
       setChore(data);
     } catch (err) {
-      setError(err.message || 'This quest scroll could not be found.');
+      setError(err.message || t('choreDetail.notFoundError'));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     fetchChore();
@@ -152,10 +158,12 @@ export default function ChoreDetail() {
     setActionMessage('');
     try {
       await api(`/api/chores/${id}/complete`, { method: 'POST' });
-      setActionMessage('Quest completed! XP has been awarded to your hero.');
+      setActionMessage(t('choreDetail.completedMsg'));
+      setActionOk(true);
       await fetchChore();
     } catch (err) {
-      setActionMessage(err.message || 'Failed to complete the quest.');
+      setActionMessage(err.message || t('choreDetail.completeError'));
+      setActionOk(false);
     } finally {
       setActionLoading('');
     }
@@ -169,10 +177,12 @@ export default function ChoreDetail() {
         ? `/api/chores/assignments/${assignmentId}/verify`
         : `/api/chores/${id}/verify`;
       await api(path, { method: 'POST' });
-      setActionMessage('Quest verified! The hero has been rewarded.');
+      setActionMessage(t('choreDetail.verifiedMsg'));
+      setActionOk(true);
       await fetchChore();
     } catch (err) {
-      setActionMessage(err.message || 'Verification failed.');
+      setActionMessage(err.message || t('choreDetail.verifyError'));
+      setActionOk(false);
     } finally {
       setActionLoading('');
     }
@@ -186,10 +196,12 @@ export default function ChoreDetail() {
         ? `/api/chores/assignments/${assignmentId}/uncomplete`
         : `/api/chores/${id}/uncomplete`;
       await api(path, { method: 'POST' });
-      setActionMessage('Quest marked as incomplete.');
+      setActionMessage(t('choreDetail.uncompletedMsg'));
+      setActionOk(true);
       await fetchChore();
     } catch (err) {
-      setActionMessage(err.message || 'Could not undo completion.');
+      setActionMessage(err.message || t('choreDetail.uncompleteError'));
+      setActionOk(false);
     } finally {
       setActionLoading('');
     }
@@ -203,17 +215,19 @@ export default function ChoreDetail() {
         ? `/api/chores/assignments/${assignmentId}/skip`
         : `/api/chores/${id}/skip`;
       await api(path, { method: 'POST' });
-      setActionMessage('Quest skipped for today.');
+      setActionMessage(t('choreDetail.skippedMsg'));
+      setActionOk(true);
       await fetchChore();
     } catch (err) {
-      setActionMessage(err.message || 'Could not skip the quest.');
+      setActionMessage(err.message || t('choreDetail.skipError'));
+      setActionOk(false);
     } finally {
       setActionLoading('');
     }
   };
 
   const handleCreateRotation = async () => {
-    if (allKids.length < 2) { setActionMessage('Need at least 2 kids for a rotation.'); return; }
+    if (allKids.length < 2) { setActionMessage(t('choreDetail.need2Kids')); setActionOk(false); return; }
     setActionLoading('rotation');
     try {
       await api('/api/rotations', {
@@ -221,9 +235,11 @@ export default function ChoreDetail() {
         body: { chore_id: parseInt(id), kid_ids: allKids.map((k) => k.id), cadence: selectedCadence },
       });
       await fetchRotation();
-      setActionMessage('Rotation created.');
+      setActionMessage(t('choreDetail.rotationCreated'));
+      setActionOk(true);
     } catch (err) {
-      setActionMessage(err.message || 'Could not create rotation.');
+      setActionMessage(err.message || t('choreDetail.rotationCreateError'));
+      setActionOk(false);
     } finally {
       setActionLoading('');
     }
@@ -235,9 +251,11 @@ export default function ChoreDetail() {
     try {
       await api(`/api/rotations/${rotation.id}/advance`, { method: 'POST' });
       await fetchRotation();
-      setActionMessage('Rotation advanced to next kid.');
+      setActionMessage(t('choreDetail.rotationAdvanced'));
+      setActionOk(true);
     } catch (err) {
-      setActionMessage(err.message || 'Could not advance rotation.');
+      setActionMessage(err.message || t('choreDetail.rotationAdvanceError'));
+      setActionOk(false);
     } finally {
       setActionLoading('');
     }
@@ -252,9 +270,11 @@ export default function ChoreDetail() {
         body: { cadence: newCadence },
       });
       await fetchRotation();
-      setActionMessage(`Cadence updated to ${newCadence}.`);
+      setActionMessage(t('choreDetail.cadenceUpdated', { cadence: t(`questAssign.frequency.${newCadence}`, newCadence) }));
+      setActionOk(true);
     } catch (err) {
-      setActionMessage(err.message || 'Could not update cadence.');
+      setActionMessage(err.message || t('choreDetail.cadenceUpdateError'));
+      setActionOk(false);
     } finally {
       setActionLoading('');
     }
@@ -266,9 +286,11 @@ export default function ChoreDetail() {
     try {
       await api(`/api/rotations/${rotation.id}`, { method: 'DELETE' });
       setRotation(null);
-      setActionMessage('Rotation removed.');
+      setActionMessage(t('choreDetail.rotationRemoved'));
+      setActionOk(true);
     } catch (err) {
-      setActionMessage(err.message || 'Could not delete rotation.');
+      setActionMessage(err.message || t('choreDetail.rotationDeleteError'));
+      setActionOk(false);
     } finally {
       setActionLoading('');
     }
@@ -292,11 +314,11 @@ export default function ChoreDetail() {
           className="flex items-center gap-2 text-muted hover:text-cream transition-colors mb-6"
         >
           <ArrowLeft size={18} />
-          <span className="text-sm">Back to Quest Board</span>
+          <span className="text-sm">{t('choreDetail.backToBoard')}</span>
         </button>
         <div className="game-panel p-10 text-center">
           <XCircle size={48} className="mx-auto text-crimson mb-4" />
-          <p className="text-cream text-base font-semibold mb-2">Not Found</p>
+          <p className="text-cream text-base font-semibold mb-2">{t('choreDetail.notFound')}</p>
           <p className="text-muted text-sm">{error}</p>
         </div>
       </div>
@@ -327,7 +349,7 @@ export default function ChoreDetail() {
         className="flex items-center gap-2 text-muted hover:text-cream transition-colors"
       >
         <ArrowLeft size={18} />
-        <span className="text-sm">Back to Quest Board</span>
+        <span className="text-sm">{t('choreDetail.backToBoard')}</span>
       </button>
 
       {/* Main chore panel */}
@@ -361,14 +383,14 @@ export default function ChoreDetail() {
               <span className="text-gold text-xl">&#9733;</span>
             </div>
             <div>
-              <p className="text-muted text-xs font-medium">XP Reward</p>
-              <p className="text-gold text-lg font-medium">{chore.points} XP</p>
+              <p className="text-muted text-xs font-medium">{t('choreDetail.xpReward')}</p>
+              <p className="text-gold text-lg font-medium">{t('choreDetail.xpValue', { count: chore.points })}</p>
             </div>
           </div>
 
           {/* Difficulty */}
           <div>
-            <p className="text-muted text-xs font-medium mb-1">Difficulty</p>
+            <p className="text-muted text-xs font-medium mb-1">{t('choreDetail.difficulty')}</p>
             <DifficultyStars level={chore.difficulty || 1} />
           </div>
 
@@ -378,11 +400,11 @@ export default function ChoreDetail() {
               <Shield size={18} className="text-muted" />
             </div>
             <div>
-              <p className="text-muted text-xs font-medium">Category</p>
+              <p className="text-muted text-xs font-medium">{t('choreDetail.category')}</p>
               <span
                 className={`inline-block px-2 py-0.5 rounded-md text-sm border capitalize ${categoryColorClass}`}
               >
-                {categoryName || 'General'}
+                {categoryName || t('choreDetail.generalCategory')}
               </span>
             </div>
           </div>
@@ -393,9 +415,9 @@ export default function ChoreDetail() {
               <RefreshCw size={18} className="text-muted" />
             </div>
             <div>
-              <p className="text-muted text-xs font-medium">Recurrence</p>
+              <p className="text-muted text-xs font-medium">{t('choreDetail.recurrence')}</p>
               <p className="text-cream text-sm capitalize">
-                {chore.recurrence || 'Once'}
+                {t(`questAssign.frequency.${chore.recurrence || 'once'}`, chore.recurrence || 'once')}
                 {chore.recurrence === 'custom' &&
                   chore.custom_days?.length > 0 && (
                     <span className="text-muted text-xs ml-1">
@@ -412,7 +434,7 @@ export default function ChoreDetail() {
           <div className="flex items-center gap-2 px-3 py-2 rounded bg-purple/10 border border-purple/30">
             <Camera size={16} className="text-purple" />
             <span className="text-purple text-xs">
-              Photo proof required upon completion
+              {t('choreDetail.photoRequired')}
             </span>
           </div>
         )}
@@ -422,7 +444,7 @@ export default function ChoreDetail() {
       {actionMessage && (
         <div
           className={`p-3 rounded border text-sm text-center ${
-            actionMessage.toLowerCase().includes('fail') || actionMessage.toLowerCase().includes('could not')
+            !actionOk
               ? 'border-crimson/40 bg-crimson/10 text-crimson'
               : 'border-emerald/40 bg-emerald/10 text-emerald'
           }`}
@@ -436,7 +458,7 @@ export default function ChoreDetail() {
         <div className="game-panel p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-cream text-sm font-semibold mb-1">Today's Quest</p>
+              <p className="text-cream text-sm font-semibold mb-1">{t('choreDetail.todaysQuest')}</p>
             </div>
             <button
               onClick={handleComplete}
@@ -446,7 +468,7 @@ export default function ChoreDetail() {
               }`}
             >
               <CheckCircle2 size={16} />
-              {actionLoading === 'complete' ? 'Completing...' : 'Complete Quest'}
+              {actionLoading === 'complete' ? t('choreDetail.completing') : t('choreDetail.completeQuest')}
             </button>
           </div>
         </div>
@@ -455,7 +477,7 @@ export default function ChoreDetail() {
       {/* Actions for parents */}
       {isParent && (
         <div className="game-panel p-5">
-          <p className="text-cream text-sm font-semibold mb-3">Actions</p>
+          <p className="text-cream text-sm font-semibold mb-3">{t('choreDetail.actions')}</p>
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => handleVerify(todayAssignment?.id)}
@@ -465,7 +487,7 @@ export default function ChoreDetail() {
               }`}
             >
               <CheckCircle2 size={14} />
-              {actionLoading === 'verify' ? 'Verifying...' : 'Verify'}
+              {actionLoading === 'verify' ? t('choreDetail.verifying') : t('choreDetail.verify')}
             </button>
             <button
               onClick={() => handleUncomplete(todayAssignment?.id)}
@@ -475,7 +497,7 @@ export default function ChoreDetail() {
               }`}
             >
               <XCircle size={14} />
-              {actionLoading === 'uncomplete' ? 'Undoing...' : 'Uncomplete'}
+              {actionLoading === 'uncomplete' ? t('choreDetail.undoing') : t('choreDetail.uncomplete')}
             </button>
             <button
               onClick={() => handleSkip(todayAssignment?.id)}
@@ -485,7 +507,7 @@ export default function ChoreDetail() {
               }`}
             >
               <SkipForward size={14} />
-              {actionLoading === 'skip' ? 'Skipping...' : 'Skip Today'}
+              {actionLoading === 'skip' ? t('choreDetail.skipping') : t('choreDetail.skipToday')}
             </button>
           </div>
         </div>
@@ -496,7 +518,7 @@ export default function ChoreDetail() {
         <div className="game-panel p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
-            <h2 className="text-cream text-sm font-semibold">Assigned To</h2>
+            <h2 className="text-cream text-sm font-semibold">{t('choreDetail.assignedTo')}</h2>
           </div>
           <div className="space-y-2">
             {assignmentRules.map((rule) => {
@@ -508,18 +530,18 @@ export default function ChoreDetail() {
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-cream text-sm font-medium truncate">
-                      {kid?.display_name || rule.user?.display_name || `Kid #${rule.user_id}`}
+                      {kid?.display_name || rule.user?.display_name || t('choreDetail.kidFallback', { id: rule.user_id })}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-muted text-xs capitalize flex items-center gap-1">
                       <RefreshCw size={10} />
-                      {rule.recurrence}
+                      {t(`questAssign.frequency.${rule.recurrence}`, rule.recurrence)}
                     </span>
                     {rule.requires_photo && (
                       <span className="text-muted text-xs flex items-center gap-1">
                         <Camera size={10} />
-                        Photo
+                        {t('choreDetail.photo')}
                       </span>
                     )}
                   </div>
@@ -535,23 +557,23 @@ export default function ChoreDetail() {
         <div className="game-panel p-5 space-y-3">
           <div className="flex items-center gap-2">
             <RotateCw size={18} className="text-purple" />
-            <h2 className="text-cream text-sm font-semibold">Kid Rotation</h2>
+            <h2 className="text-cream text-sm font-semibold">{t('choreDetail.kidRotation')}</h2>
           </div>
 
           {rotation ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted">Cadence:</span>
+                <span className="text-muted">{t('choreDetail.cadence')}</span>
                 <select
                   value={rotation.cadence}
                   onChange={(e) => handleUpdateCadence(e.target.value)}
                   disabled={actionLoading === 'rotation'}
                   className="bg-surface-raised text-cream text-sm rounded-md border border-border px-2 py-1 focus:outline-none focus:ring-1 focus:ring-purple"
                 >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="fortnightly">Fortnightly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="daily">{t('questAssign.frequency.daily')}</option>
+                  <option value="weekly">{t('questAssign.frequency.weekly')}</option>
+                  <option value="fortnightly">{t('questAssign.frequency.fortnightly')}</option>
+                  <option value="monthly">{t('questAssign.frequency.monthly')}</option>
                 </select>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -567,8 +589,8 @@ export default function ChoreDetail() {
                           : 'border-border text-muted'
                       }`}
                     >
-                      {kid?.display_name || `Kid #${kidId}`}
-                      {isCurrent && ' (current)'}
+                      {kid?.display_name || t('choreDetail.kidFallback', { id: kidId })}
+                      {isCurrent && ` ${t('choreDetail.current')}`}
                     </span>
                   );
                 })}
@@ -580,7 +602,7 @@ export default function ChoreDetail() {
                   className="game-btn game-btn-purple flex items-center gap-1.5 !py-1.5 !px-3 !text-[11px]"
                 >
                   <ChevronRight size={14} />
-                  Advance
+                  {t('choreDetail.advance')}
                 </button>
                 <button
                   onClick={handleDeleteRotation}
@@ -588,26 +610,26 @@ export default function ChoreDetail() {
                   className="game-btn game-btn-red flex items-center gap-1.5 !py-1.5 !px-3 !text-[11px]"
                 >
                   <Trash2 size={14} />
-                  Remove Rotation
+                  {t('choreDetail.removeRotation')}
                 </button>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-muted text-xs">
-                No rotation set. Create one to automatically rotate this quest between kids.
+                {t('choreDetail.noRotationHint')}
               </p>
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted">Cadence:</span>
+                <span className="text-muted">{t('choreDetail.cadence')}</span>
                 <select
                   value={selectedCadence}
                   onChange={(e) => setSelectedCadence(e.target.value)}
                   className="bg-surface-raised text-cream text-sm rounded-md border border-border px-2 py-1 focus:outline-none focus:ring-1 focus:ring-purple"
                 >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="fortnightly">Fortnightly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="daily">{t('questAssign.frequency.daily')}</option>
+                  <option value="weekly">{t('questAssign.frequency.weekly')}</option>
+                  <option value="fortnightly">{t('questAssign.frequency.fortnightly')}</option>
+                  <option value="monthly">{t('questAssign.frequency.monthly')}</option>
                 </select>
               </div>
               <button
@@ -616,7 +638,7 @@ export default function ChoreDetail() {
                 className="game-btn game-btn-purple flex items-center gap-1.5 !py-1.5 !px-3 !text-[11px]"
               >
                 <RotateCw size={14} />
-                {allKids.length < 2 ? 'Need 2+ kids' : 'Create Rotation'}
+                {allKids.length < 2 ? t('choreDetail.need2Kids') : t('choreDetail.createRotation')}
               </button>
             </div>
           )}
@@ -628,7 +650,7 @@ export default function ChoreDetail() {
         <div className="game-panel p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Calendar size={18} className="text-accent" />
-            <h2 className="text-cream text-sm font-semibold">History</h2>
+            <h2 className="text-cream text-sm font-semibold">{t('choreDetail.history')}</h2>
           </div>
 
           <div className="space-y-2">
@@ -640,7 +662,7 @@ export default function ChoreDetail() {
                 <div className="flex items-center gap-3">
                   <Clock size={14} className="text-cream/30" />
                   <span className="text-muted text-xs">
-                    {assignment.date || assignment.assigned_date || assignment.due_date || 'N/A'}
+                    {assignment.date || assignment.assigned_date || assignment.due_date || t('choreDetail.notAvailable')}
                   </span>
                   {assignment.assigned_to_name && (
                     <span className="text-muted text-xs">

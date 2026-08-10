@@ -1,29 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { Megaphone, Send, Loader2 } from 'lucide-react';
 
 const EMOJIS = [
-  { id: 'star', label: 'Star', icon: '\u2B50' },
-  { id: 'fire', label: 'Fire', icon: '\uD83D\uDD25' },
-  { id: 'heart', label: 'Heart', icon: '\u2764\uFE0F' },
-  { id: 'trophy', label: 'Trophy', icon: '\uD83C\uDFC6' },
-  { id: 'clap', label: 'Clap', icon: '\uD83D\uDC4F' },
-  { id: 'muscle', label: 'Strong', icon: '\uD83D\uDCAA' },
+  { id: 'star', icon: '\u2B50' },
+  { id: 'fire', icon: '\uD83D\uDD25' },
+  { id: 'heart', icon: '\u2764\uFE0F' },
+  { id: 'trophy', icon: '\uD83C\uDFC6' },
+  { id: 'clap', icon: '\uD83D\uDC4F' },
+  { id: 'muscle', icon: '\uD83D\uDCAA' },
 ];
 
-function timeAgo(dateStr) {
+function timeAgo(dateStr, t) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('layout.justNow');
+  if (mins < 60) return t('layout.minutesAgo', { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return t('layout.hoursAgo', { count: hrs });
+  return t('layout.daysAgo', { count: Math.floor(hrs / 24) });
 }
 
 export default function ShoutoutPanel({ members }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [shoutouts, setShoutouts] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -79,13 +81,13 @@ export default function ShoutoutPanel({ members }) {
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-cream text-sm font-semibold flex items-center gap-2">
           <Megaphone size={14} className="text-gold" />
-          Shoutouts
+          {t('shoutouts.title')}
         </h2>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="text-xs text-accent hover:text-accent-light transition-colors font-medium"
         >
-          {showForm ? 'Cancel' : '+ Give Shoutout'}
+          {showForm ? t('common.cancel') : t('shoutouts.give')}
         </button>
       </div>
 
@@ -97,7 +99,7 @@ export default function ShoutoutPanel({ members }) {
             onChange={(e) => setToUserId(e.target.value)}
             className="field-input text-sm"
           >
-            <option value="">Who deserves a shoutout?</option>
+            <option value="">{t('shoutouts.whoDeserves')}</option>
             {others.map((m) => (
               <option key={m.id} value={m.id}>{m.display_name}</option>
             ))}
@@ -106,7 +108,7 @@ export default function ShoutoutPanel({ members }) {
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value.slice(0, 200))}
-            placeholder="Great job on your quests!"
+            placeholder={t('shoutouts.placeholder')}
             className="field-input text-sm"
             maxLength={200}
           />
@@ -131,7 +133,7 @@ export default function ShoutoutPanel({ members }) {
               className="game-btn game-btn-blue flex items-center gap-1.5 !py-2 !px-3"
             >
               {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-              Send
+              {t('shoutouts.send')}
             </button>
           </div>
         </div>
@@ -140,7 +142,7 @@ export default function ShoutoutPanel({ members }) {
       {/* Shoutout feed */}
       {shoutouts.length === 0 ? (
         <p className="text-muted text-sm text-center py-4">
-          No shoutouts yet. Be the first!
+          {t('shoutouts.none')}
         </p>
       ) : (
         <div className="space-y-2">
@@ -157,7 +159,7 @@ export default function ShoutoutPanel({ members }) {
                   <span className="font-medium">{s.to_user_name}</span>
                 </p>
                 <p className="text-muted text-xs mt-0.5">{s.message}</p>
-                <p className="text-muted/50 text-[10px] mt-0.5">{timeAgo(s.created_at)}</p>
+                <p className="text-muted/50 text-[10px] mt-0.5">{timeAgo(s.created_at, t)}</p>
               </div>
             </div>
           ))}

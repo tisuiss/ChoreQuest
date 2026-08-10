@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useTheme } from '../hooks/useTheme';
 import { themedTitle, themedDescription } from '../utils/questThemeText';
@@ -10,10 +11,10 @@ import {
 } from 'lucide-react';
 
 const DIFFICULTY_OPTIONS = [
-  { value: 'easy', label: 'Easy', level: 1 },
-  { value: 'medium', label: 'Medium', level: 2 },
-  { value: 'hard', label: 'Hard', level: 3 },
-  { value: 'expert', label: 'Expert', level: 4 },
+  { value: 'easy', labelKey: 'chores.difficulty.easy', level: 1 },
+  { value: 'medium', labelKey: 'chores.difficulty.medium', level: 2 },
+  { value: 'hard', labelKey: 'chores.difficulty.hard', level: 3 },
+  { value: 'expert', labelKey: 'chores.difficulty.expert', level: 4 },
 ];
 
 const selectClass =
@@ -35,6 +36,7 @@ export default function QuestCreateModal({
   categories,
   editingChore,
 }) {
+  const { t } = useTranslation();
   const { colorTheme } = useTheme();
   const [form, setForm] = useState({ ...emptyForm });
   const [formError, setFormError] = useState('');
@@ -88,15 +90,15 @@ export default function QuestCreateModal({
 
   const handleSubmit = async () => {
     if (!form.title.trim()) {
-      setFormError('Every quest needs a name, adventurer!');
+      setFormError(t('questCreate.nameRequired'));
       return;
     }
     if (form.points < 1) {
-      setFormError('The reward must be at least 1 XP.');
+      setFormError(t('questCreate.rewardMin'));
       return;
     }
     if (!form.category_id) {
-      setFormError('Please select a category for this quest.');
+      setFormError(t('questCreate.categoryRequired'));
       return;
     }
 
@@ -124,7 +126,7 @@ export default function QuestCreateModal({
       onCreated();
       onClose();
     } catch (err) {
-      setFormError(err.message || 'The quest scroll could not be saved.');
+      setFormError(err.message || t('questCreate.saveError'));
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +134,7 @@ export default function QuestCreateModal({
 
   // Group templates by category
   const templatesByCategory = templates.reduce((acc, tpl) => {
-    const cat = tpl.category_name || 'Other';
+    const cat = tpl.category_name || t('questCreate.otherCategory');
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(tpl);
     return acc;
@@ -142,11 +144,11 @@ export default function QuestCreateModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingChore ? 'Edit Quest Scroll' : 'New Quest Scroll'}
+      title={editingChore ? t('questCreate.editTitle') : t('questCreate.newTitle')}
       actions={[
-        { label: 'Cancel', onClick: onClose, className: 'game-btn game-btn-blue' },
+        { label: t('common.cancel'), onClick: onClose, className: 'game-btn game-btn-blue' },
         {
-          label: submitting ? 'Saving...' : editingChore ? 'Update Quest' : 'Create Quest',
+          label: submitting ? t('common.saving') : editingChore ? t('questCreate.updateQuest') : t('questCreate.createQuest'),
           onClick: handleSubmit,
           className: 'game-btn game-btn-gold',
           disabled: submitting,
@@ -169,7 +171,7 @@ export default function QuestCreateModal({
               className="flex items-center gap-2 text-accent text-sm hover:text-accent/80 transition-colors"
             >
               <BookTemplate size={14} />
-              {showTemplates ? 'Hide templates' : 'Choose from Quest Templates'}
+              {showTemplates ? t('questCreate.hideTemplates') : t('questCreate.chooseTemplate')}
             </button>
 
             {showTemplates && (
@@ -192,7 +194,7 @@ export default function QuestCreateModal({
                             </span>
                             <span className="flex items-center gap-1 text-gold text-xs">
                               <Star size={10} className="fill-gold" />
-                              {tpl.suggested_points} XP
+                              {t('chores.starsCount', { count: tpl.suggested_points })}
                             </span>
                           </div>
                           {tpl.description && (
@@ -207,7 +209,7 @@ export default function QuestCreateModal({
                 ))}
                 {templates.length === 0 && (
                   <p className="text-muted text-xs text-center py-3">
-                    No templates available yet.
+                    {t('questCreate.noTemplates')}
                   </p>
                 )}
               </div>
@@ -218,13 +220,13 @@ export default function QuestCreateModal({
         {/* Title */}
         <div>
           <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
-            Quest Name
+            {t('questCreate.questName')}
           </label>
           <input
             type="text"
             value={form.title}
             onChange={(e) => updateForm('title', e.target.value)}
-            placeholder="Defeat the Dust Bunnies"
+            placeholder={t('questCreate.questNamePlaceholder')}
             className="field-input"
           />
         </div>
@@ -232,12 +234,12 @@ export default function QuestCreateModal({
         {/* Description */}
         <div>
           <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
-            Description
+            {t('questCreate.description')}
           </label>
           <textarea
             value={form.description}
             onChange={(e) => updateForm('description', e.target.value)}
-            placeholder="Describe the quest details..."
+            placeholder={t('questCreate.descriptionPlaceholder')}
             rows={3}
             className="field-input resize-none"
           />
@@ -247,7 +249,7 @@ export default function QuestCreateModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
-              XP Reward
+              {t('questCreate.starsReward')}
             </label>
             <input
               type="number"
@@ -259,7 +261,7 @@ export default function QuestCreateModal({
           </div>
           <div>
             <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
-              Difficulty
+              {t('questCreate.difficulty')}
             </label>
             <select
               value={form.difficulty}
@@ -268,7 +270,7 @@ export default function QuestCreateModal({
             >
               {DIFFICULTY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </option>
               ))}
             </select>
@@ -278,14 +280,14 @@ export default function QuestCreateModal({
         {/* Category */}
         <div>
           <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
-            Category
+            {t('questCreate.category')}
           </label>
           <select
             value={form.category_id}
             onChange={(e) => updateForm('category_id', e.target.value)}
             className={`${selectClass} w-full p-3`}
           >
-            <option value="">Select category...</option>
+            <option value="">{t('questCreate.selectCategory')}</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.name}

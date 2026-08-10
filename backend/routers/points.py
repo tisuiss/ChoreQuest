@@ -14,7 +14,6 @@ from backend.models import (
     Notification,
     NotificationType,
 )
-from backend.services.pet_leveling import award_pet_xp_db
 from backend.schemas import (
     BonusRequest,
     AdjustRequest,
@@ -72,18 +71,27 @@ async def get_user_points(
 async def award_bonus(
     user_id: int,
     body: BonusRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_parent),
 ):
-    """Award bonus XP to a user (Parent+)."""
+    """Award bonus or malus stars to a user (Parent+). Negative amounts are a malus."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Prevent balance from going negative
+    if user.points_balance + body.amount < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="This would result in a negative balance",
+        )
+
     # Update the user's balance
     user.points_balance += body.amount
-    user.total_points_earned += body.amount
+    if body.amount > 0:
+        user.total_points_earned += body.amount
 
     # Create the point transaction
     tx = PointTransaction(
@@ -96,25 +104,39 @@ async def award_bonus(
     db.add(tx)
 
     # Notify the kid
+    is_malus = body.amount < 0
     notif = Notification(
         user_id=user.id,
         type=NotificationType.bonus_points,
-        title="Bonus Points!",
-        message=f"You received {body.amount} bonus XP: {body.description}",
+        title="Points Deducted" if is_malus else "Bonus Points!",
+        message=(
+            f"You lost {-body.amount} stars: {body.description}"
+            if is_malus
+            else f"You received {body.amount} bonus stars: {body.description}"
+        ),
+        params={
+            "key": "bonus_points_debit" if is_malus else "bonus_points_credit",
+            "amount": abs(body.amount),
+            "description": body.description,
+        },
         reference_type="point_transaction",
     )
     db.add(notif)
 
-    # Award pet XP alongside user XP
-    pet_levelup = await award_pet_xp_db(db, user, body.amount)
-    if pet_levelup:
-        db.add(Notification(
-            user_id=user.id,
-            type=NotificationType.pet_levelup,
-            title="Pet Levelled Up!",
-            message=f"Your {pet_levelup['pet']} reached level {pet_levelup['new_level']} ({pet_levelup['name']})!",
-            reference_type="pet",
-        ))
+    # Audit log entry for accountability (mirrors admin point_adjustment)
+    client_ip = request.client.host if request.client else None
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="point_bonus",
+        details={
+            "target_user_id": user.id,
+            "amount": body.amount,
+            "description": body.description,
+            "new_balance": user.points_balance,
+        },
+        ip_address=client_ip,
+    )
+    db.add(audit)
 
     await db.commit()
     await db.refresh(tx)
@@ -173,10 +195,6 @@ async def adjust_points(
         created_by=current_user.id,
     )
     db.add(tx)
-
-    # Award pet XP for positive adjustments
-    if body.amount > 0:
-        await award_pet_xp_db(db, user, body.amount)
 
     # Create audit log entry
     client_ip = request.client.host if request.client else None

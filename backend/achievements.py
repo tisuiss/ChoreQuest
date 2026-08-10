@@ -111,16 +111,6 @@ async def _check_criteria(db: AsyncSession, user: User, criteria: dict) -> bool:
         # This would require tracking if chore was self-claimed
         return False
 
-    elif ctype == "pet_level_reached":
-        config = user.avatar_config or {}
-        pet = config.get("pet")
-        if not pet or pet == "none":
-            return False
-        from backend.services.pet_leveling import get_current_pet_xp, get_pet_level
-        pet_xp = get_current_pet_xp(config)
-        level = get_pet_level(pet_xp)["level"]
-        return level >= criteria["level"]
-
     return False
 
 
@@ -141,16 +131,17 @@ async def _unlock_achievement(db: AsyncSession, user: User, achievement: Achieve
         )
         db.add(tx)
 
-        # Award pet XP alongside user XP
-        from backend.services.pet_leveling import award_pet_xp_db
-        await award_pet_xp_db(db, user, achievement.points_reward)
-
     # Create notification
     notif = Notification(
         user_id=user.id,
         type=NotificationType.achievement_unlocked,
         title="Achievement Unlocked!",
         message=f"You earned '{achievement.title}' — +{achievement.points_reward} XP!",
+        params={
+            "key": "achievement_unlocked",
+            "title": achievement.title,
+            "points": achievement.points_reward,
+        },
         reference_type="achievement",
         reference_id=achievement.id,
     )

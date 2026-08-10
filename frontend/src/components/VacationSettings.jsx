@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { Palmtree, Trash2, Plus, Loader2 } from 'lucide-react';
 
 export default function VacationSettings() {
+  const { t } = useTranslation();
   const [vacations, setVacations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -40,7 +42,7 @@ export default function VacationSettings() {
       setEndDate('');
       fetchVacations();
     } catch (err) {
-      setError(err.message || 'Failed to create vacation');
+      setError(err.message || t('vacation.createError'));
     } finally {
       setSaving(false);
     }
@@ -62,26 +64,26 @@ export default function VacationSettings() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-cream text-sm font-bold flex items-center gap-2">
           <Palmtree size={16} className="text-emerald" />
-          Vacation Mode
+          {t('vacation.title')}
         </h2>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="text-xs text-accent hover:text-accent-light transition-colors font-medium flex items-center gap-1"
         >
           <Plus size={12} />
-          {showForm ? 'Cancel' : 'Schedule'}
+          {showForm ? t('common.cancel') : t('vacation.schedule')}
         </button>
       </div>
 
       <p className="text-muted text-xs mb-3">
-        During vacation, recurring quests are paused and streaks are preserved.
+        {t('vacation.description')}
       </p>
 
       {showForm && (
         <div className="mb-4 p-3 rounded-lg bg-surface-raised/50 border border-border/50 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-muted text-[10px] font-semibold uppercase">Start</label>
+              <label className="text-muted text-[10px] font-semibold uppercase">{t('vacation.start')}</label>
               <input
                 type="date"
                 value={startDate}
@@ -91,7 +93,7 @@ export default function VacationSettings() {
               />
             </div>
             <div>
-              <label className="text-muted text-[10px] font-semibold uppercase">End</label>
+              <label className="text-muted text-[10px] font-semibold uppercase">{t('vacation.end')}</label>
               <input
                 type="date"
                 value={endDate}
@@ -108,7 +110,7 @@ export default function VacationSettings() {
             className="game-btn game-btn-blue w-full flex items-center justify-center gap-1.5"
           >
             {saving ? <Loader2 size={12} className="animate-spin" /> : <Palmtree size={12} />}
-            Schedule Vacation
+            {t('vacation.scheduleVacation')}
           </button>
         </div>
       )}
@@ -119,7 +121,7 @@ export default function VacationSettings() {
         </div>
       ) : vacations.length === 0 ? (
         <p className="text-muted text-xs text-center py-2">
-          No vacations scheduled.
+          {t('vacation.noneScheduled')}
         </p>
       ) : (
         <div className="space-y-2">
@@ -143,7 +145,7 @@ export default function VacationSettings() {
                   </p>
                   {isActive && (
                     <p className="text-emerald text-[10px] font-semibold uppercase mt-0.5">
-                      Active now
+                      {t('vacation.activeNow')}
                     </p>
                   )}
                 </div>
@@ -151,7 +153,7 @@ export default function VacationSettings() {
                   <button
                     onClick={() => cancel(v.id)}
                     className="text-muted hover:text-crimson transition-colors p-1"
-                    title="Cancel vacation"
+                    title={t('vacation.cancelVacation')}
                   >
                     <Trash2 size={14} />
                   </button>

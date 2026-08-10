@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -23,14 +24,15 @@ import {
 } from 'lucide-react';
 
 const TABS = [
-  { key: 'users', label: 'Users', icon: Users },
-  { key: 'api-keys', label: 'API Keys', icon: Key },
-  { key: 'invite-codes', label: 'Invite Codes', icon: Ticket },
-  { key: 'audit-log', label: 'Audit Log', icon: ScrollText },
+  { key: 'users', labelKey: 'admin.tabs.users', icon: Users },
+  { key: 'api-keys', labelKey: 'admin.tabs.apiKeys', icon: Key },
+  { key: 'invite-codes', labelKey: 'admin.tabs.inviteCodes', icon: Ticket },
+  { key: 'audit-log', labelKey: 'admin.tabs.auditLog', icon: ScrollText },
 ];
 
 // ─── Users Tab ───────────────────────────────────────────────────────
 function UsersTab() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -42,11 +44,11 @@ function UsersTab() {
       const data = await api('/api/admin/users');
       setUsers(Array.isArray(data) ? data : (data.users || []));
     } catch (err) {
-      setError(err.message || 'Failed to load users');
+      setError(err.message || t('admin.users.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchUsers();
@@ -62,15 +64,15 @@ function UsersTab() {
         prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
       );
     } catch (err) {
-      setError(err.message || 'Failed to update role');
+      setError(err.message || t('admin.users.roleUpdateError'));
     }
   };
 
   const resetPassword = async (usr) => {
-    const newPassword = window.prompt(`New password for ${usr.display_name || usr.username} (min 6 chars):`);
+    const newPassword = window.prompt(t('admin.users.resetPasswordPrompt', { name: usr.display_name || usr.username }));
     if (!newPassword) return;
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('admin.users.passwordTooShort'));
       return;
     }
     try {
@@ -79,9 +81,9 @@ function UsersTab() {
         body: { new_password: newPassword },
       });
       setError('');
-      alert(`Password reset for ${usr.display_name || usr.username}`);
+      alert(t('admin.users.passwordResetDone', { name: usr.display_name || usr.username }));
     } catch (err) {
-      setError(err.message || 'Failed to reset password');
+      setError(err.message || t('admin.users.resetPasswordError'));
     }
   };
 
@@ -97,7 +99,7 @@ function UsersTab() {
         )
       );
     } catch (err) {
-      setError(err.message || 'Failed to toggle user status');
+      setError(err.message || t('admin.users.toggleError'));
     }
   };
 
@@ -119,7 +121,7 @@ function UsersTab() {
 
       {users.length === 0 ? (
         <p className="text-muted text-center py-8 text-sm">
-          No users yet.
+          {t('admin.users.empty')}
         </p>
       ) : (
         <div className="space-y-3">
@@ -139,7 +141,7 @@ function UsersTab() {
                       : 'bg-crimson/10 text-crimson border border-crimson/30'
                   }`}
                 >
-                  {usr.is_active !== false ? 'Active' : 'Inactive'}
+                  {usr.is_active !== false ? t('admin.users.active') : t('admin.users.inactive')}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -148,15 +150,15 @@ function UsersTab() {
                   onChange={(e) => updateRole(usr.id, e.target.value)}
                   className="field-input !py-1.5 !text-xs flex-1"
                 >
-                  <option value="kid">kid</option>
-                  <option value="parent">parent</option>
-                  <option value="admin">admin</option>
+                  <option value="kid">{t('common.roles.kid')}</option>
+                  <option value="parent">{t('common.roles.parent')}</option>
+                  <option value="admin">{t('common.roles.admin')}</option>
                 </select>
                 <button
                   onClick={() => resetPassword(usr)}
                   className="game-btn game-btn-blue !py-1.5 !px-3 !text-[10px] flex-shrink-0"
                 >
-                  <RotateCcw size={12} className="inline mr-1" />Password
+                  <RotateCcw size={12} className="inline mr-1" />{t('admin.users.password')}
                 </button>
                 <button
                   onClick={() => toggleActive(usr)}
@@ -165,9 +167,9 @@ function UsersTab() {
                   }`}
                 >
                   {usr.is_active !== false ? (
-                    <><EyeOff size={12} className="inline mr-1" />Deactivate</>
+                    <><EyeOff size={12} className="inline mr-1" />{t('admin.users.deactivate')}</>
                   ) : (
-                    <><Eye size={12} className="inline mr-1" />Activate</>
+                    <><Eye size={12} className="inline mr-1" />{t('admin.users.activate')}</>
                   )}
                 </button>
               </div>
@@ -181,6 +183,7 @@ function UsersTab() {
 
 // ─── API Keys Tab ────────────────────────────────────────────────────
 function ApiKeysTab() {
+  const { t } = useTranslation();
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -199,11 +202,11 @@ function ApiKeysTab() {
       const data = await api('/api/admin/api-keys');
       setKeys(Array.isArray(data) ? data : (data.keys || []));
     } catch (err) {
-      setError(err.message || 'Failed to load API keys');
+      setError(err.message || t('admin.apiKeys.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchKeys();
@@ -220,7 +223,7 @@ function ApiKeysTab() {
       setNewKeyValue(data.key || data.api_key || data.token || '');
       fetchKeys();
     } catch (err) {
-      setError(err.message || 'Failed to create key');
+      setError(err.message || t('admin.apiKeys.createError'));
       setCreateModal(false);
     } finally {
       setCreateSubmitting(false);
@@ -232,7 +235,7 @@ function ApiKeysTab() {
       await api(`/api/admin/api-keys/${id}`, { method: 'DELETE' });
       setKeys((prev) => prev.filter((k) => k.id !== id));
     } catch (err) {
-      setError(err.message || 'Failed to delete key');
+      setError(err.message || t('admin.apiKeys.deleteError'));
     }
   };
 
@@ -275,13 +278,13 @@ function ApiKeysTab() {
           className="game-btn game-btn-blue flex items-center gap-2"
         >
           <Plus size={14} />
-          Create Key
+          {t('admin.apiKeys.createKey')}
         </button>
       </div>
 
       {keys.length === 0 ? (
         <p className="text-muted text-center py-8 text-sm">
-          No API keys yet.
+          {t('admin.apiKeys.empty')}
         </p>
       ) : (
         <div className="space-y-3">
@@ -294,18 +297,18 @@ function ApiKeysTab() {
                 <button
                   onClick={() => deleteKey(k.id)}
                   className="p-1.5 rounded hover:bg-crimson/10 text-crimson/60 hover:text-crimson transition-colors flex-shrink-0"
-                  title="Delete key"
+                  title={t('admin.apiKeys.deleteTitle')}
                 >
                   <Trash2 size={14} />
                 </button>
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-1">
                 <span className="text-muted text-xs">
-                  Prefix: <span className="text-accent">{k.prefix || k.key_prefix || '***'}</span>
+                  {t('admin.apiKeys.prefix')} <span className="text-accent">{k.prefix || k.key_prefix || '***'}</span>
                 </span>
                 {k.scopes && (
                   <span className="text-muted text-xs">
-                    Scopes: <span className="text-purple">{Array.isArray(k.scopes) ? k.scopes.join(', ') : k.scopes}</span>
+                    {t('admin.apiKeys.scopes')} <span className="text-purple">{Array.isArray(k.scopes) ? k.scopes.join(', ') : k.scopes}</span>
                   </span>
                 )}
               </div>
@@ -318,24 +321,24 @@ function ApiKeysTab() {
       <Modal
         isOpen={createModal}
         onClose={closeCreateModal}
-        title={newKeyValue ? 'Key Created!' : 'Create API Key'}
+        title={newKeyValue ? t('admin.apiKeys.keyCreated') : t('admin.apiKeys.createModalTitle')}
         actions={
           newKeyValue
             ? [
                 {
-                  label: 'Done',
+                  label: t('common.done'),
                   onClick: closeCreateModal,
                   className: 'game-btn game-btn-blue',
                 },
               ]
             : [
                 {
-                  label: 'Cancel',
+                  label: t('common.cancel'),
                   onClick: closeCreateModal,
                   className: 'game-btn game-btn-red',
                 },
                 {
-                  label: createSubmitting ? 'Creating...' : 'Create',
+                  label: createSubmitting ? t('admin.apiKeys.creating') : t('common.create'),
                   onClick: createKey,
                   className: 'game-btn game-btn-blue',
                   disabled: createSubmitting || !newKeyName.trim(),
@@ -346,7 +349,7 @@ function ApiKeysTab() {
         {newKeyValue ? (
           <div className="space-y-3">
             <p className="text-muted text-sm">
-              Copy this key now. It will not be shown again!
+              {t('admin.apiKeys.copyNowWarning')}
             </p>
             <div className="flex gap-2">
               <code className="flex-1 bg-navy p-3 rounded border border-accent/30 text-accent text-sm break-all">
@@ -355,7 +358,7 @@ function ApiKeysTab() {
               <button
                 onClick={() => copyToClipboard(newKeyValue)}
                 className="flex-shrink-0 p-2 rounded hover:bg-surface-raised transition-colors"
-                title="Copy"
+                title={t('common.copy')}
               >
                 {copied ? (
                   <Check size={18} className="text-emerald" />
@@ -368,13 +371,13 @@ function ApiKeysTab() {
         ) : (
           <div>
             <label className="block text-cream text-sm font-medium mb-2">
-              Key Name
+              {t('admin.apiKeys.keyName')}
             </label>
             <input
               type="text"
               value={newKeyName}
               onChange={(e) => setNewKeyName(e.target.value)}
-              placeholder="e.g. Mobile App"
+              placeholder={t('admin.apiKeys.keyNamePlaceholder')}
               className="field-input"
             />
           </div>
@@ -386,6 +389,7 @@ function ApiKeysTab() {
 
 // ─── Invite Codes Tab ────────────────────────────────────────────────
 function InviteCodesTab() {
+  const { t } = useTranslation();
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -403,11 +407,11 @@ function InviteCodesTab() {
       const data = await api('/api/admin/invite-codes');
       setCodes(Array.isArray(data) ? data : (data.codes || []));
     } catch (err) {
-      setError(err.message || 'Failed to load invite codes');
+      setError(err.message || t('admin.inviteCodes.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchCodes();
@@ -424,7 +428,7 @@ function InviteCodesTab() {
       setNewMaxUses('');
       fetchCodes();
     } catch (err) {
-      setError(err.message || 'Failed to create code');
+      setError(err.message || t('admin.inviteCodes.createError'));
     } finally {
       setCreateSubmitting(false);
     }
@@ -435,7 +439,7 @@ function InviteCodesTab() {
       await api(`/api/admin/invite-codes/${id}`, { method: 'DELETE' });
       setCodes((prev) => prev.filter((c) => c.id !== id));
     } catch (err) {
-      setError(err.message || 'Failed to delete code');
+      setError(err.message || t('admin.inviteCodes.deleteError'));
     }
   };
 
@@ -461,13 +465,13 @@ function InviteCodesTab() {
           className="game-btn game-btn-blue flex items-center gap-2"
         >
           <Plus size={14} />
-          Create Code
+          {t('admin.inviteCodes.createCode')}
         </button>
       </div>
 
       {codes.length === 0 ? (
         <p className="text-muted text-center py-8 text-sm">
-          No invite codes yet.
+          {t('admin.inviteCodes.empty')}
         </p>
       ) : (
         <div className="space-y-3">
@@ -480,17 +484,17 @@ function InviteCodesTab() {
                 <button
                   onClick={() => deleteCode(c.id)}
                   className="p-1.5 rounded hover:bg-crimson/10 text-crimson/60 hover:text-crimson transition-colors flex-shrink-0"
-                  title="Delete code"
+                  title={t('admin.inviteCodes.deleteTitle')}
                 >
                   <Trash2 size={14} />
                 </button>
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-1">
                 <span className="text-muted text-xs">
-                  Role: <span className="text-purple">{c.role}</span>
+                  {t('admin.inviteCodes.role')} <span className="text-purple">{t(`common.roles.${c.role}`, c.role)}</span>
                 </span>
                 <span className="text-muted text-xs">
-                  Uses:{' '}
+                  {t('admin.inviteCodes.uses')}{' '}
                   <span className="text-accent">
                     {c.times_used ?? 0}
                     {c.max_uses ? ` / ${c.max_uses}` : ' / ∞'}
@@ -506,15 +510,15 @@ function InviteCodesTab() {
       <Modal
         isOpen={createModal}
         onClose={() => setCreateModal(false)}
-        title="Create Invite Code"
+        title={t('admin.inviteCodes.createModalTitle')}
         actions={[
           {
-            label: 'Cancel',
+            label: t('common.cancel'),
             onClick: () => setCreateModal(false),
             className: 'game-btn game-btn-red',
           },
           {
-            label: createSubmitting ? 'Creating...' : 'Create',
+            label: createSubmitting ? t('admin.apiKeys.creating') : t('common.create'),
             onClick: createCode,
             className: 'game-btn game-btn-blue',
             disabled: createSubmitting,
@@ -524,28 +528,28 @@ function InviteCodesTab() {
         <div className="space-y-4">
           <div>
             <label className="block text-cream text-sm font-medium mb-2">
-              Role
+              {t('admin.inviteCodes.role')}
             </label>
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
               className="field-input"
             >
-              <option value="kid">kid</option>
-              <option value="parent">parent</option>
-              <option value="admin">admin</option>
+              <option value="kid">{t('common.roles.kid')}</option>
+              <option value="parent">{t('common.roles.parent')}</option>
+              <option value="admin">{t('common.roles.admin')}</option>
             </select>
           </div>
           <div>
             <label className="block text-cream text-sm font-medium mb-2">
-              Max Uses (optional)
+              {t('admin.inviteCodes.maxUses')}
             </label>
             <input
               type="number"
               min={1}
               value={newMaxUses}
               onChange={(e) => setNewMaxUses(e.target.value)}
-              placeholder="Unlimited"
+              placeholder={t('admin.inviteCodes.unlimited')}
               className="field-input"
             />
           </div>
@@ -557,6 +561,7 @@ function InviteCodesTab() {
 
 // ─── Audit Log Tab ───────────────────────────────────────────────────
 function AuditLogTab() {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -570,11 +575,11 @@ function AuditLogTab() {
       const data = await api(`/api/admin/audit-log?limit=${limit}&offset=${offset}`);
       setEntries(Array.isArray(data) ? data : (data.entries || data.logs || []));
     } catch (err) {
-      setError(err.message || 'Failed to load audit log');
+      setError(err.message || t('admin.auditLog.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [offset]);
+  }, [offset, t]);
 
   useEffect(() => {
     fetchLog();
@@ -609,7 +614,7 @@ function AuditLogTab() {
 
       {entries.length === 0 ? (
         <p className="text-muted text-center py-8 text-sm">
-          No audit log entries yet.
+          {t('admin.auditLog.empty')}
         </p>
       ) : (
         <div className="space-y-2">
@@ -620,7 +625,7 @@ function AuditLogTab() {
                 <span className="text-muted text-[10px] flex-shrink-0">{formatTimestamp(entry.created_at)}</span>
               </div>
               <p className="text-muted text-xs break-all">
-                {entry.user_id != null ? `User #${entry.user_id}` : '--'}
+                {entry.user_id != null ? t('admin.auditLog.userFallback', { id: entry.user_id }) : '--'}
                 {(entry.details && entry.details !== '--') && (
                   <span className="ml-2 text-muted/70">
                     {typeof entry.details === 'object'
@@ -644,11 +649,11 @@ function AuditLogTab() {
           }`}
         >
           <ChevronLeft size={14} />
-          Prev
+          {t('admin.auditLog.prev')}
         </button>
 
         <span className="text-muted text-xs">
-          Showing {offset + 1} - {offset + entries.length}
+          {t('admin.auditLog.showing', { from: offset + 1, to: offset + entries.length })}
         </span>
 
         <button
@@ -658,7 +663,7 @@ function AuditLogTab() {
             entries.length < limit ? 'opacity-30 cursor-not-allowed' : ''
           }`}
         >
-          Next
+          {t('admin.auditLog.next')}
           <ChevronRight size={14} />
         </button>
       </div>
@@ -668,6 +673,7 @@ function AuditLogTab() {
 
 // ─── Main AdminDashboard ─────────────────────────────────────────────
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('users');
@@ -677,10 +683,10 @@ export default function AdminDashboard() {
       <div className="max-w-xl mx-auto text-center py-20">
         <Shield size={48} className="text-crimson/30 mx-auto mb-4" />
         <h1 className="text-cream text-base font-semibold mb-2">
-          Access Denied
+          {t('admin.accessDenied')}
         </h1>
         <p className="text-muted text-sm">
-          Only administrators can access this page.
+          {t('admin.accessDeniedHint')}
         </p>
       </div>
     );
@@ -694,12 +700,12 @@ export default function AdminDashboard() {
         className="flex items-center gap-1.5 text-muted hover:text-cream transition-colors mb-4 text-sm"
       >
         <ArrowLeft size={16} />
-        Profile
+        {t('layout.profile')}
       </button>
       <div className="flex items-center gap-3 mb-6">
         <Shield size={24} className="text-accent" />
         <h1 className="text-cream text-lg font-semibold">
-          Admin Dashboard
+          {t('admin.title')}
         </h1>
       </div>
 
@@ -719,7 +725,7 @@ export default function AdminDashboard() {
               }`}
             >
               <Icon size={16} />
-              <span className="truncate w-full text-center leading-tight">{tab.label}</span>
+              <span className="truncate w-full text-center leading-tight">{t(tab.labelKey)}</span>
             </button>
           );
         })}

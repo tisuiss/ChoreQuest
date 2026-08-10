@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 
 export default function Inventory() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const isKid = user?.role === 'kid';
 
@@ -25,11 +27,11 @@ export default function Inventory() {
       const data = await api('/api/rewards/redemptions');
       setRedemptions(data);
     } catch (err) {
-      setError(err.message || 'Failed to load inventory');
+      setError(err.message || t('inventory.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchInventory();
@@ -50,7 +52,7 @@ export default function Inventory() {
       });
       await fetchInventory();
     } catch (err) {
-      setError(err.message || 'Could not mark as given');
+      setError(err.message || t('inventory.fulfillError'));
     } finally {
       setFulfillingId(null);
     }
@@ -69,7 +71,7 @@ export default function Inventory() {
   const groupByKid = (items) => {
     const map = {};
     for (const r of items) {
-      const name = r.user?.display_name || r.user?.username || `Kid #${r.user_id}`;
+      const name = r.user?.display_name || r.user?.username || t('inventory.kidFallback', { id: r.user_id });
       if (!map[name]) map[name] = [];
       map[name].push(r);
     }
@@ -81,7 +83,7 @@ export default function Inventory() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-cream text-lg font-semibold">
-          {isKid ? 'My Inventory' : 'Reward Inventory'}
+          {isKid ? t('inventory.myInventory') : t('inventory.rewardInventory')}
         </h1>
       </div>
 
@@ -106,7 +108,7 @@ export default function Inventory() {
             <div className="text-center py-16">
               <Package size={48} className="text-muted mx-auto mb-4" />
               <p className="text-cream text-sm font-medium">
-                {isKid ? 'No loot yet!' : 'No claimed rewards'}
+                {isKid ? t('inventory.noLootYet') : t('inventory.noClaimedRewards')}
               </p>
             </div>
           )}
@@ -117,7 +119,7 @@ export default function Inventory() {
               {activeLoot.length > 0 && (
                 <div>
                   <p className="text-muted text-[11px] font-medium mb-3">
-                    Ready to collect
+                    {t('inventory.readyToCollect')}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {activeLoot.map((r) => (
@@ -130,7 +132,7 @@ export default function Inventory() {
               {pendingLoot.length > 0 && (
                 <div>
                   <p className="text-muted text-[11px] font-medium mb-3">
-                    Awaiting approval
+                    {t('inventory.awaitingApproval')}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {pendingLoot.map((r) => (
@@ -148,7 +150,7 @@ export default function Inventory() {
               {activeLoot.length > 0 && (
                 <div>
                   <p className="text-muted text-[11px] font-medium mb-3">
-                    Waiting to be given out
+                    {t('inventory.waitingToBeGivenOut')}
                   </p>
                   {groupByKid(activeLoot).map(([kidName, items]) => (
                     <div key={kidName} className="mb-5">
@@ -175,7 +177,7 @@ export default function Inventory() {
               {pendingLoot.length > 0 && (
                 <div>
                   <p className="text-muted text-[11px] font-medium mb-3">
-                    Pending approval
+                    {t('inventory.pendingApproval')}
                   </p>
                   {groupByKid(pendingLoot).map(([kidName, items]) => (
                     <div key={kidName} className="mb-5">
@@ -200,6 +202,7 @@ export default function Inventory() {
 }
 
 function LootCard({ redemption, status, showFulfill, onFulfill, fulfilling }) {
+  const { t } = useTranslation();
   const reward = redemption.reward;
   const icon = reward?.icon || '🎁';
 
@@ -214,25 +217,25 @@ function LootCard({ redemption, status, showFulfill, onFulfill, fulfilling }) {
       <div className="text-2xl flex-shrink-0">{icon}</div>
       <div className="min-w-0 flex-1">
         <p className="text-cream text-sm font-medium truncate">
-          {reward?.title || 'Reward'}
+          {reward?.title || t('inventory.reward')}
         </p>
         <div className="flex items-center gap-2 mt-1">
           {status === 'approved' ? (
             <span className="flex items-center gap-1 text-emerald text-xs">
-              <Gift size={12} /> Approved
+              <Gift size={12} /> {t('inventory.approved')}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-muted text-xs">
-              <Clock size={12} /> Pending
+              <Clock size={12} /> {t('inventory.pending')}
             </span>
           )}
           <span className="text-muted text-xs">
-            {redemption.points_spent} XP
+            {t('inventory.starsCost', { count: redemption.points_spent })}
           </span>
         </div>
         {redemption.created_at && (
           <p className="text-muted/60 text-[10px] mt-1">
-            Claimed {new Date(redemption.created_at).toLocaleDateString()}
+            {t('inventory.claimed', { date: new Date(redemption.created_at).toLocaleDateString() })}
           </p>
         )}
       </div>
@@ -242,10 +245,10 @@ function LootCard({ redemption, status, showFulfill, onFulfill, fulfilling }) {
           onClick={onFulfill}
           disabled={fulfilling}
           className="game-btn game-btn-blue flex items-center gap-1 text-xs !py-1.5 !px-3 flex-shrink-0"
-          title="Mark as given out"
+          title={t('inventory.markAsGiven')}
         >
           <CheckCheck size={14} />
-          {fulfilling ? '...' : 'Given'}
+          {fulfilling ? '...' : t('inventory.given')}
         </button>
       )}
     </div>

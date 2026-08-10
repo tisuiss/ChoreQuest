@@ -17,15 +17,11 @@ from backend.models import (
     PointType,
     Achievement,
     UserAchievement,
-    Notification,
-    NotificationType,
 )
 from backend.schemas import UserResponse, AchievementResponse, AchievementUpdate
 from backend.dependencies import get_current_user, require_parent
 from backend.services.assignment_generator import auto_generate_week_assignments
 from backend.services.stats_helpers import completion_rate
-from backend.services.ranks import get_rank
-from backend.services.pet_leveling import get_pet_level
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -77,29 +73,10 @@ async def get_my_stats(
         db, current_user.id, thirty_days_ago,
     )
 
-    rank = get_rank(current_user.total_points_earned or 0)
-    config = current_user.avatar_config or {}
-    pet_type = config.get("pet")
-    has_pet = pet_type not in (None, "none")
-    if has_pet:
-        from backend.services.pet_leveling import get_current_pet_xp
-        pet_xp = get_current_pet_xp(config)
-        pet_info = get_pet_level(pet_xp)
-        pet_info["type"] = pet_type
-    else:
-        pet_info = None
-
     # Streak freeze: available once per calendar month
     today = date.today()
     current_month = today.month + today.year * 12
     streak_freeze_available = (current_user.streak_freeze_month or 0) != current_month
-
-    # Pet interaction budget remaining today
-    interactions = config.get("pet_interactions", {})
-    if interactions.get("date") == today.isoformat():
-        interactions_remaining = max(0, 3 - (interactions.get("count", 0)))
-    else:
-        interactions_remaining = 3
 
     effective = await _effective_streak(db, current_user)
 
@@ -110,9 +87,6 @@ async def get_my_stats(
         "longest_streak": current_user.longest_streak,
         "achievements_count": achievements_count,
         "completion_rate": rate_30d,
-        "rank": rank,
-        "pet": pet_info,
-        "interactions_remaining": interactions_remaining,
         "streak_freeze_available": streak_freeze_available,
     }
 
@@ -154,31 +128,20 @@ async def get_party(
     today_totals = await _count_today_assignments_by_kid(db, kid_ids, today) if kid_ids else {}
     today_completed = await _count_today_assignments_by_kid(db, kid_ids, today, completed_only=True) if kid_ids else {}
 
-    # Recent activity: last 48 hours of point transactions + avatar drops
+    # Recent activity: last 48 hours of point transactions (chores, achievements,
+    # and parent-awarded bonus/malus — amount can be negative for a malus)
     two_days_ago = today - timedelta(days=2)
     activity_result = await db.execute(
         select(PointTransaction)
         .where(
             PointTransaction.created_at >= str(two_days_ago),
-            PointTransaction.amount > 0,
-            PointTransaction.type.in_([PointType.chore_complete, PointType.achievement, PointType.event_multiplier]),
+            PointTransaction.amount != 0,
+            PointTransaction.type.in_([PointType.chore_complete, PointType.achievement, PointType.bonus]),
         )
         .order_by(PointTransaction.created_at.desc())
         .limit(20)
     )
     recent_txns = activity_result.scalars().all()
-
-    # Avatar drop notifications (last 48h)
-    drop_result = await db.execute(
-        select(Notification)
-        .where(
-            Notification.type == NotificationType.avatar_item_drop,
-            Notification.created_at >= str(two_days_ago),
-        )
-        .order_by(Notification.created_at.desc())
-        .limit(10)
-    )
-    recent_drops = drop_result.scalars().all()
 
     # Build activity feed
     activity = []
@@ -193,15 +156,6 @@ async def get_party(
             "description": txn.description,
             "xp": txn.amount,
             "timestamp": txn.created_at.isoformat() if txn.created_at else None,
-        })
-
-    for drop in recent_drops:
-        activity.append({
-            "type": "avatar_drop",
-            "user_id": drop.user_id,
-            "user_name": name_map.get(drop.user_id, "Unknown"),
-            "description": drop.message,
-            "timestamp": drop.created_at.isoformat() if drop.created_at else None,
         })
 
     activity.sort(key=lambda a: a.get("timestamp") or "", reverse=True)
@@ -235,15 +189,6 @@ async def get_party(
     # Build members list
     members = []
     for u in all_users:
-        rank = get_rank(u.total_points_earned or 0)
-        u_config = u.avatar_config or {}
-        has_pet = u_config.get("pet") not in (None, "none")
-        if has_pet:
-            from backend.services.pet_leveling import get_current_pet_xp
-            pet_xp = get_current_pet_xp(u_config)
-            pet = get_pet_level(pet_xp)
-        else:
-            pet = None
         effective = await _effective_streak(db, u)
         member = {
             "id": u.id,
@@ -252,8 +197,6 @@ async def get_party(
             "avatar_config": u.avatar_config,
             "current_streak": effective,
             "total_points_earned": u.total_points_earned,
-            "rank": rank,
-            "pet": pet,
         }
         if u.role == UserRole.kid:
             member["points_balance"] = u.points_balance

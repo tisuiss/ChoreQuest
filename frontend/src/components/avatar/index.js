@@ -6,4 +6,3 @@ export { renderBody, renderOutfitPattern } from './bodies';
 export { renderFaceExtra } from './faceExtras';
 export { renderHat } from './hats';
 export { renderAccessory } from './accessories';
-export { renderPet, renderPetExtras, buildPetColors, renderPetAccessory } from './pets';

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,24 +12,15 @@ import {
   Loader2,
   AlertTriangle,
   ChevronRight,
-  Heart,
-  HandHeart,
-  Gamepad2,
   ShieldOff,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
-import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { themedTitle } from '../utils/questThemeText';
 import PointCounter from '../components/PointCounter';
 import StreakDisplay from '../components/StreakDisplay';
-import SpinWheel from '../components/SpinWheel';
 import ConfettiAnimation from '../components/ConfettiAnimation';
-import RankBadge from '../components/RankBadge';
-import PetLevelBadge from '../components/PetLevelBadge';
-import { QuestBoardOverlay, QuestBoardPageGlow, QuestBoardParticles, QuestBoardDecorations, QuestBoardTitle, BOARD_THEMES, getTheme } from '../components/QuestBoardTheme';
-import { renderPet, renderPetExtras, renderPetAccessory, buildPetColors } from '../components/avatar';
 
 // ---------- helpers ----------
 
@@ -45,18 +37,18 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function difficultyLabel(difficulty) {
+function difficultyLabel(difficulty, t) {
   switch (difficulty) {
     case 'easy':
-      return { text: 'Easy', color: 'text-emerald bg-emerald/10 border-emerald/20' };
+      return { text: t('chores.difficulty.easy'), color: 'text-emerald bg-emerald/10 border-emerald/20' };
     case 'medium':
-      return { text: 'Medium', color: 'text-gold bg-gold/10 border-gold/20' };
+      return { text: t('chores.difficulty.medium'), color: 'text-gold bg-gold/10 border-gold/20' };
     case 'hard':
-      return { text: 'Hard', color: 'text-orange-400 bg-orange-400/10 border-orange-400/20' };
+      return { text: t('chores.difficulty.hard'), color: 'text-orange-400 bg-orange-400/10 border-orange-400/20' };
     case 'expert':
-      return { text: 'Expert', color: 'text-crimson bg-crimson/10 border-crimson/20' };
+      return { text: t('chores.difficulty.expert'), color: 'text-crimson bg-crimson/10 border-crimson/20' };
     default:
-      return { text: 'Easy', color: 'text-emerald bg-emerald/10 border-emerald/20' };
+      return { text: t('chores.difficulty.easy'), color: 'text-emerald bg-emerald/10 border-emerald/20' };
   }
 }
 
@@ -73,38 +65,20 @@ const cardVariants = {
 // ---------- component ----------
 
 export default function KidDashboard() {
-  const { user, updateUser } = useAuth();
-  const { spin_wheel_enabled } = useSettings();
+  const { t } = useTranslation();
+  const { user } = useAuth();
   const { colorTheme } = useTheme();
   const navigate = useNavigate();
 
   // data state
   const [assignments, setAssignments] = useState([]);
   const [chores, setChores] = useState([]);
-  const [spinAvailability, setSpinAvailability] = useState(null);
   const [myStats, setMyStats] = useState(null);
 
   // ui state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [showThemePicker, setShowThemePicker] = useState(false);
-
-  // Pet interactions
-  const [petInteracting, setPetInteracting] = useState(null);
-  const [petAction, setPetAction] = useState(null); // holds last action for animation
-  const [petMessage, setPetMessage] = useState('');
-  const [interactionsRemaining, setInteractionsRemaining] = useState(3);
-
-  // Board theme — stored in localStorage
-  const [boardTheme, setBoardTheme] = useState(() =>
-    localStorage.getItem('chorequest-board-theme') || 'default'
-  );
-  const changeBoardTheme = (id) => {
-    setBoardTheme(id);
-    localStorage.setItem('chorequest-board-theme', id);
-    setShowThemePicker(false);
-  };
 
   // ---- data fetching ----
 
@@ -117,22 +91,15 @@ export default function KidDashboard() {
       const promises = [
         api('/api/chores'),
         api(`/api/calendar?week_start=${monday}`),
+        api('/api/stats/me'),
       ];
-      if (spin_wheel_enabled) {
-        promises.push(api('/api/spin/availability'));
-      }
-      promises.push(api('/api/stats/me'));
 
       const results = await Promise.all(promises);
       const choresRes = results[0];
       const calendarRes = results[1];
-      const spinRes = spin_wheel_enabled ? results[2] : null;
-      const statsRes = results[spin_wheel_enabled ? 3 : 2];
+      const statsRes = results[2];
       if (statsRes) {
         setMyStats(statsRes);
-        if (statsRes.interactions_remaining != null) {
-          setInteractionsRemaining(statsRes.interactions_remaining);
-        }
       }
 
       setChores(choresRes);
@@ -141,14 +108,12 @@ export default function KidDashboard() {
       const allToday = (calendarRes.days && calendarRes.days[today]) || [];
       const todayAssignments = allToday.filter((a) => a.user_id === user?.id);
       setAssignments(todayAssignments);
-
-      setSpinAvailability(spinRes);
     } catch (err) {
-      setError(err.message || 'Failed to load quest data');
+      setError(err.message || t('kidDashboard.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [user?.id, spin_wheel_enabled]);
+  }, [user?.id, t]);
 
   useEffect(() => {
     fetchData();
@@ -164,33 +129,6 @@ export default function KidDashboard() {
     return () => window.removeEventListener('ws:message', handler);
   }, [fetchData]);
 
-
-  // ---- pet interaction ----
-  const handlePetInteraction = async (action) => {
-    setPetInteracting(action);
-    setPetAction(action);
-    setPetMessage('');
-    try {
-      const res = await api('/api/pets/interact', { method: 'POST', body: { action } });
-      setInteractionsRemaining(res.interactions_remaining);
-      const labels = { feed: 'Fed', pet: 'Petted', play: 'Played with' };
-      setPetMessage(`${labels[action]} your pet! +${res.xp_awarded} XP${res.levelup ? ' - LEVEL UP!' : ''}`);
-      if (res.levelup) setShowConfetti(true);
-      // Update points in header immediately
-      if (res.new_balance != null) updateUser({ points_balance: res.new_balance });
-      await fetchData();
-    } catch (err) {
-      setPetMessage(err.message || 'Could not interact with pet');
-    } finally {
-      setPetInteracting(null);
-      setTimeout(() => { setPetAction(null); setPetMessage(''); }, 4000);
-    }
-  };
-
-  const hasPet = !!myStats?.pet;
-  const petType = myStats?.pet?.type || user?.avatar_config?.pet || 'none';
-  const petColors = buildPetColors(user?.avatar_config || {});
-
   // ---- render ----
 
   if (loading) {
@@ -205,13 +143,8 @@ export default function KidDashboard() {
   const totalCount = assignments.length;
   const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  const activeTheme = getTheme(boardTheme);
-
   return (
-    <div className={`max-w-2xl mx-auto space-y-5 quest-board-${boardTheme}`}>
-      {/* ── Page-level ambient glow ── */}
-      <QuestBoardPageGlow themeId={boardTheme} />
-
+    <div className="max-w-2xl mx-auto space-y-5">
       {/* ── Confetti overlay ── */}
       <AnimatePresence>
         {showConfetti && (
@@ -221,40 +154,20 @@ export default function KidDashboard() {
 
       {/* ── Header with stats ── */}
       <div className="game-panel p-5 relative overflow-hidden">
-        <QuestBoardOverlay themeId={boardTheme} />
-        <QuestBoardParticles themeId={boardTheme} />
         <div className="relative z-10">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-          <div className="flex items-center gap-2">
-            <h1 className="text-cream text-lg font-semibold">
-              <QuestBoardTitle themeId={boardTheme}>Quest Board</QuestBoardTitle>
-            </h1>
-            <button
-              onClick={() => setShowThemePicker((v) => !v)}
-              className="flex items-center justify-center w-8 h-8 rounded-lg border border-border hover:border-accent hover:bg-accent/10 text-cream transition-all text-base"
-              title="Change board theme"
-            >
-              {BOARD_THEMES.find((t) => t.id === boardTheme)?.icon || '\u2694\uFE0F'}
-            </button>
-          </div>
+          <h1 className="text-cream text-lg font-semibold">{t('kidDashboard.title')}</h1>
           <div className="flex items-center gap-3">
-            <PointCounter value={user?.points_balance ?? 0} />
+            <PointCounter value={user?.points_balance ?? 0} prefix={t('common.stars')} />
             <StreakDisplay streak={user?.current_streak ?? 0} />
           </div>
-        </div>
-
-        {/* Board theme decorations */}
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          <QuestBoardDecorations themeId={boardTheme} />
-          {myStats?.rank && <RankBadge rank={myStats.rank} size="sm" />}
-          {myStats?.pet && <PetLevelBadge pet={myStats.pet} compact />}
         </div>
 
         {/* Progress bar */}
         {totalCount > 0 && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-muted text-xs font-medium">Today's Progress</span>
+              <span className="text-muted text-xs font-medium">{t('kidDashboard.todaysProgress')}</span>
               <span className="text-cream text-xs font-bold">{completedCount}/{totalCount}</span>
             </div>
             <div className="xp-bar">
@@ -267,32 +180,6 @@ export default function KidDashboard() {
         )}
         </div>{/* close z-10 */}
       </div>
-
-      {/* ── Board Theme Picker ── */}
-      {showThemePicker && (
-        <div className="game-panel p-4">
-          <h3 className="text-cream text-xs font-medium mb-3">Choose Board Theme</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {BOARD_THEMES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => changeBoardTheme(t.id)}
-                className={`flex items-center gap-2 p-3 rounded-md border transition-all text-left ${
-                  boardTheme === t.id
-                    ? 'border-accent bg-accent/10'
-                    : 'border-border/50 bg-surface-raised/30 hover:border-border-light'
-                }`}
-              >
-                <span className="text-xl">{t.icon}</span>
-                <div>
-                  <p className="text-cream text-xs font-medium">{t.label}</p>
-                  <p className="text-muted text-[10px]">{t.description}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── Error banner ── */}
       {error && (
@@ -318,8 +205,8 @@ export default function KidDashboard() {
               <Sword size={36} className="text-muted" />
               <p className="text-muted text-sm">
                 {assignments.length === 0
-                  ? 'No quests for today. Take a break!'
-                  : 'All quests complete! Time to spin the wheel!'}
+                  ? t('kidDashboard.noneToday')
+                  : t('kidDashboard.allComplete')}
               </p>
             </motion.div>
           );
@@ -331,17 +218,13 @@ export default function KidDashboard() {
               const chore = assignment.chore;
               if (!chore) return null;
 
-              const diff = difficultyLabel(chore.difficulty);
+              const diff = difficultyLabel(chore.difficulty, t);
               const categoryColor = chore.category?.colour || '#14b8a6';
 
               return (
                 <motion.div
                   key={assignment.id}
                   className="game-panel p-4 transition-all cursor-pointer hover:border-accent/40"
-                  style={activeTheme.cardAccent ? {
-                    borderColor: `${activeTheme.cardAccent}25`,
-                    boxShadow: `0 0 12px ${activeTheme.cardAccent}10, inset 0 1px 0 ${activeTheme.cardAccent}08`,
-                  } : undefined}
                   variants={cardVariants}
                   initial="hidden"
                   animate="visible"
@@ -367,10 +250,10 @@ export default function KidDashboard() {
 
                       {/* Meta row */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* XP */}
+                        {/* Stars */}
                         <span className="inline-flex items-center gap-1 text-gold text-xs font-semibold">
                           <Star size={12} fill="currentColor" />
-                          {chore.points} XP
+                          {t('chores.starsCount', { count: chore.points })}
                         </span>
 
                         {/* Difficulty */}
@@ -389,7 +272,7 @@ export default function KidDashboard() {
                         {chore.requires_photo && (
                           <span className="inline-flex items-center gap-1 text-muted text-xs">
                             <Camera size={10} />
-                            Photo
+                            {t('chores.photo')}
                           </span>
                         )}
                       </div>
@@ -402,165 +285,14 @@ export default function KidDashboard() {
         );
       })()}
 
-      {/* ── Pet Interactions ── */}
-      {hasPet && (() => {
-        const config = user?.avatar_config || {};
-        const petLevel = myStats?.pet?.level || 1;
-        const petLevelName = myStats?.pet?.name || 'Hatchling';
-        const petAccessory = config.pet_accessory;
-        // Level-based scale (matches AvatarDisplay)
-        const sc = 1 + (petLevel - 1) * 0.04;
-        const glowColor = petLevel >= 7 ? '#f59e0b' : petLevel >= 5 ? '#a855f7' : null;
-        // Pet center for 'right' position
-        const px = 26, py = 20;
-
-        return (
-        <div className="game-panel p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-cream text-sm font-semibold flex items-center gap-2">
-              <Heart size={14} className="text-crimson" />
-              Pet Care
-            </h3>
-            <span className="text-muted text-[11px]">
-              {interactionsRemaining} interaction{interactionsRemaining !== 1 ? 's' : ''} left today
-            </span>
-          </div>
-
-          {/* Pet display with idle + interaction animations */}
-          <div className="flex flex-col items-center mb-3 gap-1">
-            <div
-              className={`pet-interaction-stage ${petAction ? `pet-action-${petAction}` : ''}`}
-            >
-              <div className="avatar-idle rounded-full overflow-hidden" style={{ width: 96, height: 96 }}>
-                <svg width={96} height={96} viewBox="19 13 14 14">
-                  <circle cx="26" cy="20" r="6.5" fill="rgba(255,255,255,0.06)" />
-                  {glowColor && (
-                    <circle cx={px} cy={py} r={4} fill={glowColor} opacity="0.15" />
-                  )}
-                  <g className="avatar-pet">
-                    <g transform={sc !== 1 ? `translate(${px},${py}) scale(${sc}) translate(${-px},${-py})` : undefined}>
-                      {renderPet(petType, petColors, 'right')}
-                      {renderPetExtras(petType, petLevel, petColors, 'right')}
-                      {renderPetAccessory(petType, petAccessory, 'right')}
-                    </g>
-                  </g>
-                </svg>
-              </div>
-              {/* Floating particles during interaction */}
-              <AnimatePresence>
-                {petAction === 'feed' && (
-                  <motion.span
-                    className="absolute -top-1 right-0 text-lg pointer-events-none"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: -8 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.6 }}
-                  >
-                    🍖
-                  </motion.span>
-                )}
-                {petAction === 'pet' && (
-                  <>
-                    {[0, 1, 2].map(i => (
-                      <motion.span
-                        key={i}
-                        className="absolute pointer-events-none text-sm"
-                        style={{ left: `${20 + i * 25}%`, top: '-4px' }}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: [0, 1, 0], y: -16 }}
-                        transition={{ duration: 0.8, delay: i * 0.2 }}
-                      >
-                        💕
-                      </motion.span>
-                    ))}
-                  </>
-                )}
-                {petAction === 'play' && (
-                  <>
-                    {[0, 1].map(i => (
-                      <motion.span
-                        key={i}
-                        className="absolute pointer-events-none text-sm"
-                        style={{ left: `${15 + i * 50}%`, top: '-4px' }}
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: [0, 1, 0], scale: 1.2, y: -12 }}
-                        transition={{ duration: 0.6, delay: i * 0.3 }}
-                      >
-                        ⭐
-                      </motion.span>
-                    ))}
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-            {/* Pet level label */}
-            <PetLevelBadge pet={myStats?.pet} />
-          </div>
-
-          {/* XP feedback */}
-          <AnimatePresence>
-            {petMessage && (
-              <motion.p
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className={`text-xs mb-3 text-center font-semibold ${
-                  petMessage.includes('Could not') || petMessage.includes('tired') ? 'text-crimson' : 'text-emerald'
-                }`}
-              >
-                {petMessage}
-              </motion.p>
-            )}
-          </AnimatePresence>
-
-          {/* Action buttons */}
-          <div className="flex gap-2">
-            {[
-              { action: 'feed', icon: Heart, label: 'Feed', color: 'game-btn-red' },
-              { action: 'pet', icon: HandHeart, label: 'Pet', color: 'game-btn-blue' },
-              { action: 'play', icon: Gamepad2, label: 'Play', color: 'game-btn-purple' },
-            ].map(({ action, icon: Icon, label, color }) => (
-              <button
-                key={action}
-                onClick={() => handlePetInteraction(action)}
-                disabled={!!petInteracting || interactionsRemaining <= 0}
-                className={`game-btn ${color} flex-1 flex items-center justify-center gap-1.5 !py-2 text-xs ${
-                  petInteracting === action ? 'opacity-60 cursor-wait' : ''
-                } ${interactionsRemaining <= 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
-              >
-                {petInteracting === action ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Icon size={14} />
-                )}
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        );
-      })()}
-
       {/* ── Streak Freeze Indicator ── */}
       {myStats?.streak_freeze_available && (
         <div className="game-panel p-3 flex items-center gap-3">
           <ShieldOff size={16} className="text-accent flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-cream text-xs font-medium">Streak Freeze Available</p>
-            <p className="text-muted text-[10px]">Your streak will be saved once if you miss a day this month</p>
+            <p className="text-cream text-xs font-medium">{t('kidDashboard.streakFreezeAvailable')}</p>
+            <p className="text-muted text-[10px]">{t('kidDashboard.streakFreezeHint')}</p>
           </div>
-        </div>
-      )}
-
-      {/* ── Spin Wheel Section ── */}
-      {spin_wheel_enabled && (
-        <div className="pt-2">
-          <SpinWheel
-            availability={spinAvailability}
-            onSpinComplete={() => {
-              fetchData();
-            }}
-          />
         </div>
       )}
     </div>

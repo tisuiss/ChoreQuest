@@ -1,22 +1,18 @@
-import random
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import (
-    User, UserRole, AvatarItem, UserAvatarItem, PointTransaction, PointType,
-    Notification, NotificationType, AvatarAcquiredVia, AvatarUnlockMethod,
-)
+from backend.models import User
 from backend.dependencies import get_current_user
 from backend.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/api/avatar", tags=["avatar"])
 
-# Avatar parts catalogue — matches the frontend SvgAvatar renderer
+# Avatar parts catalogue — matches the frontend SvgAvatar renderer.
+# Everything here is free and always available to every user.
 AVATAR_PARTS = {
     "head": [
         {"id": "round", "name": "Round"}, {"id": "oval", "name": "Oval"},
@@ -82,12 +78,6 @@ AVATAR_PARTS = {
         {"id": "stars", "name": "Stars"}, {"id": "camo", "name": "Camo"},
         {"id": "tie_dye", "name": "Tie Dye"}, {"id": "plaid", "name": "Plaid"},
     ],
-    "pet": [
-        {"id": "none", "name": "None"}, {"id": "cat", "name": "Cat"},
-        {"id": "dog", "name": "Dog"}, {"id": "dragon", "name": "Dragon"},
-        {"id": "owl", "name": "Owl"}, {"id": "bunny", "name": "Bunny"},
-        {"id": "phoenix", "name": "Phoenix"},
-    ],
 }
 
 # Curated colour palettes
@@ -131,11 +121,6 @@ AVATAR_COLORS = {
         "#a855f7", "#ec4899", "#c0c0c0", "#f9d71c",
         "#8b4513", "#1a1a2e", "#ecf0f1", "#06b6d4",
     ],
-    "pet_color": [
-        "#8b4513", "#4a3728", "#f39c12", "#ef4444",
-        "#10b981", "#a855f7", "#ecf0f1", "#1a1a2e",
-        "#c0c0c0", "#ff6b9d", "#06b6d4", "#f59e0b",
-    ],
 }
 
 
@@ -158,198 +143,9 @@ async def save_avatar(
     user: User = Depends(get_current_user),
 ):
     """Save avatar configuration for the current user."""
-    new_config = body.config
-
-    # Preserve server-managed pet XP data — the frontend may send stale values
-    existing = user.avatar_config or {}
-    if "pet_xp_map" in existing:
-        new_config["pet_xp_map"] = existing["pet_xp_map"]
-    if "pet_xp" in existing:
-        new_config.setdefault("pet_xp", existing["pet_xp"])
-
-    # Keep pet_xp in sync with the current pet from pet_xp_map
-    pet = new_config.get("pet")
-    xp_map = new_config.get("pet_xp_map", {})
-    if pet and pet != "none" and pet in xp_map:
-        new_config["pet_xp"] = xp_map[pet]
-    elif pet and pet != "none" and "pet_xp" in existing:
-        # Switching to a pet that has no map entry yet — legacy migration
-        new_config["pet_xp"] = xp_map.get(pet, 0)
-
-    user.avatar_config = new_config
+    user.avatar_config = body.config
     user.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(user)
     await ws_manager.broadcast({"type": "data_changed", "data": {"entity": "user"}}, exclude_user=user.id)
     return {"detail": "Avatar updated", "avatar_config": user.avatar_config}
-
-
-# ---------- GET /items ----------
-@router.get("/items")
-async def get_avatar_items(
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """Return all avatar items with the current user's unlock status.
-
-    Parents and admins get everything unlocked automatically — the
-    shop / unlock mechanic is a gamification layer for kids only.
-    """
-    items_result = await db.execute(select(AvatarItem))
-    all_items = items_result.scalars().all()
-
-    is_parent_or_admin = user.role in (UserRole.parent, UserRole.admin)
-
-    owned_result = await db.execute(
-        select(UserAvatarItem.avatar_item_id).where(UserAvatarItem.user_id == user.id)
-    )
-    owned_ids = set(owned_result.scalars().all())
-
-    result = []
-    for item in all_items:
-        # Parents/admins: all items unlocked
-        if is_parent_or_admin:
-            unlocked = True
-        else:
-            unlocked = item.is_default or item.id in owned_ids
-            # Auto-unlock milestone items (XP / streak) on read
-            if not unlocked and item.unlock_method == AvatarUnlockMethod.xp and item.unlock_value:
-                if user.total_points_earned >= item.unlock_value:
-                    db.add(UserAvatarItem(
-                        user_id=user.id, avatar_item_id=item.id,
-                        acquired_via=AvatarAcquiredVia.milestone,
-                    ))
-                    unlocked = True
-            if not unlocked and item.unlock_method == AvatarUnlockMethod.streak and item.unlock_value:
-                if user.longest_streak >= item.unlock_value:
-                    db.add(UserAvatarItem(
-                        user_id=user.id, avatar_item_id=item.id,
-                        acquired_via=AvatarAcquiredVia.milestone,
-                    ))
-                    unlocked = True
-
-        result.append({
-            "id": item.id,
-            "category": item.category,
-            "item_id": item.item_id,
-            "display_name": item.display_name,
-            "rarity": item.rarity.value,
-            "unlock_method": item.unlock_method.value,
-            "unlock_value": item.unlock_value,
-            "is_default": item.is_default,
-            "unlocked": unlocked,
-        })
-
-    await db.commit()
-    return result
-
-
-# ---------- POST /items/{id}/purchase ----------
-@router.post("/items/{item_id}/purchase")
-async def purchase_avatar_item(
-    item_id: int,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """Purchase an avatar item from the shop using XP points."""
-    item_result = await db.execute(select(AvatarItem).where(AvatarItem.id == item_id))
-    item = item_result.scalar_one_or_none()
-    if item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-
-    if item.is_default:
-        raise HTTPException(status_code=400, detail="This item is already free")
-
-    if item.unlock_method != AvatarUnlockMethod.shop:
-        raise HTTPException(status_code=400, detail="This item cannot be purchased")
-
-    # Check if already owned
-    owned = await db.execute(
-        select(UserAvatarItem).where(
-            UserAvatarItem.user_id == user.id,
-            UserAvatarItem.avatar_item_id == item.id,
-        )
-    )
-    if owned.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="You already own this item")
-
-    cost = item.unlock_value or 0
-    if user.points_balance < cost:
-        raise HTTPException(status_code=400, detail=f"Not enough XP. Need {cost}, have {user.points_balance}")
-
-    # Deduct points
-    user.points_balance -= cost
-    db.add(PointTransaction(
-        user_id=user.id,
-        amount=-cost,
-        type=PointType.reward_redeem,
-        description=f"Avatar item: {item.display_name}",
-        reference_id=item.id,
-    ))
-
-    # Grant item
-    db.add(UserAvatarItem(
-        user_id=user.id, avatar_item_id=item.id,
-        acquired_via=AvatarAcquiredVia.purchase,
-    ))
-
-    await db.commit()
-    await db.refresh(user)
-    await ws_manager.send_to_user(user.id, {
-        "type": "data_changed",
-        "data": {"entity": "avatar_items"},
-    })
-
-    return {
-        "detail": f"Purchased {item.display_name}!",
-        "points_balance": user.points_balance,
-    }
-
-
-# ---------- Quest drop helper (called from chores router) ----------
-DROP_RATES = {"easy": 0.05, "medium": 0.10, "hard": 0.15, "expert": 0.20}
-
-
-async def try_quest_drop(db: AsyncSession, user: User, difficulty: str):
-    """Roll for a random quest-drop avatar item. Returns the item dict or None."""
-    rate = DROP_RATES.get(difficulty, 0.10)
-    if random.random() > rate:
-        return None
-
-    # Find quest_drop items the user doesn't own
-    owned_result = await db.execute(
-        select(UserAvatarItem.avatar_item_id).where(UserAvatarItem.user_id == user.id)
-    )
-    owned_ids = set(owned_result.scalars().all())
-
-    droppable = await db.execute(
-        select(AvatarItem).where(
-            AvatarItem.unlock_method == AvatarUnlockMethod.quest_drop,
-        )
-    )
-    candidates = [i for i in droppable.scalars().all() if i.id not in owned_ids]
-    if not candidates:
-        return None
-
-    item = random.choice(candidates)
-
-    db.add(UserAvatarItem(
-        user_id=user.id, avatar_item_id=item.id,
-        acquired_via=AvatarAcquiredVia.drop,
-    ))
-    db.add(Notification(
-        user_id=user.id,
-        type=NotificationType.avatar_item_drop,
-        title="Quest Drop!",
-        message=f"You found a {item.rarity.value} item: {item.display_name}!",
-        reference_type="avatar_item",
-        reference_id=item.id,
-    ))
-
-    return {
-        "id": item.id,
-        "category": item.category,
-        "item_id": item.item_id,
-        "display_name": item.display_name,
-        "rarity": item.rarity.value,
-    }

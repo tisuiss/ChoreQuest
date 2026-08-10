@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/Modal';
 import Inventory from './Inventory';
 import Wishlist from './Wishlist';
-import AvatarShop from './AvatarShop';
 import {
   ShoppingBag,
   Plus,
@@ -16,7 +16,6 @@ import {
   Sparkles,
   Gift,
   Star,
-  Palette,
   Filter,
   Loader2,
 } from 'lucide-react';
@@ -31,13 +30,13 @@ const emptyForm = {
 };
 
 const TABS = [
-  { key: 'shop', label: 'Shop', icon: ShoppingBag },
-  { key: 'avatar', label: 'Avatar', icon: Palette },
-  { key: 'inventory', label: 'Inventory', icon: Package },
-  { key: 'wishlist', label: 'Wishlist', icon: Star },
+  { key: 'shop', labelKey: 'rewards.tabShop', icon: ShoppingBag },
+  { key: 'inventory', labelKey: 'rewards.tabInventory', icon: Package },
+  { key: 'wishlist', labelKey: 'rewards.tabWishlist', icon: Star },
 ];
 
 export default function Rewards() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, updateUser } = useAuth();
@@ -62,6 +61,7 @@ export default function Rewards() {
 
   const [redeemingId, setRedeemingId] = useState(null);
   const [redeemMessage, setRedeemMessage] = useState('');
+  const [redeemOk, setRedeemOk] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
 
   const userXp = user?.points_balance ?? 0;
@@ -72,9 +72,9 @@ export default function Rewards() {
       const data = await api('/api/rewards');
       setRewards(Array.isArray(data) ? data : data.rewards || data.items || []);
     } catch (err) {
-      setError(err.message || 'Failed to load rewards.');
+      setError(err.message || t('rewards.loadError'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchRewards().finally(() => setLoading(false));
@@ -86,14 +86,6 @@ export default function Rewards() {
     return () => window.removeEventListener('ws:message', handler);
   }, [fetchRewards]);
 
-  if (activeTab === 'avatar') {
-    return (
-      <div className="max-w-5xl mx-auto space-y-4">
-        <TabBar activeTab={activeTab} setTab={setTab} />
-        <AvatarShop />
-      </div>
-    );
-  }
   if (activeTab === 'inventory') {
     return (
       <div className="max-w-5xl mx-auto space-y-4">
@@ -144,11 +136,11 @@ export default function Rewards() {
 
   const handleSubmit = async () => {
     if (!form.title.trim()) {
-      setFormError('Name is required.');
+      setFormError(t('rewards.nameRequired'));
       return;
     }
     if (Number(form.point_cost) < 1) {
-      setFormError('Cost must be at least 1 XP.');
+      setFormError(t('rewards.costMin'));
       return;
     }
 
@@ -176,7 +168,7 @@ export default function Rewards() {
       closeModal();
       await fetchRewards();
     } catch (err) {
-      setFormError(err.message || 'Could not save the reward.');
+      setFormError(err.message || t('rewards.saveError'));
     } finally {
       setSubmitting(false);
     }
@@ -190,7 +182,7 @@ export default function Rewards() {
       setDeleteTarget(null);
       await fetchRewards();
     } catch (err) {
-      setError(err.message || 'Failed to remove the reward.');
+      setError(err.message || t('rewards.removeError'));
     } finally {
       setDeleting(false);
     }
@@ -203,10 +195,12 @@ export default function Rewards() {
       await api(`/api/rewards/${reward.id}/redeem`, { method: 'POST' });
       const cost = reward.point_cost ?? reward.cost ?? 0;
       updateUser({ points_balance: (user?.points_balance ?? 0) - cost });
-      setRedeemMessage(`Claimed "${reward.title}". Check your inventory.`);
+      setRedeemMessage(t('rewards.claimed', { title: reward.title }));
+      setRedeemOk(true);
       await fetchRewards();
     } catch (err) {
-      setRedeemMessage(err.message || 'Redemption failed.');
+      setRedeemMessage(err.message || t('rewards.redemptionFailed'));
+      setRedeemOk(false);
     } finally {
       setRedeemingId(null);
     }
@@ -234,7 +228,7 @@ export default function Rewards() {
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h1 className="text-cream text-lg font-semibold">
-          Rewards Shop
+          {t('rewards.title')}
         </h1>
         {isParent && (
           <button
@@ -242,7 +236,7 @@ export default function Rewards() {
             className="game-btn game-btn-blue flex items-center gap-1.5"
           >
             <Plus size={14} />
-            Add Reward
+            {t('rewards.addReward')}
           </button>
         )}
       </div>
@@ -252,8 +246,8 @@ export default function Rewards() {
           <div className="flex items-center gap-3">
             <Coins size={20} className="text-gold" />
             <div>
-              <p className="text-muted text-xs">Your balance</p>
-              <p className="text-gold text-base font-semibold">{userXp.toLocaleString()} XP</p>
+              <p className="text-muted text-xs">{t('rewards.yourBalance')}</p>
+              <p className="text-gold text-base font-semibold">{t('chores.starsCount', { count: userXp })}</p>
             </div>
           </div>
         </div>
@@ -279,7 +273,7 @@ export default function Rewards() {
                   : 'text-muted border-border hover:text-cream'
               }`}
             >
-              All
+              {t('common.all')}
             </button>
             {categories.map(cat => (
               <button
@@ -301,20 +295,18 @@ export default function Rewards() {
       {redeemMessage && (
         <div
           className={`p-2.5 rounded-md border text-sm ${
-            redeemMessage.toLowerCase().includes('fail') ||
-            redeemMessage.toLowerCase().includes('insufficient')
+            !redeemOk
               ? 'border-crimson/40 bg-crimson/10 text-crimson'
               : 'border-emerald/40 bg-emerald/10 text-emerald'
           }`}
         >
           {redeemMessage}{' '}
-          {!redeemMessage.toLowerCase().includes('fail') &&
-            !redeemMessage.toLowerCase().includes('insufficient') && (
+          {redeemOk && (
               <button
                 onClick={() => setTab('inventory')}
                 className="underline font-medium hover:opacity-80 transition-opacity"
               >
-                View Inventory
+                {t('rewards.viewInventory')}
               </button>
             )}
         </div>
@@ -325,24 +317,24 @@ export default function Rewards() {
         return filtered;
       })().length === 0 && rewards.length > 0 ? (
         <div className="game-panel p-8 text-center">
-          <p className="text-muted text-sm">No rewards in this category.</p>
+          <p className="text-muted text-sm">{t('rewards.noneInCategory')}</p>
           <button
             onClick={() => setCategoryFilter('all')}
             className="text-accent text-xs mt-2 hover:underline"
           >
-            Show all
+            {t('rewards.showAll')}
           </button>
         </div>
       ) : rewards.length === 0 ? (
         <div className="game-panel p-8 text-center">
-          <p className="text-muted text-sm">No rewards available yet.</p>
+          <p className="text-muted text-sm">{t('rewards.noneYet')}</p>
           {isParent && (
             <button
               onClick={openCreateModal}
               className="game-btn game-btn-blue mt-3 inline-flex items-center gap-1.5"
             >
               <Plus size={14} />
-              Add first reward
+              {t('rewards.addFirst')}
             </button>
           )}
         </div>
@@ -377,7 +369,7 @@ export default function Rewards() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-1">
                     <Coins size={14} className="text-gold" />
-                    <span className="text-gold text-sm font-medium">{cost} XP</span>
+                    <span className="text-gold text-sm font-medium">{t('chores.starsCount', { count: cost })}</span>
                   </div>
                   {reward.category && (
                     <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-border bg-surface-raised text-muted">
@@ -390,9 +382,9 @@ export default function Rewards() {
                   <div className="flex items-center gap-1.5">
                     <Package size={12} className={outOfStock ? 'text-crimson' : 'text-muted'} />
                     {outOfStock ? (
-                      <span className="text-crimson text-xs font-medium">Sold Out</span>
+                      <span className="text-crimson text-xs font-medium">{t('rewards.soldOut')}</span>
                     ) : (
-                      <span className="text-muted text-xs">{reward.stock} left</span>
+                      <span className="text-muted text-xs">{t('rewards.stockLeft', { count: reward.stock })}</span>
                     )}
                   </div>
                 )}
@@ -408,12 +400,12 @@ export default function Rewards() {
                     >
                       <Coins size={12} />
                       {redeemingId === reward.id
-                        ? 'Claiming...'
+                        ? t('rewards.claiming')
                         : !affordable
-                        ? 'Not Enough XP'
+                        ? t('rewards.notEnough')
                         : outOfStock
-                        ? 'Sold Out'
-                        : 'Redeem'}
+                        ? t('rewards.soldOut')
+                        : t('rewards.redeem')}
                     </button>
                   )}
                   {isParent && (
@@ -421,14 +413,14 @@ export default function Rewards() {
                       <button
                         onClick={() => openEditModal(reward)}
                         className="p-1.5 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-accent"
-                        aria-label="Edit reward"
+                        aria-label={t('rewards.editReward')}
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => setDeleteTarget(reward)}
                         className="p-1.5 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-crimson"
-                        aria-label="Delete reward"
+                        aria-label={t('rewards.deleteReward')}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -444,11 +436,11 @@ export default function Rewards() {
       <Modal
         isOpen={showModal}
         onClose={closeModal}
-        title={editingReward ? 'Edit Reward' : 'New Reward'}
+        title={editingReward ? t('rewards.editReward') : t('rewards.newReward')}
         actions={[
-          { label: 'Cancel', onClick: closeModal, className: 'game-btn game-btn-red' },
+          { label: t('common.cancel'), onClick: closeModal, className: 'game-btn game-btn-red' },
           {
-            label: submitting ? 'Saving...' : editingReward ? 'Update' : 'Add Reward',
+            label: submitting ? t('common.saving') : editingReward ? t('rewards.update') : t('rewards.addReward'),
             onClick: handleSubmit,
             className: 'game-btn game-btn-gold',
             disabled: submitting,
@@ -460,29 +452,29 @@ export default function Rewards() {
             <div className="p-2 rounded-md border border-crimson/40 bg-crimson/10 text-crimson text-sm">{formError}</div>
           )}
           <div>
-            <label className="block text-cream text-sm font-medium mb-1">Name</label>
-            <input type="text" value={form.title} onChange={(e) => updateForm('title', e.target.value)} placeholder="Extra Screen Time" className="field-input" />
+            <label className="block text-cream text-sm font-medium mb-1">{t('rewards.name')}</label>
+            <input type="text" value={form.title} onChange={(e) => updateForm('title', e.target.value)} placeholder={t('rewards.namePlaceholder')} className="field-input" />
           </div>
           <div>
-            <label className="block text-cream text-sm font-medium mb-1">Description</label>
-            <textarea value={form.description} onChange={(e) => updateForm('description', e.target.value)} placeholder="What does this reward grant?" rows={3} className="field-input resize-none" />
+            <label className="block text-cream text-sm font-medium mb-1">{t('questCreate.description')}</label>
+            <textarea value={form.description} onChange={(e) => updateForm('description', e.target.value)} placeholder={t('rewards.descriptionPlaceholder')} rows={3} className="field-input resize-none" />
           </div>
           <div>
-            <label className="block text-cream text-sm font-medium mb-1">Cost (XP)</label>
+            <label className="block text-cream text-sm font-medium mb-1">{t('rewards.cost')}</label>
             <input type="number" min={1} value={form.point_cost} onChange={(e) => updateForm('point_cost', e.target.value)} className="field-input" />
           </div>
           <div>
-            <label className="block text-cream text-sm font-medium mb-1">Icon (Emoji)</label>
-            <input type="text" value={form.icon} onChange={(e) => updateForm('icon', e.target.value)} placeholder="e.g. trophy, star, gift" className="field-input" />
+            <label className="block text-cream text-sm font-medium mb-1">{t('rewards.iconEmoji')}</label>
+            <input type="text" value={form.icon} onChange={(e) => updateForm('icon', e.target.value)} placeholder={t('rewards.iconPlaceholder')} className="field-input" />
           </div>
           <div>
-            <label className="block text-cream text-sm font-medium mb-1">Category (Optional)</label>
-            <input type="text" value={form.category} onChange={(e) => updateForm('category', e.target.value)} placeholder="e.g. Treats, Experiences" className="field-input" />
+            <label className="block text-cream text-sm font-medium mb-1">{t('rewards.categoryOptional')}</label>
+            <input type="text" value={form.category} onChange={(e) => updateForm('category', e.target.value)} placeholder={t('rewards.categoryPlaceholder')} className="field-input" />
           </div>
           <div>
-            <label className="block text-cream text-sm font-medium mb-1">Stock (Optional)</label>
-            <input type="number" min={0} value={form.stock} onChange={(e) => updateForm('stock', e.target.value)} placeholder="Leave empty for unlimited" className="field-input" />
-            <p className="text-muted text-xs mt-1">Leave empty for unlimited supply.</p>
+            <label className="block text-cream text-sm font-medium mb-1">{t('rewards.stockOptional')}</label>
+            <input type="number" min={0} value={form.stock} onChange={(e) => updateForm('stock', e.target.value)} placeholder={t('rewards.stockPlaceholder')} className="field-input" />
+            <p className="text-muted text-xs mt-1">{t('rewards.stockHint')}</p>
           </div>
         </div>
       </Modal>
@@ -490,14 +482,14 @@ export default function Rewards() {
       <Modal
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title="Remove Reward"
+        title={t('rewards.removeReward')}
         actions={[
-          { label: 'Cancel', onClick: () => setDeleteTarget(null), className: 'game-btn game-btn-blue' },
-          { label: deleting ? 'Removing...' : 'Remove', onClick: handleDelete, className: 'game-btn game-btn-red', disabled: deleting },
+          { label: t('common.cancel'), onClick: () => setDeleteTarget(null), className: 'game-btn game-btn-blue' },
+          { label: deleting ? t('rewards.removing') : t('common.delete'), onClick: handleDelete, className: 'game-btn game-btn-red', disabled: deleting },
         ]}
       >
         <p className="text-muted">
-          Remove <span className="text-gold font-medium">"{deleteTarget?.title}"</span> from the shop?
+          {t('rewards.removeConfirm', { title: deleteTarget?.title })}
         </p>
       </Modal>
     </div>
@@ -505,9 +497,10 @@ export default function Rewards() {
 }
 
 function TabBar({ activeTab, setTab }) {
+  const { t } = useTranslation();
   return (
     <div className="flex gap-0.5 border-b border-border">
-      {TABS.map(({ key, label, icon: Icon }) => (
+      {TABS.map(({ key, labelKey, icon: Icon }) => (
         <button
           key={key}
           onClick={() => setTab(key)}
@@ -518,7 +511,7 @@ function TabBar({ activeTab, setTab }) {
           }`}
         >
           <Icon size={14} className="shrink-0" />
-          <span>{label}</span>
+          <span>{t(labelKey)}</span>
         </button>
       ))}
     </div>

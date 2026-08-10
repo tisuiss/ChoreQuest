@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
@@ -8,6 +9,7 @@ import { Trophy, Loader2, Flame, Swords } from 'lucide-react';
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 export default function Leaderboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { leaderboard_enabled } = useSettings();
   const [entries, setEntries] = useState([]);
@@ -19,9 +21,9 @@ export default function Leaderboard() {
       const data = await api('/api/stats/leaderboard');
       setEntries(data.leaderboard || data || []);
     } catch (err) {
-      setError(err.message || 'Failed to load leaderboard');
+      setError(err.message || t('leaderboard.loadError'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!leaderboard_enabled) {
@@ -42,14 +44,14 @@ export default function Leaderboard() {
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-cream text-lg font-semibold mb-5">
-        Leaderboard
+        {t('leaderboard.title')}
       </h1>
 
       {!leaderboard_enabled && (
         <div className="game-panel p-8 text-center">
-          <p className="text-cream text-sm font-medium">Leaderboard Disabled</p>
+          <p className="text-cream text-sm font-medium">{t('leaderboard.disabled')}</p>
           <p className="text-muted text-sm mt-1">
-            The leaderboard has been turned off in family settings.
+            {t('leaderboard.disabledHint')}
           </p>
         </div>
       )}
@@ -69,7 +71,7 @@ export default function Leaderboard() {
       {leaderboard_enabled && !loading && !error && entries.length === 0 && (
         <div className="game-panel p-8 text-center">
           <p className="text-muted text-sm">
-            No XP earned this week yet.
+            {t('leaderboard.noneYet')}
           </p>
         </div>
       )}
@@ -119,17 +121,17 @@ export default function Leaderboard() {
                   <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
                     <span className="flex items-center gap-1">
                       <Swords size={11} className="text-accent" />
-                      {questsDone} quest{questsDone !== 1 ? 's' : ''}
+                      {t('leaderboard.quests', { count: questsDone })}
                     </span>
                     {streak > 0 && (
                       <span className="flex items-center gap-1">
                         <Flame size={11} className="text-orange-400" />
-                        {streak}d
+                        {t('leaderboard.streakDays', { count: streak })}
                       </span>
                     )}
                     {isTop3 && (
                       <span className="text-muted/60">
-                        {totalXp} total
+                        {t('leaderboard.totalStars', { count: totalXp })}
                       </span>
                     )}
                   </div>
@@ -141,7 +143,7 @@ export default function Leaderboard() {
                       style={{ width: `${pct}%` }}
                     />
                     <span className="absolute inset-0 flex items-center justify-center text-navy font-medium text-[10px] z-10">
-                      {xp} XP this week
+                      {t('leaderboard.starsThisWeek', { count: xp })}
                     </span>
                   </div>
                 </div>

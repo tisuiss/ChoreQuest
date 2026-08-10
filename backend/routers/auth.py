@@ -28,58 +28,16 @@ from backend.auth import (
     create_refresh_token,
     decode_refresh_token,
     hash_token,
+    issue_tokens,
+    set_refresh_cookie,
+    clear_refresh_cookie,
+    REFRESH_COOKIE_NAME,
 )
 from backend.dependencies import get_current_user
 from backend.rate_limit import rate_limiter
 from backend.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-REFRESH_COOKIE_NAME = "refresh_token"
-
-
-def _set_refresh_cookie(response: Response, token: str):
-    response.set_cookie(
-        key=REFRESH_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        samesite="lax",
-        path="/api/auth",
-        secure=settings.COOKIE_SECURE,
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-    )
-
-
-def _clear_refresh_cookie(response: Response):
-    response.delete_cookie(
-        key=REFRESH_COOKIE_NAME,
-        path="/api/auth",
-        httponly=True,
-        samesite="lax",
-        secure=settings.COOKIE_SECURE,
-    )
-
-
-async def _issue_tokens(
-    user: User, db: AsyncSession, response: Response
-) -> AuthResponse:
-    access_token = create_access_token(user.id, user.role.value)
-    raw_refresh, expires_at = create_refresh_token(user.id)
-
-    stored = RefreshToken(
-        user_id=user.id,
-        token_hash=hash_token(raw_refresh),
-        expires_at=expires_at,
-    )
-    db.add(stored)
-    await db.commit()
-
-    _set_refresh_cookie(response, raw_refresh)
-
-    return AuthResponse(
-        access_token=access_token,
-        user=UserResponse.model_validate(user),
-    )
 
 
 # ---------- POST /register ----------
@@ -154,7 +112,7 @@ async def register(
     if is_first_user:
         await seed_database(db)
 
-    return await _issue_tokens(user, db, response)
+    return await issue_tokens(user, db, response)
 
 
 # ---------- POST /login ----------
@@ -186,7 +144,7 @@ async def login(
     db.add(audit)
     await db.commit()
 
-    return await _issue_tokens(user, db, response)
+    return await issue_tokens(user, db, response)
 
 
 # ---------- POST /pin-login ----------
@@ -218,7 +176,7 @@ async def pin_login(
     db.add(audit)
     await db.commit()
 
-    return await _issue_tokens(user, db, response)
+    return await issue_tokens(user, db, response)
 
 
 # ---------- POST /refresh ----------
@@ -249,7 +207,7 @@ async def refresh(
 
     if stored.is_revoked:
         resp = JSONResponse({"detail": "Refresh token already used"}, status_code=401)
-        _clear_refresh_cookie(resp)
+        clear_refresh_cookie(resp)
         return resp
 
     # Load user
@@ -259,7 +217,7 @@ async def refresh(
     user = user_result.scalar_one_or_none()
     if user is None:
         resp = JSONResponse({"detail": "User not found or inactive"}, status_code=401)
-        _clear_refresh_cookie(resp)
+        clear_refresh_cookie(resp)
         return resp
 
     # Rotate: revoke old token, issue a fresh pair
@@ -275,7 +233,7 @@ async def refresh(
     db.add(new_stored)
     await db.commit()
 
-    _set_refresh_cookie(response, new_raw_refresh)
+    set_refresh_cookie(response, new_raw_refresh)
 
     return AuthResponse(
         access_token=access_token,
@@ -301,7 +259,7 @@ async def logout(
             stored.is_revoked = True
             await db.commit()
 
-    _clear_refresh_cookie(response)
+    clear_refresh_cookie(response)
     return {"detail": "Logged out"}
 
 
@@ -322,6 +280,8 @@ async def update_me(
         user.display_name = body.display_name
     if body.avatar_config is not None:
         user.avatar_config = body.avatar_config
+    if body.language is not None:
+        user.language = body.language
 
     user.updated_at = datetime.now(timezone.utc)
     await db.commit()
@@ -374,6 +334,13 @@ async def set_pin(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    expected_length = 4 if user.role == UserRole.kid else 6
+    if len(body.pin) != expected_length:
+        raise HTTPException(
+            status_code=400,
+            detail=f"PIN must be exactly {expected_length} digits",
+        )
+
     user.pin_hash = hash_pin(body.pin)
     user.updated_at = datetime.now(timezone.utc)
     await db.commit()

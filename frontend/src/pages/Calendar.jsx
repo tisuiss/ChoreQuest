@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -29,7 +30,7 @@ function addDays(dateStr, n) {
   return d.toISOString().slice(0, 10);
 }
 
-const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const SHORT_DAY_KEYS = ['calendar.days.sun', 'calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat'];
 
 function statusStyle(assignment, dayStr) {
   const today = new Date().toISOString().slice(0, 10);
@@ -73,6 +74,7 @@ function statusStyle(assignment, dayStr) {
 }
 
 export default function Calendar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { chore_trading_enabled } = useSettings();
@@ -131,11 +133,11 @@ export default function Calendar() {
       }
       setAssignments(byDay);
     } catch (err) {
-      setError(err.message || 'Failed to load calendar');
+      setError(err.message || t('calendar.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [startDate]);
+  }, [startDate, t]);
 
   useEffect(() => {
     fetchCalendar();
@@ -168,7 +170,7 @@ export default function Calendar() {
 
   const submitTrade = async () => {
     if (!selectedKid) {
-      setTradeError('Select a hero to trade with');
+      setTradeError(t('calendar.selectHero'));
       return;
     }
     setTradeSubmitting(true);
@@ -184,7 +186,7 @@ export default function Calendar() {
       setTradeModal(false);
       fetchCalendar();
     } catch (err) {
-      setTradeError(err.message || 'Trade failed');
+      setTradeError(err.message || t('calendar.tradeFailed'));
     } finally {
       setTradeSubmitting(false);
     }
@@ -198,7 +200,7 @@ export default function Calendar() {
       await api(`/api/calendar/assignments/${assignmentId}${qs}`, { method: 'DELETE' });
       fetchCalendar();
     } catch (err) {
-      setError(err.message || 'Failed to remove quest');
+      setError(err.message || t('calendar.removeError'));
     } finally {
       setRemovingId(null);
     }
@@ -209,10 +211,10 @@ export default function Calendar() {
     setCleanMsg('');
     try {
       const data = await api('/api/chores/cleanup-all-stale', { method: 'POST' });
-      setCleanMsg(data.message || 'Cleanup complete');
+      setCleanMsg(data.message || t('calendar.cleanupComplete'));
       fetchCalendar();
     } catch (err) {
-      setError(err.message || 'Cleanup failed');
+      setError(err.message || t('calendar.cleanupFailed'));
     } finally {
       setCleaning(false);
     }
@@ -231,7 +233,7 @@ export default function Calendar() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-cream text-lg font-semibold">
-          Calendar
+          {t('calendar.title')}
         </h1>
 
         {/* Week navigation */}
@@ -240,7 +242,7 @@ export default function Calendar() {
             <button
               onClick={prevWeek}
               className="p-2 rounded hover:bg-surface-raised transition-colors text-muted hover:text-cream"
-              aria-label="Previous week"
+              aria-label={t('calendar.previousWeek')}
             >
               <ChevronLeft size={20} />
             </button>
@@ -252,7 +254,7 @@ export default function Calendar() {
             <button
               onClick={nextWeek}
               className="p-2 rounded hover:bg-surface-raised transition-colors text-muted hover:text-cream"
-              aria-label="Next 7 days"
+              aria-label={t('calendar.next7Days')}
             >
               <ChevronRight size={20} />
             </button>
@@ -260,7 +262,7 @@ export default function Calendar() {
 
           {!isAtToday && (
             <button onClick={goToday} className="game-btn game-btn-blue">
-              Today
+              {t('common.today')}
             </button>
           )}
 
@@ -269,14 +271,14 @@ export default function Calendar() {
               onClick={cleanupStale}
               disabled={cleaning}
               className="game-btn game-btn-red flex items-center gap-1"
-              title="Remove all overdue pending quests and reset exclusions"
+              title={t('calendar.cleanUpHint')}
             >
               {cleaning ? (
                 <Loader2 size={14} className="animate-spin" />
               ) : (
                 <Trash2 size={14} />
               )}
-              Clean Up
+              {t('calendar.cleanUp')}
             </button>
           )}
         </div>
@@ -309,7 +311,7 @@ export default function Calendar() {
           {Array.from({ length: 7 }, (_, i) => {
             const dayStr = addDays(startDate, i);
             const d = new Date(dayStr + 'T00:00:00');
-            const label = SHORT_DAYS[d.getDay()];
+            const label = t(SHORT_DAY_KEYS[d.getDay()]);
             const isToday = dayStr === today;
             const allDayAssignments = assignments[dayStr] || [];
             const dayAssignments = isKid
@@ -338,7 +340,7 @@ export default function Calendar() {
                 <div className="space-y-2 mt-2 min-h-[80px]">
                   {dayAssignments.length === 0 && (
                     <p className="text-muted text-xs text-center py-4">
-                      No quests
+                      {t('calendar.noQuests')}
                     </p>
                   )}
                   {dayAssignments.map((a) => {
@@ -359,7 +361,7 @@ export default function Calendar() {
                                 style.textClass || 'text-cream'
                               }`}
                             >
-                              {themedTitle(a.chore?.title || a.chore_title || 'Quest', colorTheme)}
+                              {themedTitle(a.chore?.title || a.chore_title || t('parentDashboard.chore'), colorTheme)}
                             </p>
                             {/* Show assigned kid for parents */}
                             {!isKid && (a.user?.display_name || a.assigned_to_name) && (
@@ -380,7 +382,7 @@ export default function Calendar() {
                             className="mt-1.5 flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80 transition-colors"
                           >
                             <ArrowRightLeft size={12} />
-                            Trade
+                            {t('calendar.trade')}
                           </button>
                         )}
 
@@ -404,7 +406,7 @@ export default function Calendar() {
                             ) : (
                               <X size={12} />
                             )}
-                            Remove
+                            {t('common.delete')}
                           </button>
                         )}
                       </div>
@@ -423,7 +425,7 @@ export default function Calendar() {
         Object.values(assignments).every((arr) => arr.length === 0) && (
           <div className="text-center py-16">
             <p className="text-muted text-sm">
-              No tasks scheduled this week.
+              {t('calendar.noneScheduled')}
             </p>
           </div>
         )}
@@ -432,15 +434,15 @@ export default function Calendar() {
       <Modal
         isOpen={tradeModal}
         onClose={() => setTradeModal(false)}
-        title="Propose a Trade"
+        title={t('calendar.proposeTrade')}
         actions={[
           {
-            label: 'Cancel',
+            label: t('common.cancel'),
             onClick: () => setTradeModal(false),
             className: 'game-btn game-btn-red',
           },
           {
-            label: tradeSubmitting ? 'Sending...' : 'Send Trade',
+            label: tradeSubmitting ? t('calendar.sending') : t('calendar.sendTrade'),
             onClick: submitTrade,
             className: 'game-btn game-btn-blue',
             disabled: tradeSubmitting || !selectedKid,
@@ -449,11 +451,11 @@ export default function Calendar() {
       >
         <div className="space-y-4">
           <p className="text-muted text-sm">
-            Trade{' '}
+            {t('calendar.tradeIntro')}{' '}
             <span className="text-cream font-medium">
-              {themedTitle(tradeAssignment?.chore?.title || tradeAssignment?.chore_title || 'Quest', colorTheme)}
+              {themedTitle(tradeAssignment?.chore?.title || tradeAssignment?.chore_title || t('parentDashboard.chore'), colorTheme)}
             </span>{' '}
-            with another member:
+            {t('calendar.tradeIntroEnd')}
           </p>
 
           {tradeError && (
@@ -464,7 +466,7 @@ export default function Calendar() {
 
           {familyKids.length === 0 ? (
             <p className="text-muted text-sm">
-              No other members found in your family.
+              {t('calendar.noOtherMembers')}
             </p>
           ) : (
             <div className="space-y-2">
@@ -492,20 +494,20 @@ export default function Calendar() {
       <Modal
         isOpen={!!removeTarget}
         onClose={() => setRemoveTarget(null)}
-        title="Remove Recurring Quest"
+        title={t('calendar.removeRecurring')}
         actions={[
           {
-            label: 'Cancel',
+            label: t('common.cancel'),
             onClick: () => setRemoveTarget(null),
             className: 'game-btn game-btn-blue',
           },
           {
-            label: 'Just This One',
+            label: t('calendar.justThisOne'),
             onClick: () => removeAssignment(removeTarget?.id, false),
             className: 'game-btn game-btn-red',
           },
           {
-            label: 'All Future',
+            label: t('calendar.allFuture'),
             onClick: () => removeAssignment(removeTarget?.id, true),
             className: 'game-btn game-btn-red',
           },
@@ -513,10 +515,11 @@ export default function Calendar() {
       >
         <p className="text-muted text-sm">
           <span className="text-cream font-bold">
-            {themedTitle(removeTarget?.chore?.title || 'Quest', colorTheme)}
+            {themedTitle(removeTarget?.chore?.title || t('parentDashboard.chore'), colorTheme)}
           </span>{' '}
-          is recurring{removeTarget?.user?.display_name ? ` for ${removeTarget.user.display_name}` : ''}.
-          Remove just this instance, or all future pending instances?
+          {removeTarget?.user?.display_name
+            ? t('calendar.recurringFor', { name: removeTarget.user.display_name })
+            : t('calendar.recurring')}
         </p>
       </Modal>
     </div>

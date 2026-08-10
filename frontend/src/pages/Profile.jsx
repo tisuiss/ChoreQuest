@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme, COLOR_THEMES } from '../hooks/useTheme';
+import { useLanguage, SUPPORTED_LANGUAGES } from '../hooks/useLanguage';
 import AvatarDisplay from '../components/AvatarDisplay';
 import { useNavigate } from 'react-router-dom';
 import ChoreIcon from '../components/ChoreIcon';
-import RankBadge from '../components/RankBadge';
-import PetLevelBadge from '../components/PetLevelBadge';
 import ProgressCharts from '../components/ProgressCharts';
 import {
   UserCircle,
@@ -31,10 +31,23 @@ import {
   BarChart3,
   Download,
   Shield,
+  Globe,
 } from 'lucide-react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
+function timeAgo(dateStr, t) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return t('layout.justNow');
+  if (mins < 60) return t('layout.minutesAgo', { count: mins });
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return t('layout.hoursAgo', { count: hrs });
+  return t('layout.daysAgo', { count: Math.floor(hrs / 24) });
+}
+
 function PushNotificationToggle() {
+  const { t } = useTranslation();
   const { supported, supportLevel, permission, subscribed, loading, toggle } = usePushNotifications();
   const [toggling, setToggling] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -53,7 +66,7 @@ function PushNotificationToggle() {
       const data = await api('/api/push/test', { method: 'POST' });
       setTestResult(data.detail);
     } catch (err) {
-      setTestResult(err.message || 'Test failed');
+      setTestResult(err.message || t('profile.push.testFailed'));
     } finally {
       setTesting(false);
     }
@@ -68,35 +81,35 @@ function PushNotificationToggle() {
     <div className="game-panel p-4">
       <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
         {subscribed ? <Bell size={14} className="text-accent" /> : <BellOff size={14} className="text-muted" />}
-        Push Notifications
+        {t('profile.push.title')}
       </h2>
       {needsHttps ? (
         <div>
-          <p className="text-cream/80 text-sm">Get notified about quests, rewards & achievements</p>
-          <p className="text-amber/80 text-xs mt-2">Push notifications require HTTPS.</p>
+          <p className="text-cream/80 text-sm">{t('profile.push.subtitle')}</p>
+          <p className="text-amber/80 text-xs mt-2">{t('profile.push.needsHttps')}</p>
         </div>
       ) : needsInstall ? (
         <div>
-          <p className="text-cream/80 text-sm">Get notified about quests, rewards & achievements</p>
-          <p className="text-amber/80 text-xs mt-2">Add ChoreQuest to your Home Screen to enable notifications.</p>
+          <p className="text-cream/80 text-sm">{t('profile.push.subtitle')}</p>
+          <p className="text-amber/80 text-xs mt-2">{t('profile.push.needsInstall')}</p>
         </div>
       ) : unsupported ? (
         <div>
-          <p className="text-cream/80 text-sm">Get notified about quests, rewards & achievements</p>
-          <p className="text-muted text-xs mt-2">Your browser does not support push notifications.</p>
+          <p className="text-cream/80 text-sm">{t('profile.push.subtitle')}</p>
+          <p className="text-muted text-xs mt-2">{t('profile.push.unsupported')}</p>
         </div>
       ) : (
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1 mr-3">
             <p className="text-cream/80 text-sm">
               {denied
-                ? 'Notifications blocked by browser'
+                ? t('profile.push.blocked')
                 : subscribed
-                  ? 'Alerts enabled'
-                  : 'Get notified about quests & rewards'}
+                  ? t('profile.push.enabled')
+                  : t('profile.push.subtitleShort')}
             </p>
             {denied && (
-              <p className="text-muted text-xs mt-1">Check browser settings to allow notifications.</p>
+              <p className="text-muted text-xs mt-1">{t('profile.push.blockedHint')}</p>
             )}
           </div>
           <button
@@ -125,7 +138,7 @@ function PushNotificationToggle() {
             disabled={testing}
             className="text-xs text-accent/70 hover:text-accent underline"
           >
-            {testing ? 'Sending...' : 'Send test notification'}
+            {testing ? t('profile.push.sending') : t('profile.push.sendTest')}
           </button>
           {testResult && (
             <span className="text-xs text-muted">{testResult}</span>
@@ -137,9 +150,11 @@ function PushNotificationToggle() {
 }
 
 export default function Profile() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const { theme, mode, setMode, colorTheme, setColorTheme } = useTheme();
+  const { language, setLanguage } = useLanguage();
 
   const [displayName, setDisplayName] = useState(user?.display_name || '');
   const [nameSaving, setNameSaving] = useState(false);
@@ -154,15 +169,22 @@ export default function Profile() {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
 
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
   const [pin, setPin] = useState('');
   const [pinSaving, setPinSaving] = useState(false);
   const [pinMsg, setPinMsg] = useState('');
+  const [pinMsgOk, setPinMsgOk] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState('');
+  const [pwMsgOk, setPwMsgOk] = useState(false);
+  const [nameMsgOk, setNameMsgOk] = useState(false);
 
   useEffect(() => {
     setDisplayName(user?.display_name || '');
@@ -198,6 +220,21 @@ export default function Profile() {
     })();
   }, [showAchievements, achievements.length]);
 
+  useEffect(() => {
+    if (!showHistory || !user?.id || history.length > 0) return;
+    (async () => {
+      setHistoryLoading(true);
+      try {
+        const data = await api(`/api/points/${user.id}`);
+        setHistory(Array.isArray(data?.transactions) ? data.transactions : []);
+      } catch {
+        setHistory([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    })();
+  }, [showHistory, user?.id, history.length]);
+
   const saveDisplayName = async () => {
     if (!displayName.trim()) return;
     setNameSaving(true);
@@ -208,28 +245,35 @@ export default function Profile() {
         body: { display_name: displayName.trim() },
       });
       updateUser({ display_name: data.display_name || displayName.trim() });
-      setNameMsg('Name updated!');
+      setNameMsg(t('profile.nameUpdated'));
+      setNameMsgOk(true);
     } catch (err) {
-      setNameMsg(err.message || 'Failed to update name');
+      setNameMsg(err.message || t('profile.nameUpdateError'));
+      setNameMsgOk(false);
     } finally {
       setNameSaving(false);
       setTimeout(() => setNameMsg(''), 3000);
     }
   };
 
+  const pinLength = isKid ? 4 : 6;
+
   const savePin = async () => {
-    if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
-      setPinMsg('PIN must be exactly 6 digits');
+    if (pin.length !== pinLength || !new RegExp(`^\\d{${pinLength}}$`).test(pin)) {
+      setPinMsg(t('profile.pinMustBeDigits', { count: pinLength }));
+      setPinMsgOk(false);
       return;
     }
     setPinSaving(true);
     setPinMsg('');
     try {
       await api('/api/auth/set-pin', { method: 'POST', body: { pin } });
-      setPinMsg('PIN set successfully!');
+      setPinMsg(t('profile.pinSet'));
+      setPinMsgOk(true);
       setPin('');
     } catch (err) {
-      setPinMsg(err.message || 'Failed to set PIN');
+      setPinMsg(err.message || t('profile.pinSetError'));
+      setPinMsgOk(false);
     } finally {
       setPinSaving(false);
       setTimeout(() => setPinMsg(''), 3000);
@@ -238,15 +282,18 @@ export default function Profile() {
 
   const changePassword = async () => {
     if (!currentPassword || !newPassword) {
-      setPwMsg('Fill in all password fields');
+      setPwMsg(t('profile.fillAllPasswordFields'));
+      setPwMsgOk(false);
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPwMsg('New passwords do not match');
+      setPwMsg(t('profile.passwordsDontMatch'));
+      setPwMsgOk(false);
       return;
     }
     if (newPassword.length < 6) {
-      setPwMsg('New password must be at least 6 characters');
+      setPwMsg(t('profile.passwordTooShort'));
+      setPwMsgOk(false);
       return;
     }
     setPwSaving(true);
@@ -259,22 +306,30 @@ export default function Profile() {
           new_password: newPassword,
         },
       });
-      setPwMsg('Password changed!');
+      setPwMsg(t('profile.passwordChanged'));
+      setPwMsgOk(true);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      setPwMsg(err.message || 'Failed to change password');
+      setPwMsg(err.message || t('profile.changePasswordError'));
+      setPwMsgOk(false);
     } finally {
       setPwSaving(false);
       setTimeout(() => setPwMsg(''), 3000);
     }
   };
 
+  const tierLabels = {
+    bronze: t('common.tiers.bronze'),
+    silver: t('common.tiers.silver'),
+    gold: t('common.tiers.gold'),
+  };
+
   return (
     <div className="max-w-xl mx-auto space-y-4">
       <h1 className="text-cream text-lg font-semibold mb-1">
-        Profile
+        {t('profile.title')}
       </h1>
 
       {/* Avatar + Name */}
@@ -282,7 +337,7 @@ export default function Profile() {
         <button
           onClick={() => navigate('/avatar')}
           className="relative"
-          aria-label="Customise avatar"
+          aria-label={t('profile.customiseAvatar')}
         >
           <AvatarDisplay
             config={user?.avatar_config}
@@ -295,23 +350,17 @@ export default function Profile() {
           </div>
         </button>
 
-        {/* Role + Rank */}
+        {/* Role */}
         <div className="flex items-center gap-2 flex-wrap justify-center">
           <span className="inline-block px-2 py-0.5 rounded-md border text-[10px] font-medium capitalize border-border text-muted">
-            {user?.role}
+            {t(`common.roles.${user?.role}`)}
           </span>
-          {stats?.rank && <RankBadge rank={stats.rank} size="sm" />}
         </div>
-        {stats?.pet && (
-          <div className="mt-0.5">
-            <PetLevelBadge pet={stats.pet} />
-          </div>
-        )}
 
         {/* Editable display name */}
         <div className="w-full max-w-xs">
           <label className="block text-cream text-sm font-medium mb-1 text-center">
-            Display Name
+            {t('profile.displayName')}
           </label>
           <div className="flex gap-2">
             <input
@@ -319,7 +368,7 @@ export default function Profile() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               maxLength={10}
-              placeholder="Your display name"
+              placeholder={t('profile.displayNamePlaceholder')}
               className="field-input"
             />
             <button
@@ -331,7 +380,7 @@ export default function Profile() {
             </button>
           </div>
           {nameMsg && (
-            <p className={`text-xs mt-1 text-center ${nameMsg.includes('!') ? 'text-emerald' : 'text-crimson'}`}>
+            <p className={`text-xs mt-1 text-center ${nameMsgOk ? 'text-emerald' : 'text-crimson'}`}>
               {nameMsg}
             </p>
           )}
@@ -341,7 +390,7 @@ export default function Profile() {
       {/* Stats (kids only) */}
       {isKid && (
         <div className="game-panel p-4">
-          <h2 className="text-cream text-sm font-semibold mb-3">Stats</h2>
+          <h2 className="text-cream text-sm font-semibold mb-3">{t('profile.stats')}</h2>
           {statsLoading ? (
             <div className="flex justify-center py-4">
               <Loader2 size={18} className="text-accent animate-spin" />
@@ -354,21 +403,21 @@ export default function Profile() {
                   <p className="text-gold text-sm font-medium">
                     {stats.points_balance ?? stats.xp_balance ?? 0}
                   </p>
-                  <p className="text-muted text-xs">XP Balance</p>
+                  <p className="text-muted text-xs">{t('profile.starsBalance')}</p>
                 </div>
                 <div className="text-center">
                   <Award size={16} className="text-emerald mx-auto mb-1" />
                   <p className="text-emerald text-sm font-medium">
                     {stats.total_points_earned ?? stats.total_xp_earned ?? 0}
                   </p>
-                  <p className="text-muted text-xs">Total Earned</p>
+                  <p className="text-muted text-xs">{t('profile.totalEarned')}</p>
                 </div>
                 <div className="text-center">
                   <Flame size={16} className="text-orange-400 mx-auto mb-1" />
                   <p className="text-orange-400 text-sm font-medium">
                     {stats.current_streak ?? stats.streak ?? 0}
                   </p>
-                  <p className="text-muted text-xs">Streak</p>
+                  <p className="text-muted text-xs">{t('profile.streak')}</p>
                 </div>
                 <button
                   className="text-center hover:bg-surface-raised/50 rounded-md py-1 transition-colors"
@@ -379,39 +428,30 @@ export default function Profile() {
                     {stats.achievements_count ?? 0}
                   </p>
                   <p className="text-muted text-xs flex items-center justify-center gap-0.5">
-                    Achievements <ChevronRight size={10} />
+                    {t('profile.achievements')} <ChevronRight size={10} />
                   </p>
                 </button>
               </div>
-
-              {stats.rank && stats.rank.next_threshold && (
-                <div className="mt-3 pt-3 border-t border-border/50">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-muted text-xs">Next rank: {stats.rank.next_title}</span>
-                    <span className="text-cream text-xs font-medium">
-                      {stats.total_points_earned}/{stats.rank.next_threshold} XP
-                    </span>
-                  </div>
-                  <div className="xp-bar">
-                    <div
-                      className="xp-bar-fill"
-                      style={{ width: `${Math.round(stats.rank.progress * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
 
               <button
                 onClick={() => setShowProgress((v) => !v)}
                 className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-md bg-surface-raised/30 hover:bg-surface-raised/60 border border-border/50 text-muted hover:text-cream transition-colors text-xs font-medium"
               >
                 <BarChart3 size={13} />
-                {showProgress ? 'Hide Charts' : 'View Progress Charts'}
+                {showProgress ? t('profile.hideCharts') : t('profile.viewProgressCharts')}
+              </button>
+
+              <button
+                onClick={() => setShowHistory((v) => !v)}
+                className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-md bg-surface-raised/30 hover:bg-surface-raised/60 border border-border/50 text-muted hover:text-cream transition-colors text-xs font-medium"
+              >
+                <Star size={13} />
+                {showHistory ? t('profile.hidePointsHistory') : t('profile.viewPointsHistory')}
               </button>
             </>
           ) : (
             <p className="text-muted text-center text-sm">
-              Stats not available yet.
+              {t('profile.statsNotAvailable')}
             </p>
           )}
         </div>
@@ -423,13 +463,13 @@ export default function Profile() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-cream text-sm font-semibold flex items-center gap-2">
               <Trophy size={14} className="text-purple" />
-              Achievements
+              {t('profile.achievements')}
             </h2>
             <button
               onClick={() => setShowAchievements(false)}
               className="text-muted text-xs hover:text-cream transition-colors"
             >
-              Hide
+              {t('common.hide')}
             </button>
           </div>
           {achievementsLoading ? (
@@ -437,14 +477,14 @@ export default function Profile() {
               <Loader2 size={18} className="text-accent animate-spin" />
             </div>
           ) : achievements.length === 0 ? (
-            <p className="text-muted text-center text-sm">No achievements available yet.</p>
+            <p className="text-muted text-center text-sm">{t('profile.noAchievementsAvailable')}</p>
           ) : (
             <div className="space-y-1.5">
               {(() => {
                 const tierColors = {
-                  bronze: { border: 'border-amber-600/40', bg: 'bg-amber-600/10', text: 'text-amber-500', icon: 'text-amber-500', label: 'Bronze' },
-                  silver: { border: 'border-slate-300/40', bg: 'bg-slate-300/10', text: 'text-slate-300', icon: 'text-slate-300', label: 'Silver' },
-                  gold: { border: 'border-yellow-400/40', bg: 'bg-yellow-400/10', text: 'text-yellow-400', icon: 'text-yellow-400', label: 'Gold' },
+                  bronze: { border: 'border-amber-600/40', bg: 'bg-amber-600/10', text: 'text-amber-500', icon: 'text-amber-500' },
+                  silver: { border: 'border-slate-300/40', bg: 'bg-slate-300/10', text: 'text-slate-300', icon: 'text-slate-300' },
+                  gold: { border: 'border-yellow-400/40', bg: 'bg-yellow-400/10', text: 'text-yellow-400', icon: 'text-yellow-400' },
                 };
                 const grouped = [];
                 const seen = new Set();
@@ -496,7 +536,7 @@ export default function Profile() {
                               </p>
                               {tier && (
                                 <span className={`text-[9px] font-medium px-1 py-0.5 rounded-md border ${tier.border} ${tier.bg} ${tier.text}`}>
-                                  {tier.label}
+                                  {tierLabels[a.tier]}
                                 </span>
                               )}
                             </div>
@@ -527,7 +567,7 @@ export default function Profile() {
                                   } catch { /* ignore */ }
                                 }}
                                 className="p-1 rounded-md hover:bg-surface-raised/60 transition-colors"
-                                title="Download badge"
+                                title={t('profile.downloadBadge')}
                               >
                                 <Download size={11} className="text-muted hover:text-cream" />
                               </button>
@@ -544,19 +584,61 @@ export default function Profile() {
         </div>
       )}
 
+      {/* Points History (kids only) */}
+      {isKid && showHistory && (
+        <div className="game-panel p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-cream text-sm font-semibold flex items-center gap-2">
+              <Star size={14} className="text-gold" />
+              {t('profile.pointsHistory')}
+            </h2>
+            <button
+              onClick={() => setShowHistory(false)}
+              className="text-muted text-xs hover:text-cream transition-colors"
+            >
+              {t('common.hide')}
+            </button>
+          </div>
+          {historyLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 size={18} className="text-accent animate-spin" />
+            </div>
+          ) : history.length === 0 ? (
+            <p className="text-muted text-center text-sm">{t('profile.noPointsHistory')}</p>
+          ) : (
+            <div className="space-y-1.5">
+              {history.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-md border border-border/50 bg-surface-raised/20"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-cream text-sm truncate">{tx.description}</p>
+                    <p className="text-muted/60 text-xs mt-0.5">{timeAgo(tx.created_at, t)}</p>
+                  </div>
+                  <span className={`text-sm font-medium flex-shrink-0 ${tx.amount > 0 ? 'text-gold' : 'text-crimson'}`}>
+                    {tx.amount > 0 ? '+' : ''}{tx.amount}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Progress Charts */}
       {showProgress && (
         <div className="game-panel p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-cream text-sm font-semibold flex items-center gap-2">
               <BarChart3 size={14} className="text-accent" />
-              Progress Charts
+              {t('profile.progressCharts')}
             </h2>
             <button
               onClick={() => setShowProgress(false)}
               className="text-muted text-xs hover:text-cream transition-colors"
             >
-              Hide
+              {t('common.hide')}
             </button>
           </div>
           <ProgressCharts />
@@ -571,7 +653,7 @@ export default function Profile() {
             className="w-full flex items-center justify-center gap-2 py-2 text-muted hover:text-cream transition-colors text-xs font-medium"
           >
             <BarChart3 size={13} />
-            {showProgress ? 'Hide Family Progress Charts' : 'View Family Progress Charts'}
+            {showProgress ? t('profile.hideFamilyProgressCharts') : t('profile.viewFamilyProgressCharts')}
           </button>
           {showProgress && (
             <div className="mt-3">
@@ -585,16 +667,16 @@ export default function Profile() {
       <div className="game-panel p-4">
         <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
           <KeyRound size={14} className="text-muted" />
-          Quick PIN Login
+          {t('profile.quickPinLogin')}
         </h2>
         <div className="flex gap-2">
           <input
             type="text"
             inputMode="numeric"
-            maxLength={6}
+            maxLength={pinLength}
             value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="6-digit PIN"
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, pinLength))}
+            placeholder={t('profile.pinPlaceholder', { count: pinLength })}
             className="field-input"
           />
           <button
@@ -602,11 +684,11 @@ export default function Profile() {
             disabled={pinSaving}
             className="game-btn game-btn-blue flex-shrink-0"
           >
-            {pinSaving ? 'Setting...' : 'Set PIN'}
+            {pinSaving ? t('profile.settingPin') : t('profile.setPin')}
           </button>
         </div>
         {pinMsg && (
-          <p className={`text-xs mt-2 ${pinMsg.includes('!') ? 'text-emerald' : 'text-crimson'}`}>
+          <p className={`text-xs mt-2 ${pinMsgOk ? 'text-emerald' : 'text-crimson'}`}>
             {pinMsg}
           </p>
         )}
@@ -616,18 +698,18 @@ export default function Profile() {
       <div className="game-panel p-4">
         <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
           <Lock size={14} className="text-muted" />
-          Change Password
+          {t('profile.changePassword')}
         </h2>
         <div className="space-y-2">
-          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" autoComplete="current-password" className="field-input" />
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" autoComplete="new-password" className="field-input" />
-          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" autoComplete="new-password" className="field-input" />
+          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder={t('profile.currentPassword')} autoComplete="current-password" className="field-input" />
+          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t('profile.newPassword')} autoComplete="new-password" className="field-input" />
+          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={t('profile.confirmNewPassword')} autoComplete="new-password" className="field-input" />
           <button onClick={changePassword} disabled={pwSaving} className="game-btn game-btn-blue">
-            {pwSaving ? 'Changing...' : 'Change Password'}
+            {pwSaving ? t('profile.changingPassword') : t('profile.changePassword')}
           </button>
         </div>
         {pwMsg && (
-          <p className={`text-xs mt-2 ${pwMsg.includes('!') ? 'text-emerald' : 'text-crimson'}`}>
+          <p className={`text-xs mt-2 ${pwMsgOk ? 'text-emerald' : 'text-crimson'}`}>
             {pwMsg}
           </p>
         )}
@@ -636,14 +718,37 @@ export default function Profile() {
       {/* Push Notifications */}
       <PushNotificationToggle />
 
+      {/* Language */}
+      <div className="game-panel p-4">
+        <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+          <Globe size={14} className="text-muted" />
+          {t('profile.language')}
+        </h2>
+        <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+          {SUPPORTED_LANGUAGES.map((lang) => (
+            <button
+              key={lang.id}
+              onClick={() => setLanguage(lang.id)}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                language === lang.id
+                  ? 'bg-surface-raised text-cream'
+                  : 'text-muted hover:text-cream'
+              }`}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Theme Toggle */}
       <div className="game-panel p-4">
-        <h2 className="text-cream text-sm font-semibold mb-3">Appearance</h2>
+        <h2 className="text-cream text-sm font-semibold mb-3">{t('profile.appearance')}</h2>
         <div className="flex items-center gap-0.5 mb-4 bg-navy/60 rounded-md p-0.5">
           {[
-            { id: 'light', icon: Sun, label: 'Light' },
-            { id: 'dark', icon: Moon, label: 'Dark' },
-            { id: 'system', icon: Monitor, label: 'Auto' },
+            { id: 'light', icon: Sun, label: t('profile.light') },
+            { id: 'dark', icon: Moon, label: t('profile.dark') },
+            { id: 'system', icon: Monitor, label: t('profile.auto') },
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
@@ -661,19 +766,19 @@ export default function Profile() {
         </div>
 
         {/* Color Theme */}
-        <p className="text-muted text-xs font-medium mb-2">Color Theme</p>
+        <p className="text-muted text-xs font-medium mb-2">{t('profile.colorTheme')}</p>
         {['boy', 'girl'].map((group) => (
           <div key={group} className="mb-3">
             <p className="text-muted text-[11px] font-medium mb-1.5">
-              {group === 'boy' ? 'Knight Themes' : 'Princess Themes'}
+              {group === 'boy' ? t('profile.knightThemes') : t('profile.princessThemes')}
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-              {COLOR_THEMES.filter((t) => t.group === group).map((t) => {
-                const isActive = colorTheme === t.id;
+              {COLOR_THEMES.filter((ct) => ct.group === group).map((ct) => {
+                const isActive = colorTheme === ct.id;
                 return (
                   <button
-                    key={t.id}
-                    onClick={() => setColorTheme(t.id)}
+                    key={ct.id}
+                    onClick={() => setColorTheme(ct.id)}
                     className={`relative flex flex-col items-center gap-1 p-2 rounded-md border transition-colors ${
                       isActive
                         ? 'border-accent bg-accent/10'
@@ -683,24 +788,24 @@ export default function Profile() {
                     <div className="flex gap-0.5">
                       <div
                         className="w-4 h-4 rounded-full border border-white/10"
-                        style={{ backgroundColor: t.accent }}
+                        style={{ backgroundColor: ct.accent }}
                       />
                       <div
                         className="w-4 h-4 rounded-full border border-white/10"
-                        style={{ backgroundColor: t.secondary }}
+                        style={{ backgroundColor: ct.secondary }}
                       />
                       <div
                         className="w-4 h-4 rounded-full border border-white/10"
-                        style={{ backgroundColor: t.tertiary }}
+                        style={{ backgroundColor: ct.tertiary }}
                       />
                     </div>
                     <span className="text-[10px] font-medium text-cream/80 leading-tight text-center">
-                      {t.label}
+                      {t(`themes.${ct.id}`)}
                     </span>
                     {isActive && (
                       <div
                         className="absolute top-1 right-1 w-2 h-2 rounded-full"
-                        style={{ backgroundColor: t.accent }}
+                        style={{ backgroundColor: ct.accent }}
                       />
                     )}
                   </button>
@@ -716,7 +821,7 @@ export default function Profile() {
         <div className="game-panel p-4 space-y-1.5">
           <h2 className="text-cream text-sm font-semibold mb-2 flex items-center gap-2">
             <Settings size={14} className="text-muted" />
-            Management
+            {t('profile.management')}
           </h2>
           <button
             onClick={() => navigate('/settings')}
@@ -724,8 +829,8 @@ export default function Profile() {
           >
             <Settings size={16} className="text-accent flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-cream text-sm font-medium">Family Settings</p>
-              <p className="text-muted text-xs">Features, resets & rewards</p>
+              <p className="text-cream text-sm font-medium">{t('profile.familySettings')}</p>
+              <p className="text-muted text-xs">{t('profile.familySettingsDesc')}</p>
             </div>
             <ChevronRight size={14} className="text-muted flex-shrink-0" />
           </button>
@@ -736,8 +841,8 @@ export default function Profile() {
             >
               <ShieldCheck size={16} className="text-crimson flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-cream text-sm font-medium">Admin Dashboard</p>
-                <p className="text-muted text-xs">Users, keys & audit log</p>
+                <p className="text-cream text-sm font-medium">{t('profile.adminDashboard')}</p>
+                <p className="text-muted text-xs">{t('profile.adminDashboardDesc')}</p>
               </div>
               <ChevronRight size={14} className="text-muted flex-shrink-0" />
             </button>
@@ -752,7 +857,7 @@ export default function Profile() {
           className="game-btn game-btn-red w-full flex items-center justify-center gap-2"
         >
           <LogOut size={14} />
-          Sign Out
+          {t('common.signOut')}
         </button>
       </div>
     </div>

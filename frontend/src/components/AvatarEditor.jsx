@@ -1,158 +1,130 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import AvatarDisplay from './AvatarDisplay';
-import { renderPet, renderPetExtras, buildPetColors } from './avatar/pets';
-import { Save, Loader2, ChevronLeft, ChevronRight, Lock, Heart, Star, Crosshair, ArrowLeft } from 'lucide-react';
+import { Save, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 
 const HEAD_OPTIONS = [
-  { id: 'round', label: 'Round' },
-  { id: 'oval', label: 'Oval' },
-  { id: 'square', label: 'Square' },
-  { id: 'diamond', label: 'Diamond' },
-  { id: 'heart', label: 'Heart' },
-  { id: 'long', label: 'Long' },
-  { id: 'triangle', label: 'Triangle' },
-  { id: 'pear', label: 'Pear' },
-  { id: 'wide', label: 'Wide' },
+  { id: 'round', labelKey: 'avatarEditor.head.round' },
+  { id: 'oval', labelKey: 'avatarEditor.head.oval' },
+  { id: 'square', labelKey: 'avatarEditor.head.square' },
+  { id: 'diamond', labelKey: 'avatarEditor.head.diamond' },
+  { id: 'heart', labelKey: 'avatarEditor.head.heart' },
+  { id: 'long', labelKey: 'avatarEditor.head.long' },
+  { id: 'triangle', labelKey: 'avatarEditor.head.triangle' },
+  { id: 'pear', labelKey: 'avatarEditor.head.pear' },
+  { id: 'wide', labelKey: 'avatarEditor.head.wide' },
 ];
 
 const HAIR_OPTIONS = [
-  { id: 'none', label: 'None' },
-  { id: 'short', label: 'Short' },
-  { id: 'long', label: 'Long' },
-  { id: 'spiky', label: 'Spiky' },
-  { id: 'curly', label: 'Curly' },
-  { id: 'mohawk', label: 'Mohawk' },
-  { id: 'buzz', label: 'Buzz' },
-  { id: 'ponytail', label: 'Ponytail' },
-  { id: 'bun', label: 'Bun' },
-  { id: 'pigtails', label: 'Pigtails' },
-  { id: 'afro', label: 'Afro' },
-  { id: 'braids', label: 'Braids' },
-  { id: 'wavy', label: 'Wavy' },
-  { id: 'side_part', label: 'Side Part' },
-  { id: 'fade', label: 'Fade' },
-  { id: 'dreadlocks', label: 'Dreads' },
-  { id: 'bob', label: 'Bob' },
-  { id: 'shoulder', label: 'Shoulder' },
-  { id: 'undercut', label: 'Undercut' },
-  { id: 'twin_buns', label: 'Twin Buns' },
+  { id: 'none', labelKey: 'avatarEditor.hair.none' },
+  { id: 'short', labelKey: 'avatarEditor.hair.short' },
+  { id: 'long', labelKey: 'avatarEditor.hair.long' },
+  { id: 'spiky', labelKey: 'avatarEditor.hair.spiky' },
+  { id: 'curly', labelKey: 'avatarEditor.hair.curly' },
+  { id: 'mohawk', labelKey: 'avatarEditor.hair.mohawk' },
+  { id: 'buzz', labelKey: 'avatarEditor.hair.buzz' },
+  { id: 'ponytail', labelKey: 'avatarEditor.hair.ponytail' },
+  { id: 'bun', labelKey: 'avatarEditor.hair.bun' },
+  { id: 'pigtails', labelKey: 'avatarEditor.hair.pigtails' },
+  { id: 'afro', labelKey: 'avatarEditor.hair.afro' },
+  { id: 'braids', labelKey: 'avatarEditor.hair.braids' },
+  { id: 'wavy', labelKey: 'avatarEditor.hair.wavy' },
+  { id: 'side_part', labelKey: 'avatarEditor.hair.side_part' },
+  { id: 'fade', labelKey: 'avatarEditor.hair.fade' },
+  { id: 'dreadlocks', labelKey: 'avatarEditor.hair.dreadlocks' },
+  { id: 'bob', labelKey: 'avatarEditor.hair.bob' },
+  { id: 'shoulder', labelKey: 'avatarEditor.hair.shoulder' },
+  { id: 'undercut', labelKey: 'avatarEditor.hair.undercut' },
+  { id: 'twin_buns', labelKey: 'avatarEditor.hair.twin_buns' },
 ];
 
 const EYES_OPTIONS = [
-  { id: 'normal', label: 'Normal' },
-  { id: 'happy', label: 'Happy' },
-  { id: 'wide', label: 'Wide' },
-  { id: 'sleepy', label: 'Sleepy' },
-  { id: 'wink', label: 'Wink' },
-  { id: 'angry', label: 'Angry' },
-  { id: 'dot', label: 'Dot' },
-  { id: 'star', label: 'Star' },
-  { id: 'glasses', label: 'Glasses' },
-  { id: 'sunglasses', label: 'Shades' },
-  { id: 'eye_patch', label: 'Eye Patch' },
-  { id: 'crying', label: 'Crying' },
-  { id: 'heart_eyes', label: 'Hearts' },
-  { id: 'dizzy', label: 'Dizzy' },
-  { id: 'closed', label: 'Closed' },
+  { id: 'normal', labelKey: 'avatarEditor.eyes.normal' },
+  { id: 'happy', labelKey: 'avatarEditor.eyes.happy' },
+  { id: 'wide', labelKey: 'avatarEditor.eyes.wide' },
+  { id: 'sleepy', labelKey: 'avatarEditor.eyes.sleepy' },
+  { id: 'wink', labelKey: 'avatarEditor.eyes.wink' },
+  { id: 'angry', labelKey: 'avatarEditor.eyes.angry' },
+  { id: 'dot', labelKey: 'avatarEditor.eyes.dot' },
+  { id: 'star', labelKey: 'avatarEditor.eyes.star' },
+  { id: 'glasses', labelKey: 'avatarEditor.eyes.glasses' },
+  { id: 'sunglasses', labelKey: 'avatarEditor.eyes.sunglasses' },
+  { id: 'eye_patch', labelKey: 'avatarEditor.eyes.eye_patch' },
+  { id: 'crying', labelKey: 'avatarEditor.eyes.crying' },
+  { id: 'heart_eyes', labelKey: 'avatarEditor.eyes.heart_eyes' },
+  { id: 'dizzy', labelKey: 'avatarEditor.eyes.dizzy' },
+  { id: 'closed', labelKey: 'avatarEditor.eyes.closed' },
 ];
 
 const MOUTH_OPTIONS = [
-  { id: 'smile', label: 'Smile' },
-  { id: 'grin', label: 'Grin' },
-  { id: 'neutral', label: 'Neutral' },
-  { id: 'open', label: 'Open' },
-  { id: 'tongue', label: 'Tongue' },
-  { id: 'frown', label: 'Frown' },
-  { id: 'surprised', label: 'Surprised' },
-  { id: 'smirk', label: 'Smirk' },
-  { id: 'braces', label: 'Braces' },
-  { id: 'vampire', label: 'Vampire' },
-  { id: 'whistle', label: 'Whistle' },
-  { id: 'mask', label: 'Mask' },
-  { id: 'beard', label: 'Beard' },
-  { id: 'moustache', label: 'Moustache' },
+  { id: 'smile', labelKey: 'avatarEditor.mouth.smile' },
+  { id: 'grin', labelKey: 'avatarEditor.mouth.grin' },
+  { id: 'neutral', labelKey: 'avatarEditor.mouth.neutral' },
+  { id: 'open', labelKey: 'avatarEditor.mouth.open' },
+  { id: 'tongue', labelKey: 'avatarEditor.mouth.tongue' },
+  { id: 'frown', labelKey: 'avatarEditor.mouth.frown' },
+  { id: 'surprised', labelKey: 'avatarEditor.mouth.surprised' },
+  { id: 'smirk', labelKey: 'avatarEditor.mouth.smirk' },
+  { id: 'braces', labelKey: 'avatarEditor.mouth.braces' },
+  { id: 'vampire', labelKey: 'avatarEditor.mouth.vampire' },
+  { id: 'whistle', labelKey: 'avatarEditor.mouth.whistle' },
+  { id: 'mask', labelKey: 'avatarEditor.mouth.mask' },
+  { id: 'beard', labelKey: 'avatarEditor.mouth.beard' },
+  { id: 'moustache', labelKey: 'avatarEditor.mouth.moustache' },
 ];
 
 const BODY_OPTIONS = [
-  { id: 'slim', label: 'Slim' },
-  { id: 'regular', label: 'Regular' },
-  { id: 'broad', label: 'Broad' },
+  { id: 'slim', labelKey: 'avatarEditor.body.slim' },
+  { id: 'regular', labelKey: 'avatarEditor.body.regular' },
+  { id: 'broad', labelKey: 'avatarEditor.body.broad' },
 ];
 
 const HAT_OPTIONS = [
-  { id: 'none', label: 'None' },
-  { id: 'crown', label: 'Crown' },
-  { id: 'wizard', label: 'Wizard' },
-  { id: 'beanie', label: 'Beanie' },
-  { id: 'cap', label: 'Cap' },
-  { id: 'pirate', label: 'Pirate' },
-  { id: 'headphones', label: 'Headphones' },
-  { id: 'tiara', label: 'Tiara' },
-  { id: 'horns', label: 'Horns' },
-  { id: 'bunny_ears', label: 'Bunny Ears' },
-  { id: 'cat_ears', label: 'Cat Ears' },
-  { id: 'halo', label: 'Halo' },
-  { id: 'viking', label: 'Viking' },
+  { id: 'none', labelKey: 'avatarEditor.hat.none' },
+  { id: 'crown', labelKey: 'avatarEditor.hat.crown' },
+  { id: 'wizard', labelKey: 'avatarEditor.hat.wizard' },
+  { id: 'beanie', labelKey: 'avatarEditor.hat.beanie' },
+  { id: 'cap', labelKey: 'avatarEditor.hat.cap' },
+  { id: 'pirate', labelKey: 'avatarEditor.hat.pirate' },
+  { id: 'headphones', labelKey: 'avatarEditor.hat.headphones' },
+  { id: 'tiara', labelKey: 'avatarEditor.hat.tiara' },
+  { id: 'horns', labelKey: 'avatarEditor.hat.horns' },
+  { id: 'bunny_ears', labelKey: 'avatarEditor.hat.bunny_ears' },
+  { id: 'cat_ears', labelKey: 'avatarEditor.hat.cat_ears' },
+  { id: 'halo', labelKey: 'avatarEditor.hat.halo' },
+  { id: 'viking', labelKey: 'avatarEditor.hat.viking' },
 ];
 
 const ACCESSORY_OPTIONS = [
-  { id: 'scarf', label: 'Scarf' },
-  { id: 'necklace', label: 'Necklace' },
-  { id: 'bow_tie', label: 'Bow Tie' },
-  { id: 'cape', label: 'Cape' },
-  { id: 'wings', label: 'Wings' },
-  { id: 'shield', label: 'Shield' },
-  { id: 'sword', label: 'Sword' },
+  { id: 'scarf', labelKey: 'avatarEditor.accessory.scarf' },
+  { id: 'necklace', labelKey: 'avatarEditor.accessory.necklace' },
+  { id: 'bow_tie', labelKey: 'avatarEditor.accessory.bow_tie' },
+  { id: 'cape', labelKey: 'avatarEditor.accessory.cape' },
+  { id: 'wings', labelKey: 'avatarEditor.accessory.wings' },
+  { id: 'shield', labelKey: 'avatarEditor.accessory.shield' },
+  { id: 'sword', labelKey: 'avatarEditor.accessory.sword' },
 ];
 
 const FACE_EXTRA_OPTIONS = [
-  { id: 'none', label: 'None' },
-  { id: 'freckles', label: 'Freckles' },
-  { id: 'blush', label: 'Blush' },
-  { id: 'face_paint', label: 'Face Paint' },
-  { id: 'scar', label: 'Scar' },
-  { id: 'bandage', label: 'Bandage' },
-  { id: 'stickers', label: 'Stickers' },
+  { id: 'none', labelKey: 'avatarEditor.faceExtra.none' },
+  { id: 'freckles', labelKey: 'avatarEditor.faceExtra.freckles' },
+  { id: 'blush', labelKey: 'avatarEditor.faceExtra.blush' },
+  { id: 'face_paint', labelKey: 'avatarEditor.faceExtra.face_paint' },
+  { id: 'scar', labelKey: 'avatarEditor.faceExtra.scar' },
+  { id: 'bandage', labelKey: 'avatarEditor.faceExtra.bandage' },
+  { id: 'stickers', labelKey: 'avatarEditor.faceExtra.stickers' },
 ];
 
 const OUTFIT_PATTERN_OPTIONS = [
-  { id: 'none', label: 'None' },
-  { id: 'stripes', label: 'Stripes' },
-  { id: 'stars', label: 'Stars' },
-  { id: 'camo', label: 'Camo' },
-  { id: 'tie_dye', label: 'Tie Dye' },
-  { id: 'plaid', label: 'Plaid' },
-];
-
-const PET_OPTIONS = [
-  { id: 'none', label: 'None' },
-  { id: 'cat', label: 'Cat' },
-  { id: 'dog', label: 'Dog' },
-  { id: 'dragon', label: 'Dragon' },
-  { id: 'owl', label: 'Owl' },
-  { id: 'bunny', label: 'Bunny' },
-  { id: 'phoenix', label: 'Phoenix' },
-];
-
-const PET_POSITION_OPTIONS = [
-  { id: 'right', label: 'Right' },
-  { id: 'left', label: 'Left' },
-  { id: 'head', label: 'Head' },
-  { id: 'custom', label: 'Custom' },
-];
-
-const PET_ACCESSORY_OPTIONS = [
-  { id: 'none', label: 'None' },
-  { id: 'crown', label: 'Crown' },
-  { id: 'party_hat', label: 'Party Hat' },
-  { id: 'bow', label: 'Bow' },
-  { id: 'bandana', label: 'Bandana' },
-  { id: 'halo', label: 'Halo' },
-  { id: 'flower', label: 'Flower' },
+  { id: 'none', labelKey: 'avatarEditor.pattern.none' },
+  { id: 'stripes', labelKey: 'avatarEditor.pattern.stripes' },
+  { id: 'stars', labelKey: 'avatarEditor.pattern.stars' },
+  { id: 'camo', labelKey: 'avatarEditor.pattern.camo' },
+  { id: 'tie_dye', labelKey: 'avatarEditor.pattern.tie_dye' },
+  { id: 'plaid', labelKey: 'avatarEditor.pattern.plaid' },
 ];
 
 const SKIN_COLORS = [
@@ -202,12 +174,6 @@ const ACCESSORY_COLORS = [
   '#8b4513', '#1a1a2e', '#ecf0f1', '#06b6d4',
 ];
 
-const PET_COLORS = [
-  '#8b4513', '#4a3728', '#f39c12', '#ef4444',
-  '#10b981', '#a855f7', '#ecf0f1', '#1a1a2e',
-  '#c0c0c0', '#ff6b9d', '#06b6d4', '#f59e0b',
-];
-
 const AVATAR_CONFIG_VERSION = 2;
 
 const DEFAULT_CONFIG = {
@@ -230,32 +196,21 @@ const DEFAULT_CONFIG = {
   accessory_color: '#3b82f6',
   face_extra: 'none',
   outfit_pattern: 'none',
-  pet: 'none',
-  pet_color: '#8b4513',
-  pet_color_body: '',
-  pet_color_ears: '',
-  pet_color_tail: '',
-  pet_color_accent: '',
-  pet_position: 'right',
-  pet_x: 26,
-  pet_y: 20,
-  pet_accessory: 'none',
 };
 
 const CATEGORIES = [
-  { id: 'head', label: 'Head' },
-  { id: 'skin', label: 'Skin' },
-  { id: 'hair', label: 'Hair' },
-  { id: 'eyes', label: 'Eyes' },
-  { id: 'mouth', label: 'Mouth' },
-  { id: 'body', label: 'Body' },
-  { id: 'outfit', label: 'Outfit' },
-  { id: 'pattern', label: 'Pattern' },
-  { id: 'background', label: 'BG' },
-  { id: 'hat', label: 'Hat' },
-  { id: 'face', label: 'Face' },
-  { id: 'accessory', label: 'Gear' },
-  { id: 'pet', label: 'Pet' },
+  { id: 'head', labelKey: 'avatarEditor.categories.head' },
+  { id: 'skin', labelKey: 'avatarEditor.categories.skin' },
+  { id: 'hair', labelKey: 'avatarEditor.categories.hair' },
+  { id: 'eyes', labelKey: 'avatarEditor.categories.eyes' },
+  { id: 'mouth', labelKey: 'avatarEditor.categories.mouth' },
+  { id: 'body', labelKey: 'avatarEditor.categories.body' },
+  { id: 'outfit', labelKey: 'avatarEditor.categories.outfit' },
+  { id: 'pattern', labelKey: 'avatarEditor.categories.pattern' },
+  { id: 'background', labelKey: 'avatarEditor.categories.background' },
+  { id: 'hat', labelKey: 'avatarEditor.categories.hat' },
+  { id: 'face', labelKey: 'avatarEditor.categories.face' },
+  { id: 'accessory', labelKey: 'avatarEditor.categories.accessory' },
 ];
 
 function ColorSwatch({ colors, selected, onSelect }) {
@@ -276,66 +231,46 @@ function ColorSwatch({ colors, selected, onSelect }) {
   );
 }
 
-function ShapeSelector({ options, selected, onSelect, lockedItems, configKey, onPreview, onPreviewEnd }) {
+function ShapeSelector({ options, selected, onSelect }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-2">
-      {options.map((opt) => {
-        const isLocked = lockedItems && lockedItems.has(opt.id);
-        return (
-          <button
-            key={opt.id}
-            onClick={() => !isLocked && onSelect(opt.id)}
-            onMouseEnter={() => isLocked && configKey && onPreview?.(configKey, opt.id)}
-            onMouseLeave={() => isLocked && onPreviewEnd?.()}
-            onTouchStart={() => isLocked && configKey && onPreview?.(configKey, opt.id)}
-            onTouchEnd={() => isLocked && onPreviewEnd?.()}
-            onTouchCancel={() => isLocked && onPreviewEnd?.()}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all flex items-center gap-1 select-none ${
-              isLocked
-                ? 'border-amber-500/30 text-muted/60 bg-amber-500/5'
-                : selected === opt.id
-                ? 'border-accent bg-accent/10 text-accent'
-                : 'border-border text-muted hover:border-border-light hover:text-cream'
-            }`}
-            style={isLocked ? { WebkitTouchCallout: 'none', touchAction: 'manipulation' } : undefined}
-          >
-            {isLocked && <Lock size={10} className="text-amber-500/60" />}
-            {opt.label}
-          </button>
-        );
-      })}
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          onClick={() => onSelect(opt.id)}
+          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all select-none ${
+            selected === opt.id
+              ? 'border-accent bg-accent/10 text-accent'
+              : 'border-border text-muted hover:border-border-light hover:text-cream'
+          }`}
+        >
+          {t(opt.labelKey)}
+        </button>
+      ))}
     </div>
   );
 }
 
-function MultiShapeSelector({ options, selected, onToggle, lockedItems, configKey, onPreview, onPreviewEnd }) {
+function MultiShapeSelector({ options, selected, onToggle }) {
+  const { t } = useTranslation();
   // selected is an array of ids
   const selectedSet = new Set(selected || []);
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((opt) => {
-        const isLocked = lockedItems && lockedItems.has(opt.id);
         const isActive = selectedSet.has(opt.id);
         return (
           <button
             key={opt.id}
-            onClick={() => !isLocked && onToggle(opt.id)}
-            onMouseEnter={() => isLocked && configKey && onPreview?.(configKey, opt.id)}
-            onMouseLeave={() => isLocked && onPreviewEnd?.()}
-            onTouchStart={() => isLocked && configKey && onPreview?.(configKey, opt.id)}
-            onTouchEnd={() => isLocked && onPreviewEnd?.()}
-            onTouchCancel={() => isLocked && onPreviewEnd?.()}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all flex items-center gap-1 select-none ${
-              isLocked
-                ? 'border-amber-500/30 text-muted/60 bg-amber-500/5'
-                : isActive
+            onClick={() => onToggle(opt.id)}
+            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all select-none ${
+              isActive
                 ? 'border-accent bg-accent/10 text-accent'
                 : 'border-border text-muted hover:border-border-light hover:text-cream'
             }`}
-            style={isLocked ? { WebkitTouchCallout: 'none', touchAction: 'manipulation' } : undefined}
           >
-            {isLocked && <Lock size={10} className="text-amber-500/60" />}
-            {opt.label}
+            {t(opt.labelKey)}
           </button>
         );
       })}
@@ -343,335 +278,92 @@ function MultiShapeSelector({ options, selected, onToggle, lockedItems, configKe
   );
 }
 
-// ── Pet level thresholds (mirror backend) ──
-const PET_LEVEL_THRESHOLDS = [0, 50, 150, 350, 700, 1200, 2000, 3500];
-const PET_LEVEL_NAMES = ['', 'Hatchling', 'Youngling', 'Companion', 'Loyal', 'Brave', 'Mighty', 'Majestic', 'Legendary'];
-const PET_LEVEL_COLORS = ['', '#94a3b8', '#10b981', '#3b82f6', '#a855f7', '#f59e0b', '#f97316', '#ef4444', '#d946ef'];
-
-function getPetLevelInfo(petXp) {
-  let level = 1;
-  for (let i = 0; i < PET_LEVEL_THRESHOLDS.length; i++) {
-    if (petXp >= PET_LEVEL_THRESHOLDS[i]) level = i + 1;
-  }
-  const threshold = PET_LEVEL_THRESHOLDS[level - 1] || 0;
-  const nextThreshold = PET_LEVEL_THRESHOLDS[level] || null;
-  const progress = nextThreshold ? (petXp - threshold) / (nextThreshold - threshold) : 1;
-  return { level, name: PET_LEVEL_NAMES[level], nextName: PET_LEVEL_NAMES[level + 1] || null, xp: petXp, threshold, nextThreshold, progress };
-}
-
-/** Inline SVG preview of a single pet at larger scale */
-function PetPreviewSvg({ petType, colors, level = 1 }) {
-  if (!petType || petType === 'none') return null;
-  const sc = 1 + (level - 1) * 0.04;
-  // Pet center in avatar coords after PET_OFFSETS.right / BIG_PET_OFFSETS.right
-  const isBig = ['dragon', 'phoenix'].includes(petType);
-  const cx = isBig ? 25 : 26;
-  const cy = isBig ? 19 : 20;
-  // Glow from Lv2+ in preview so progression is visible at small size
-  const glowColor = level >= 7 ? '#f59e0b' : level >= 5 ? '#a855f7' : level >= 2 ? '#3b82f6' : null;
-  return (
-    <svg width={48} height={48} viewBox="0 0 12 12" className="rounded-lg" style={{ background: '#111827' }}>
-      <g transform={`translate(6,6) scale(${sc * 1.3}) translate(${-cx},${-cy})`}>
-        {glowColor && <circle cx={cx} cy={cy} r={4} fill={glowColor} opacity={level >= 5 ? 0.25 : 0.18} />}
-        {renderPet(petType, colors, 'right', {})}
-        {renderPetExtras(petType, level, colors, 'right')}
-      </g>
-    </svg>
-  );
-}
-
-/** Tap-to-place overlay for the avatar preview */
-function TapToPlaceOverlay({ config, onPlace }) {
-  const svgRef = useRef(null);
-
-  const handleClick = (e) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 32);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 32);
-    // Clamp to safe bounds
-    onPlace(Math.max(4, Math.min(28, x)), Math.max(4, Math.min(28, y)));
-  };
-
-  const petX = config.pet_x ?? 26;
-  const petY = config.pet_y ?? 20;
-
-  return (
-    <div className="relative cursor-crosshair" onClick={handleClick}>
-      <div className="avatar-idle rounded-md">
-        <AvatarDisplay config={config} size="xl" />
-      </div>
-      {/* Overlay SVG for crosshair indicator */}
-      <svg
-        ref={svgRef}
-        className="absolute inset-0 w-full h-full rounded-md"
-        viewBox="0 0 32 32"
-        style={{ pointerEvents: 'all' }}
-        onClick={(e) => {
-          e.stopPropagation();
-          const svg = e.currentTarget;
-          const rect = svg.getBoundingClientRect();
-          const x = Math.round(((e.clientX - rect.left) / rect.width) * 32);
-          const y = Math.round(((e.clientY - rect.top) / rect.height) * 32);
-          onPlace(Math.max(4, Math.min(28, x)), Math.max(4, Math.min(28, y)));
-        }}
-      >
-        {/* Crosshair at current pet position */}
-        <circle cx={petX} cy={petY} r="1.5" fill="none" stroke="#3b82f6" strokeWidth="0.4" className="pet-place-indicator" />
-        <line x1={petX - 2} y1={petY} x2={petX + 2} y2={petY} stroke="#3b82f6" strokeWidth="0.3" opacity="0.6" />
-        <line x1={petX} y1={petY - 2} x2={petX} y2={petY + 2} stroke="#3b82f6" strokeWidth="0.3" opacity="0.6" />
-      </svg>
-      <p className="text-center text-accent text-[10px] font-medium mt-1.5 flex items-center justify-center gap-1">
-        <Crosshair size={10} /> Tap to place your pet
-      </p>
-    </div>
-  );
-}
-
-/** Get XP for a specific pet from per-pet map, falling back to legacy */
-function getPetXpForPet(config, petType) {
-  if (!petType || petType === 'none') return 0;
-  const xpMap = config.pet_xp_map || {};
-  if (petType in xpMap) return xpMap[petType];
-  return config.pet_xp || 0;
-}
-
-/** Full pet customisation section */
-function PetCustomiser({ config, set, locked, previewProps, petStats }) {
-  const hasPet = config.pet && config.pet !== 'none';
-  const petXp = getPetXpForPet(config, config.pet);
-  const levelInfo = getPetLevelInfo(petXp);
-  const petColors = buildPetColors(config);
-  const bodyColor = config.pet_color || '#8b4513';
-
-  // Helper to set a part color, clearing empty strings to inherit
-  const setPartColor = (key, val) => {
-    set(key, val === bodyColor ? '' : val);
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Companion picker */}
-      <div>
-        <p className="text-muted text-xs font-medium mb-2">Companion</p>
-        <ShapeSelector options={PET_OPTIONS} selected={config.pet} onSelect={(v) => set('pet', v)} lockedItems={locked} configKey="pet" {...previewProps} />
-      </div>
-
-      {hasPet && (
-        <>
-          {/* ── Pet Level & XP Info ── */}
-          <div className="bg-surface-raised/50 rounded-md p-3 border border-border">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Heart size={14} className="fill-current" style={{ color: PET_LEVEL_COLORS[levelInfo.level] }} />
-                <span className="text-cream text-xs font-bold" style={{ color: PET_LEVEL_COLORS[levelInfo.level] }}>
-                  Lv{levelInfo.level} {levelInfo.name}
-                </span>
-              </div>
-              <span className="text-muted text-[10px] font-medium">
-                {levelInfo.nextThreshold
-                  ? `${petXp} / ${levelInfo.nextThreshold} XP`
-                  : `${petXp} XP — MAX`}
-              </span>
-            </div>
-
-            {/* XP Progress bar */}
-            {levelInfo.nextThreshold && (
-              <div className="mb-2">
-                <div className="h-2 bg-navy rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${Math.round(levelInfo.progress * 100)}%`,
-                      backgroundColor: PET_LEVEL_COLORS[levelInfo.level],
-                    }}
-                  />
-                </div>
-                <p className="text-muted text-[10px] mt-1">
-                  {levelInfo.nextThreshold - petXp} XP to Level {levelInfo.level + 1} ({levelInfo.nextName})
-                </p>
-              </div>
-            )}
-
-            {/* All Level Previews */}
-            <div className="overflow-x-auto -mx-1 px-1 mt-2">
-              <div className="flex gap-2" style={{ minWidth: 'max-content' }}>
-                {PET_LEVEL_NAMES.slice(1).map((name, i) => {
-                  const lv = i + 1;
-                  const isCurrent = lv === levelInfo.level;
-                  const isPast = lv < levelInfo.level;
-                  const isFuture = lv > levelInfo.level;
-                  return (
-                    <div
-                      key={lv}
-                      className={`text-center flex-shrink-0 rounded-lg p-1 ${
-                        isCurrent ? 'bg-accent/10 ring-1 ring-accent/40' : ''
-                      }`}
-                      style={{ opacity: isFuture ? 0.35 : isPast ? 0.55 : 1 }}
-                    >
-                      <p className="text-[9px] font-medium mb-0.5" style={{ color: PET_LEVEL_COLORS[lv] }}>
-                        {isCurrent ? '▸ ' : ''}Lv{lv}
-                      </p>
-                      <PetPreviewSvg petType={config.pet} colors={petColors} level={lv} />
-                      <p className="text-muted text-[8px] mt-0.5">{name}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Position ── */}
-          <div>
-            <p className="text-muted text-xs font-medium mb-2">Position</p>
-            <ShapeSelector options={PET_POSITION_OPTIONS} selected={config.pet_position || 'right'} onSelect={(v) => set('pet_position', v)} />
-          </div>
-
-          {/* ── Multi-part Colouring ── */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-muted text-xs font-medium">Body Colour</p>
-              <button
-                onClick={() => {
-                  set('pet_color_body', '');
-                  set('pet_color_ears', '');
-                  set('pet_color_tail', '');
-                  set('pet_color_accent', '');
-                }}
-                className="text-[10px] text-accent hover:text-accent/80 transition-colors"
-              >
-                Reset all to match
-              </button>
-            </div>
-            <ColorSwatch colors={PET_COLORS} selected={config.pet_color} onSelect={(v) => set('pet_color', v)} />
-          </div>
-
-          <div>
-            <p className="text-muted text-xs font-medium mb-2">Ears</p>
-            <ColorSwatch
-              colors={PET_COLORS}
-              selected={config.pet_color_ears || config.pet_color || '#8b4513'}
-              onSelect={(v) => setPartColor('pet_color_ears', v)}
-            />
-          </div>
-
-          <div>
-            <p className="text-muted text-xs font-medium mb-2">Tail</p>
-            <ColorSwatch
-              colors={PET_COLORS}
-              selected={config.pet_color_tail || config.pet_color || '#8b4513'}
-              onSelect={(v) => setPartColor('pet_color_tail', v)}
-            />
-          </div>
-
-          <div>
-            <p className="text-muted text-xs font-medium mb-2">Accent</p>
-            <ColorSwatch
-              colors={PET_COLORS}
-              selected={config.pet_color_accent || config.pet_color || '#8b4513'}
-              onSelect={(v) => setPartColor('pet_color_accent', v)}
-            />
-          </div>
-
-          {/* Pet Accessories */}
-          <div>
-            <p className="text-muted text-xs font-medium mb-2">Pet Accessory</p>
-            <ShapeSelector options={PET_ACCESSORY_OPTIONS} selected={config.pet_accessory || 'none'} onSelect={(v) => set('pet_accessory', v)} />
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function CategoryContent({ category, config, set, lockedByCategory, onPreview, onPreviewEnd }) {
-  const locked = lockedByCategory[category] || new Set();
-  const previewProps = { onPreview, onPreviewEnd };
+function CategoryContent({ category, config, set }) {
+  const { t } = useTranslation();
   switch (category) {
     case 'head':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Shape</p>
-          <ShapeSelector options={HEAD_OPTIONS} selected={config.head} onSelect={(v) => set('head', v)} lockedItems={locked} configKey="head" {...previewProps} />
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.shape')}</p>
+          <ShapeSelector options={HEAD_OPTIONS} selected={config.head} onSelect={(v) => set('head', v)} />
         </div>
       );
     case 'skin':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Colour</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.colour')}</p>
           <ColorSwatch colors={SKIN_COLORS} selected={config.head_color} onSelect={(v) => set('head_color', v)} />
         </div>
       );
     case 'hair':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Style</p>
-          <ShapeSelector options={HAIR_OPTIONS} selected={config.hair} onSelect={(v) => set('hair', v)} lockedItems={locked} configKey="hair" {...previewProps} />
-          <p className="text-muted text-xs font-medium">Colour</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.style')}</p>
+          <ShapeSelector options={HAIR_OPTIONS} selected={config.hair} onSelect={(v) => set('hair', v)} />
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.colour')}</p>
           <ColorSwatch colors={HAIR_COLORS} selected={config.hair_color} onSelect={(v) => set('hair_color', v)} />
         </div>
       );
     case 'eyes':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Style</p>
-          <ShapeSelector options={EYES_OPTIONS} selected={config.eyes} onSelect={(v) => set('eyes', v)} lockedItems={locked} configKey="eyes" {...previewProps} />
-          <p className="text-muted text-xs font-medium">Colour</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.style')}</p>
+          <ShapeSelector options={EYES_OPTIONS} selected={config.eyes} onSelect={(v) => set('eyes', v)} />
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.colour')}</p>
           <ColorSwatch colors={EYE_COLORS} selected={config.eye_color} onSelect={(v) => set('eye_color', v)} />
         </div>
       );
     case 'mouth':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Style</p>
-          <ShapeSelector options={MOUTH_OPTIONS} selected={config.mouth} onSelect={(v) => set('mouth', v)} lockedItems={locked} configKey="mouth" {...previewProps} />
-          <p className="text-muted text-xs font-medium">Colour</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.style')}</p>
+          <ShapeSelector options={MOUTH_OPTIONS} selected={config.mouth} onSelect={(v) => set('mouth', v)} />
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.colour')}</p>
           <ColorSwatch colors={MOUTH_COLORS} selected={config.mouth_color} onSelect={(v) => set('mouth_color', v)} />
         </div>
       );
     case 'body':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Shape</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.shape')}</p>
           <ShapeSelector options={BODY_OPTIONS} selected={config.body} onSelect={(v) => set('body', v)} />
         </div>
       );
     case 'outfit':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Colour</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.colour')}</p>
           <ColorSwatch colors={BODY_COLORS} selected={config.body_color} onSelect={(v) => set('body_color', v)} />
         </div>
       );
     case 'pattern':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Pattern</p>
-          <ShapeSelector options={OUTFIT_PATTERN_OPTIONS} selected={config.outfit_pattern} onSelect={(v) => set('outfit_pattern', v)} lockedItems={locked} configKey="outfit_pattern" {...previewProps} />
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.categories.pattern')}</p>
+          <ShapeSelector options={OUTFIT_PATTERN_OPTIONS} selected={config.outfit_pattern} onSelect={(v) => set('outfit_pattern', v)} />
         </div>
       );
     case 'background':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Colour</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.colour')}</p>
           <ColorSwatch colors={BG_COLORS} selected={config.bg_color} onSelect={(v) => set('bg_color', v)} />
         </div>
       );
     case 'hat':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Style</p>
-          <ShapeSelector options={HAT_OPTIONS} selected={config.hat} onSelect={(v) => set('hat', v)} lockedItems={locked} configKey="hat" {...previewProps} />
-          <p className="text-muted text-xs font-medium">Colour</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.style')}</p>
+          <ShapeSelector options={HAT_OPTIONS} selected={config.hat} onSelect={(v) => set('hat', v)} />
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.colour')}</p>
           <ColorSwatch colors={HAT_COLORS} selected={config.hat_color} onSelect={(v) => set('hat_color', v)} />
         </div>
       );
     case 'face':
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Extra</p>
-          <ShapeSelector options={FACE_EXTRA_OPTIONS} selected={config.face_extra} onSelect={(v) => set('face_extra', v)} lockedItems={locked} configKey="face_extra" {...previewProps} />
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.extra')}</p>
+          <ShapeSelector options={FACE_EXTRA_OPTIONS} selected={config.face_extra} onSelect={(v) => set('face_extra', v)} />
         </div>
       );
     case 'accessory': {
@@ -693,32 +385,25 @@ function CategoryContent({ category, config, set, lockedByCategory, onPreview, o
       };
       return (
         <div className="space-y-3">
-          <p className="text-muted text-xs font-medium">Gear <span className="text-muted/50">(select multiple)</span></p>
-          <MultiShapeSelector options={ACCESSORY_OPTIONS} selected={currentAccessories} onToggle={toggleAccessory} lockedItems={locked} configKey="accessory" {...previewProps} />
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.categories.accessory')} <span className="text-muted/50">{t('avatarEditor.selectMultiple')}</span></p>
+          <MultiShapeSelector options={ACCESSORY_OPTIONS} selected={currentAccessories} onToggle={toggleAccessory} />
           {currentAccessories.length > 0 && (
             <button onClick={clearAll} className="text-[10px] text-crimson hover:text-crimson/80 transition-colors">
-              Clear all gear
+              {t('avatarEditor.clearAllGear')}
             </button>
           )}
-          <p className="text-muted text-xs font-medium">Colour</p>
+          <p className="text-muted text-xs font-medium">{t('avatarEditor.colour')}</p>
           <ColorSwatch colors={ACCESSORY_COLORS} selected={config.accessory_color} onSelect={(v) => set('accessory_color', v)} />
         </div>
       );
     }
-    case 'pet':
-      return <PetCustomiser config={config} set={set} locked={locked} previewProps={previewProps} />;
     default:
       return null;
   }
 }
 
-const EDITOR_TO_ITEM_CATEGORY = {
-  head: 'head', hair: 'hair', eyes: 'eyes', mouth: 'mouth',
-  hat: 'hat', accessory: 'accessory', face: 'face_extra',
-  pattern: 'outfit_pattern', pet: 'pet',
-};
-
 function CategoryStrip({ openCategory, onSelect }) {
+  const { t } = useTranslation();
   const scrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -755,7 +440,7 @@ function CategoryStrip({ openCategory, onSelect }) {
         <button
           onClick={() => scroll(-1)}
           className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-surface/90 border border-border text-muted hover:text-cream"
-          aria-label="Scroll left"
+          aria-label={t('avatarEditor.scrollLeft')}
         >
           <ChevronLeft size={14} />
         </button>
@@ -776,7 +461,7 @@ function CategoryStrip({ openCategory, onSelect }) {
                 : 'border-border text-muted hover:border-border-light hover:text-cream'
             }`}
           >
-            {cat.label}
+            {t(cat.labelKey)}
           </button>
         ))}
       </div>
@@ -786,7 +471,7 @@ function CategoryStrip({ openCategory, onSelect }) {
         <button
           onClick={() => scroll(1)}
           className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-surface/90 border border-border text-muted hover:text-cream"
-          aria-label="Scroll right"
+          aria-label={t('avatarEditor.scrollRight')}
         >
           <ChevronRight size={14} />
         </button>
@@ -796,6 +481,7 @@ function CategoryStrip({ openCategory, onSelect }) {
 }
 
 export default function AvatarEditor() {
+  const { t } = useTranslation();
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [config, setConfig] = useState(() => ({
@@ -805,30 +491,8 @@ export default function AvatarEditor() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [openCategory, setOpenCategory] = useState('head');
-  const [lockedByCategory, setLockedByCategory] = useState({});
-  const [preview, setPreview] = useState(null);
 
   const goBack = useCallback(() => navigate(-1), [navigate]);
-
-  // Fetch avatar items to determine locks
-  const fetchLocks = useCallback(async () => {
-    try {
-      const items = await api('/api/avatar/items');
-      if (!Array.isArray(items)) return;
-      const lockMap = {};
-      for (const item of items) {
-        if (!item.unlocked && !item.is_default) {
-          if (!lockMap[item.category]) lockMap[item.category] = new Set();
-          lockMap[item.category].add(item.item_id);
-        }
-      }
-      setLockedByCategory(lockMap);
-    } catch {
-      // If fetch fails, don't lock anything
-    }
-  }, []);
-
-  useEffect(() => { fetchLocks(); }, [fetchLocks]);
 
   // Reset config from user when avatar_config changes
   useEffect(() => {
@@ -849,31 +513,10 @@ export default function AvatarEditor() {
     return () => document.removeEventListener('keydown', handler);
   }, [goBack]);
 
-  // Compute display config (with preview overlay)
-  const displayConfig = preview ? { ...config, [preview.key]: preview.value } : config;
-
-  const editorLocks = {};
-  for (const [editorCat, itemCat] of Object.entries(EDITOR_TO_ITEM_CATEGORY)) {
-    if (lockedByCategory[itemCat]) {
-      editorLocks[editorCat] = lockedByCategory[itemCat];
-    }
-  }
-
   const set = (key, value) => {
-    setConfig((prev) => {
-      const next = { ...prev, [key]: value };
-      // When switching pets, update pet_xp to the new pet's XP from the map
-      if (key === 'pet') {
-        const xpMap = next.pet_xp_map || {};
-        next.pet_xp = (value && value !== 'none' && value in xpMap) ? xpMap[value] : 0;
-      }
-      return next;
-    });
+    setConfig((prev) => ({ ...prev, [key]: value }));
     setMsg('');
   };
-
-  const handlePreview = useCallback((key, value) => setPreview({ key, value }), []);
-  const handlePreviewEnd = useCallback(() => setPreview(null), []);
 
   const save = async () => {
     setSaving(true);
@@ -881,10 +524,10 @@ export default function AvatarEditor() {
     try {
       const res = await api('/api/avatar', { method: 'PUT', body: { config } });
       updateUser({ avatar_config: res.avatar_config || config });
-      setMsg('Saved!');
+      setMsg(t('avatarEditor.saved'));
       setTimeout(() => goBack(), 600);
     } catch (err) {
-      setMsg(err.message || 'Failed to save');
+      setMsg(err.message || t('avatarEditor.saveFailed'));
     } finally {
       setSaving(false);
       setTimeout(() => setMsg(''), 3000);
@@ -900,11 +543,11 @@ export default function AvatarEditor() {
             <button
               onClick={goBack}
               className="p-1.5 rounded-lg hover:bg-surface-raised transition-colors text-muted hover:text-cream"
-              aria-label="Back"
+              aria-label={t('common.back')}
             >
               <ArrowLeft size={18} />
             </button>
-            <h2 className="font-heading text-cream text-sm font-semibold">Customise Avatar</h2>
+            <h2 className="font-heading text-cream text-sm font-semibold">{t('avatarEditor.title')}</h2>
           </div>
           <button
             onClick={save}
@@ -912,23 +555,13 @@ export default function AvatarEditor() {
             className="game-btn game-btn-blue flex items-center gap-1.5 !py-1.5 !px-4 !text-xs"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {saving ? 'Saving...' : msg || 'Save'}
+            {saving ? t('avatarEditor.saving') : msg || t('common.save')}
           </button>
         </div>
         <div className="flex justify-center">
-          {openCategory === 'pet' && config.pet_position === 'custom' && config.pet && config.pet !== 'none' ? (
-            <TapToPlaceOverlay
-              config={displayConfig}
-              onPlace={(x, y) => {
-                setConfig((prev) => ({ ...prev, pet_x: x, pet_y: y }));
-                setMsg('');
-              }}
-            />
-          ) : (
-            <div className={`avatar-idle rounded-md transition-shadow duration-300`}>
-              <AvatarDisplay config={displayConfig} size="xl" />
-            </div>
-          )}
+          <div className="avatar-idle rounded-md transition-shadow duration-300">
+            <AvatarDisplay config={config} size="xl" />
+          </div>
         </div>
       </div>
 
@@ -942,9 +575,6 @@ export default function AvatarEditor() {
             category={openCategory}
             config={config}
             set={set}
-            lockedByCategory={editorLocks}
-            onPreview={handlePreview}
-            onPreviewEnd={handlePreviewEnd}
           />
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/Modal';
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 
 export default function Wishlist() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const isKid = user?.role === 'kid';
 
@@ -41,11 +43,11 @@ export default function Wishlist() {
       const data = await api('/api/wishlist');
       setItems(data.items || data || []);
     } catch (err) {
-      setError(err.message || 'Failed to load wishlist');
+      setError(err.message || t('wishlist.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchWishlist();
@@ -72,7 +74,7 @@ export default function Wishlist() {
       setShowAddForm(false);
       fetchWishlist();
     } catch (err) {
-      setError(err.message || 'Failed to add item');
+      setError(err.message || t('wishlist.addError'));
     } finally {
       setAddSubmitting(false);
     }
@@ -83,7 +85,7 @@ export default function Wishlist() {
       await api(`/api/wishlist/${id}`, { method: 'DELETE' });
       setItems((prev) => prev.filter((item) => item.id !== id));
     } catch (err) {
-      setError(err.message || 'Failed to delete item');
+      setError(err.message || t('wishlist.deleteError'));
     }
   };
 
@@ -97,7 +99,7 @@ export default function Wishlist() {
   const submitConvert = async () => {
     const cost = parseInt(pointCost, 10);
     if (!cost || cost <= 0) {
-      setConvertError('Enter a valid point cost');
+      setConvertError(t('wishlist.enterValidCost'));
       return;
     }
     setConvertSubmitting(true);
@@ -110,7 +112,7 @@ export default function Wishlist() {
       setConvertModal(false);
       fetchWishlist();
     } catch (err) {
-      setConvertError(err.message || 'Conversion failed');
+      setConvertError(err.message || t('wishlist.conversionFailed'));
     } finally {
       setConvertSubmitting(false);
     }
@@ -120,7 +122,7 @@ export default function Wishlist() {
   const groupedByKid = {};
   if (!isKid) {
     items.forEach((item) => {
-      const kidName = item.user_display_name || item.username || item.user_id || 'Unknown Hero';
+      const kidName = item.user_display_name || item.username || item.user_id || t('wishlist.unknownHero');
       if (!groupedByKid[kidName]) groupedByKid[kidName] = [];
       groupedByKid[kidName].push(item);
     });
@@ -166,7 +168,7 @@ export default function Wishlist() {
           )}
           {isConverted && (
             <span className="inline-block mt-1 text-emerald text-xs font-medium">
-              Converted to Reward
+              {t('wishlist.convertedToReward')}
             </span>
           )}
         </div>
@@ -177,7 +179,7 @@ export default function Wishlist() {
             <button
               onClick={() => openConvert(item)}
               className="game-btn game-btn-purple !py-2 !px-3 !text-[8px]"
-              title="Convert to Reward"
+              title={t('wishlist.convertToReward')}
             >
               <Gift size={14} />
             </button>
@@ -186,7 +188,7 @@ export default function Wishlist() {
             <button
               onClick={() => deleteItem(item.id)}
               className="p-2 rounded hover:bg-crimson/10 text-crimson/60 hover:text-crimson transition-colors"
-              title="Delete"
+              title={t('common.delete')}
             >
               <Trash2 size={16} />
             </button>
@@ -202,7 +204,7 @@ export default function Wishlist() {
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <h1 className="text-cream text-lg font-semibold">
-            Wish List
+            {t('wishlist.title')}
           </h1>
         </div>
 
@@ -213,7 +215,7 @@ export default function Wishlist() {
             className="game-btn game-btn-blue flex items-center gap-2"
           >
             <Plus size={14} />
-            Add Wish
+            {t('wishlist.addWish')}
           </button>
         )}
       </div>
@@ -229,26 +231,26 @@ export default function Wishlist() {
       {isKid && showAddForm && (
         <div className="game-panel p-5 mb-6 space-y-3">
           <h3 className="text-cream text-sm font-semibold mb-3">
-            New Wish
+            {t('wishlist.newWish')}
           </h3>
           <input
             type="text"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="What do you wish for?"
+            placeholder={t('wishlist.newWishPlaceholder')}
             className="field-input"
           />
           <input
             type="url"
             value={newUrl}
             onChange={(e) => setNewUrl(e.target.value)}
-            placeholder="Link (optional)"
+            placeholder={t('wishlist.linkOptional')}
             className="field-input"
           />
           <textarea
             value={newNotes}
             onChange={(e) => setNewNotes(e.target.value)}
-            placeholder="Notes (optional)"
+            placeholder={t('wishlist.notesOptional')}
             rows={2}
             className="field-input resize-none"
           />
@@ -257,14 +259,14 @@ export default function Wishlist() {
               onClick={() => setShowAddForm(false)}
               className="game-btn game-btn-red"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               onClick={addItem}
               disabled={addSubmitting || !newTitle.trim()}
               className="game-btn game-btn-blue"
             >
-              {addSubmitting ? 'Adding...' : 'Add Wish'}
+              {addSubmitting ? t('wishlist.adding') : t('wishlist.addWish')}
             </button>
           </div>
         </div>
@@ -284,7 +286,7 @@ export default function Wishlist() {
             <div className="text-center py-16">
               <Star size={48} className="text-muted mx-auto mb-4" />
               <p className="text-cream text-sm font-semibold">
-                No items yet.
+                {t('wishlist.noItems')}
               </p>
             </div>
           ) : (
@@ -300,7 +302,7 @@ export default function Wishlist() {
             <div className="text-center py-16">
               <Star size={48} className="text-muted mx-auto mb-4" />
               <p className="text-cream text-sm font-semibold">
-                No items yet.
+                {t('wishlist.noItems')}
               </p>
             </div>
           ) : (
@@ -308,7 +310,7 @@ export default function Wishlist() {
               <div key={kidName}>
                 <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
                   <Star size={14} className="text-accent" />
-                  {kidName}'s Wishes
+                  {t('wishlist.kidsWishes', { name: kidName })}
                 </h2>
                 <div className="space-y-3">
                   {kidItems.map((item) => renderItem(item, false, true))}
@@ -323,15 +325,15 @@ export default function Wishlist() {
       <Modal
         isOpen={convertModal}
         onClose={() => setConvertModal(false)}
-        title="Convert to Reward"
+        title={t('wishlist.convertToReward')}
         actions={[
           {
-            label: 'Cancel',
+            label: t('common.cancel'),
             onClick: () => setConvertModal(false),
             className: 'game-btn game-btn-red',
           },
           {
-            label: convertSubmitting ? 'Converting...' : 'Convert',
+            label: convertSubmitting ? t('wishlist.converting') : t('wishlist.convert'),
             onClick: submitConvert,
             className: 'game-btn game-btn-gold',
             disabled: convertSubmitting,
@@ -340,11 +342,11 @@ export default function Wishlist() {
       >
         <div className="space-y-4">
           <p className="text-muted text-sm">
-            Convert{' '}
+            {t('wishlist.convertIntro')}{' '}
             <span className="text-cream font-medium">
               {convertItem?.title}
             </span>{' '}
-            into a redeemable reward:
+            {t('wishlist.convertIntroEnd')}
           </p>
 
           {convertError && (
@@ -355,7 +357,7 @@ export default function Wishlist() {
 
           <div>
             <label className="block text-gold text-sm font-medium mb-2">
-              Point Cost (XP)
+              {t('wishlist.pointCost')}
             </label>
             <input
               type="number"

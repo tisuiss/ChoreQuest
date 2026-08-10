@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useTheme } from '../hooks/useTheme';
 import { themedTitle } from '../utils/questThemeText';
@@ -17,18 +18,18 @@ import {
 } from 'lucide-react';
 
 const FREQUENCY_OPTIONS = [
-  { value: 'once', label: 'One-time' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'fortnightly', label: 'Fortnightly' },
+  { value: 'once', labelKey: 'questAssign.frequency.once' },
+  { value: 'daily', labelKey: 'questAssign.frequency.daily' },
+  { value: 'weekly', labelKey: 'questAssign.frequency.weekly' },
+  { value: 'fortnightly', labelKey: 'questAssign.frequency.fortnightly' },
 ];
 const ROTATION_CADENCE_OPTIONS = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'fortnightly', label: 'Fortnightly' },
-  { value: 'monthly', label: 'Monthly' },
+  { value: 'daily', labelKey: 'questAssign.frequency.daily' },
+  { value: 'weekly', labelKey: 'questAssign.frequency.weekly' },
+  { value: 'fortnightly', labelKey: 'questAssign.frequency.fortnightly' },
+  { value: 'monthly', labelKey: 'questAssign.frequency.monthly' },
 ];
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
 
 const selectClass =
   'bg-navy-light border border-border text-cream p-2 rounded text-sm ' +
@@ -41,6 +42,8 @@ export default function QuestAssignModal({
   chore,
   kids,
 }) {
+  const { t } = useTranslation();
+  const DAY_NAMES = DAY_KEYS.map((k) => t(k));
   const { colorTheme } = useTheme();
 
   // Per-kid: { [kidId]: { selected, requires_photo } }
@@ -216,7 +219,7 @@ export default function QuestAssignModal({
       onAssigned();
       onClose();
     } catch (err) {
-      setError(err.message || 'Failed to assign quest.');
+      setError(err.message || t('questAssign.assignError'));
     } finally {
       setSubmitting(false);
     }
@@ -238,24 +241,24 @@ export default function QuestAssignModal({
         .join(', ');
     }
     const opt = FREQUENCY_OPTIONS.find((f) => f.value === scheduleFrequency);
-    return opt ? opt.label : scheduleFrequency;
+    return opt ? t(opt.labelKey) : scheduleFrequency;
   })();
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Quest Assignment Scroll"
+      title={t('questAssign.title')}
       actions={[
-        { label: 'Cancel', onClick: onClose, className: 'game-btn game-btn-blue' },
+        { label: t('common.cancel'), onClick: onClose, className: 'game-btn game-btn-blue' },
         {
           label: submitting
-            ? 'Saving...'
+            ? t('common.saving')
             : isUnassigningAll
-            ? 'Unassign All'
+            ? t('questAssign.unassignAll')
             : selectedCount === 0
-            ? 'Save'
-            : 'Assign Quest',
+            ? t('common.save')
+            : t('questAssign.assignQuest'),
           onClick: handleSubmit,
           className: isUnassigningAll ? 'game-btn game-btn-red' : 'game-btn game-btn-gold',
           disabled: submitting,
@@ -275,9 +278,9 @@ export default function QuestAssignModal({
           <div className="flex items-center gap-3 mt-1">
             <span className="flex items-center gap-1 text-gold text-sm font-bold">
               <Star size={12} className="fill-gold" />
-              {chore.points} XP
+              {t('chores.starsCount', { count: chore.points })}
             </span>
-            <span className="text-muted text-xs capitalize">{chore.difficulty}</span>
+            <span className="text-muted text-xs capitalize">{t(`chores.difficulty.${chore.difficulty}`)}</span>
             {chore.category && (
               <span className="text-muted text-xs">{chore.category.name || chore.category}</span>
             )}
@@ -288,7 +291,7 @@ export default function QuestAssignModal({
         <div>
           <label className="flex items-center gap-2 text-cream text-sm font-medium mb-2">
             <Users size={14} />
-            Select Heroes
+            {t('questAssign.selectHeroes')}
           </label>
           <div className="space-y-2">
             {kids.map((kid) => {
@@ -342,7 +345,7 @@ export default function QuestAssignModal({
                       <div className="flex items-center justify-between">
                         <label className="text-muted text-xs font-medium flex items-center gap-1.5">
                           <Camera size={12} />
-                          Photo Proof
+                          {t('questAssign.photoProof')}
                         </label>
                         <button
                           type="button"
@@ -378,7 +381,7 @@ export default function QuestAssignModal({
         {/* Unassign warning */}
         {isUnassigningAll && (
           <div className="p-3 rounded-lg border border-crimson/30 bg-crimson/10 text-crimson text-sm">
-            No heroes selected. Saving will remove all assignments from this quest.
+            {t('questAssign.noHeroesSelected')}
           </div>
         )}
 
@@ -387,15 +390,15 @@ export default function QuestAssignModal({
           <div className="p-3 rounded-lg border border-border bg-surface-raised/20 space-y-3">
             <label className="text-cream text-sm font-medium flex items-center gap-2">
               <CalendarDays size={14} />
-              Schedule
+              {t('questAssign.schedule')}
             </label>
 
             {/* Frequency dropdown */}
             <div>
               <label className="block text-muted text-xs font-medium mb-1">
-                Frequency
+                {t('questAssign.frequency.label')}
                 {hasDaysSelected && (
-                  <span className="text-accent ml-1">(overridden by quest days)</span>
+                  <span className="text-accent ml-1">{t('questAssign.overriddenByDays')}</span>
                 )}
               </label>
               <select
@@ -406,7 +409,7 @@ export default function QuestAssignModal({
               >
                 {FREQUENCY_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </option>
                 ))}
               </select>
@@ -415,8 +418,8 @@ export default function QuestAssignModal({
             {/* Day picker */}
             <div>
               <label className="block text-muted text-xs font-medium mb-1">
-                Quest Days
-                <span className="text-muted/60 ml-1">(optional)</span>
+                {t('questAssign.questDays')}
+                <span className="text-muted/60 ml-1">{t('questAssign.optional')}</span>
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {DAY_NAMES.map((day, idx) => (
@@ -436,8 +439,8 @@ export default function QuestAssignModal({
               </div>
               <p className="text-muted text-xs mt-1">
                 {hasDaysSelected
-                  ? `Quest appears on ${scheduleDays.slice().sort((a, b) => a - b).map((d) => DAY_NAMES[d]).join(', ')}.`
-                  : 'Pick specific days, or leave empty to use the frequency above.'}
+                  ? t('questAssign.appearsOn', { days: scheduleDays.slice().sort((a, b) => a - b).map((d) => DAY_NAMES[d]).join(', ') })
+                  : t('questAssign.pickDaysHint')}
               </p>
             </div>
           </div>
@@ -449,7 +452,7 @@ export default function QuestAssignModal({
             <div className="flex items-center justify-between">
               <label className="text-cream text-sm font-medium flex items-center gap-2">
                 <Camera size={14} />
-                Require Photo Proof
+                {t('questAssign.requirePhotoProof')}
               </label>
               <button
                 type="button"
@@ -475,10 +478,10 @@ export default function QuestAssignModal({
             </div>
             <p className="text-muted text-xs mt-1">
               {allSelectedHavePhoto
-                ? 'All heroes must attach a photo when completing this quest.'
+                ? t('questAssign.allRequirePhoto')
                 : someSelectedHavePhoto
-                ? 'Some heroes require photo proof. Expand individual settings to adjust.'
-                : 'Heroes can complete this quest without attaching a photo.'}
+                ? t('questAssign.someRequirePhoto')
+                : t('questAssign.noneRequirePhoto')}
             </p>
           </div>
         )}
@@ -489,7 +492,7 @@ export default function QuestAssignModal({
             <div className="flex items-center justify-between">
               <label className="text-cream text-sm font-medium flex items-center gap-2">
                 <RotateCw size={14} />
-                Kid Rotation
+                {t('questAssign.kidRotation')}
               </label>
               <button
                 type="button"
@@ -508,13 +511,13 @@ export default function QuestAssignModal({
               </button>
             </div>
             <p className="text-muted text-xs">
-              Alternate which hero is assigned. The schedule above controls when the quest appears.
+              {t('questAssign.rotationHint')}
             </p>
             {rotationEnabled && (
               <div className="space-y-3">
                 <div>
                   <label className="block text-muted text-xs font-medium mb-1">
-                    Swap Every
+                    {t('questAssign.swapEvery')}
                   </label>
                   <select
                     value={rotationCadence}
@@ -523,14 +526,14 @@ export default function QuestAssignModal({
                   >
                     {ROTATION_CADENCE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {t(opt.labelKey)}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-muted text-xs font-medium mb-1">
-                    Starts With
+                    {t('questAssign.startsWith')}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {selectedKids.map(([kidId]) => {
@@ -560,7 +563,7 @@ export default function QuestAssignModal({
                     })}
                   </div>
                   <p className="text-muted text-xs mt-1">
-                    This hero gets the quest first, then it rotates.
+                    {t('questAssign.startsWithHint')}
                   </p>
                 </div>
               </div>

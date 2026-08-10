@@ -23,10 +23,9 @@ async def init_db():
             User, Chore, ChoreAssignment, ChoreCategory, ChoreRotation,
             ChoreExclusion, ChoreAssignmentRule, QuestTemplate,
             Reward, RewardRedemption, PointTransaction,
-            Achievement, UserAchievement, WishlistItem, SeasonalEvent,
-            Notification, SpinResult, ApiKey, AuditLog, AppSetting,
+            Achievement, UserAchievement, WishlistItem,
+            Notification, ApiKey, AuditLog, AppSetting,
             InviteCode, RefreshToken, PushSubscription,
-            AvatarItem, UserAvatarItem,
             Shoutout, VacationPeriod,
         )
         await conn.run_sync(Base.metadata.create_all)
@@ -44,6 +43,9 @@ async def init_db():
             ("achievements", "tier", "VARCHAR(10)"),
             ("achievements", "group_key", "VARCHAR(50)"),
             ("achievements", "sort_order", "INTEGER DEFAULT 0"),
+            # i18n
+            ("users", "language", "VARCHAR(5)"),
+            ("notifications", "params", "TEXT"),
         ]
         for table, col, typedef in _migrations:
             try:

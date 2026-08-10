@@ -19,7 +19,7 @@ class LoginRequest(BaseModel):
 
 class PinLoginRequest(BaseModel):
     username: str
-    pin: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    pin: str = Field(pattern=r"^\d{4,6}$")
 
 
 class ChangePasswordRequest(BaseModel):
@@ -28,12 +28,27 @@ class ChangePasswordRequest(BaseModel):
 
 
 class SetPinRequest(BaseModel):
-    pin: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    pin: str = Field(pattern=r"^\d{4,6}$")
+
+
+class KioskKidResponse(BaseModel):
+    id: int
+    display_name: str
+    avatar_config: dict | None
+    has_pin: bool
+
+    model_config = {"from_attributes": True}
+
+
+class KioskLoginRequest(BaseModel):
+    kid_id: int
+    pin: str | None = Field(default=None, pattern=r"^\d{4,6}$")
 
 
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = Field(None, max_length=10)
     avatar_config: dict | None = None
+    language: str | None = Field(None, pattern=r"^(fr|en)$")
 
 
 class UserResponse(BaseModel):
@@ -48,6 +63,7 @@ class UserResponse(BaseModel):
     streak_freezes_used: int = 0
     streak_freeze_month: int | None = None
     avatar_config: dict | None
+    language: str | None = None
     is_active: bool
     created_at: datetime
 
@@ -195,7 +211,7 @@ class RedemptionResponse(BaseModel):
 
 # Points
 class BonusRequest(BaseModel):
-    amount: int = Field(gt=0)
+    amount: int = Field(ne=0)
     description: str
 
 
@@ -245,23 +261,13 @@ class NotificationResponse(BaseModel):
     type: NotificationType
     title: str
     message: str
+    params: dict | None = None
     is_read: bool
     reference_type: str | None
     reference_id: int | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-# Spin
-class SpinResultResponse(BaseModel):
-    points_won: int
-
-
-class SpinAvailabilityResponse(BaseModel):
-    can_spin: bool
-    last_result: int | None = None
-    reason: str | None = None
 
 
 # Calendar
@@ -301,37 +307,6 @@ class WishlistResponse(BaseModel):
 
 class WishlistConvertRequest(BaseModel):
     point_cost: int = Field(gt=0)
-
-
-# Events
-class EventCreate(BaseModel):
-    title: str = Field(max_length=200)
-    description: str | None = None
-    multiplier: float = Field(gt=1.0)
-    start_date: datetime
-    end_date: datetime
-
-
-class EventUpdate(BaseModel):
-    title: str | None = None
-    description: str | None = None
-    multiplier: float | None = None
-    start_date: datetime | None = None
-    end_date: datetime | None = None
-
-
-class EventResponse(BaseModel):
-    id: int
-    title: str
-    description: str | None
-    multiplier: float
-    start_date: datetime
-    end_date: datetime
-    is_active: bool
-    created_by: int
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
 # Assignment Rules
@@ -537,8 +512,3 @@ class StreakFreezeResponse(BaseModel):
     used: bool
     freezes_used_this_month: int
     month: int
-
-
-# Pet Interaction
-class PetInteractionRequest(BaseModel):
-    action: str = Field(pattern=r"^(feed|pet|play)$")

@@ -1,87 +1,50 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Swords } from 'lucide-react';
 
 export default function Login() {
+  const { t } = useTranslation();
   const { login, pinLogin } = useAuth();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [pin, setPin] = useState(['', '', '', '', '', '']);
+  const [pin, setPin] = useState('');
   const [usePinMode, setUsePinMode] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  const pinRefs = useRef([]);
-
-  const handlePinChange = useCallback((index, value) => {
-    if (value && !/^\d$/.test(value)) return;
-
-    setPin(prev => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
-
-    if (value && index < 5) {
-      pinRefs.current[index + 1]?.focus();
-    }
-  }, []);
-
-  const handlePinKeyDown = useCallback((index, e) => {
-    if (e.key === 'Backspace' && !pin[index] && index > 0) {
-      pinRefs.current[index - 1]?.focus();
-    }
-  }, [pin]);
-
-  const handlePinPaste = useCallback((e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (!pasted) return;
-
-    const digits = pasted.split('');
-    setPin(prev => {
-      const next = [...prev];
-      digits.forEach((d, i) => { next[i] = d; });
-      return next;
-    });
-
-    const focusIndex = Math.min(digits.length, 5);
-    pinRefs.current[focusIndex]?.focus();
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (!username.trim()) {
-      setError('Username is required');
+      setError(t('login.usernameRequired'));
       return;
     }
 
     if (usePinMode) {
-      const pinStr = pin.join('');
-      if (pinStr.length !== 6) {
-        setError('Enter all 6 PIN digits');
+      if (pin.length < 4) {
+        setError(t('login.enterPin'));
         return;
       }
     } else if (!password) {
-      setError('Password is required');
+      setError(t('login.passwordRequired'));
       return;
     }
 
     setSubmitting(true);
     try {
       if (usePinMode) {
-        await pinLogin(username.trim(), pin.join(''));
+        await pinLogin(username.trim(), pin);
       } else {
         await login(username.trim(), password);
       }
       navigate('/');
     } catch (err) {
-      setError(err?.message || 'Login failed. Check your credentials.');
+      setError(err?.message || t('login.loginFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -99,7 +62,7 @@ export default function Login() {
             <Swords size={16} className="text-navy" />
           </div>
           <h1 className="text-cream text-lg font-semibold">
-            ChoreQuest
+            {t('common.appName')}
           </h1>
         </div>
 
@@ -113,13 +76,13 @@ export default function Login() {
         {/* Username */}
         <div className="mb-3">
           <label className="block text-cream text-sm font-medium mb-1">
-            Username
+            {t('login.username')}
           </label>
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Enter your username"
+            placeholder={t('login.usernamePlaceholder')}
             autoComplete="username"
             className="field-input"
           />
@@ -127,7 +90,7 @@ export default function Login() {
 
         {/* Mode toggle */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-muted text-sm">Login with:</span>
+          <span className="text-muted text-sm">{t('login.loginWith')}</span>
           <button
             type="button"
             onClick={() => {
@@ -152,7 +115,7 @@ export default function Login() {
               />
             </div>
             <span className={`font-medium ${usePinMode ? 'text-accent' : 'text-muted'}`}>
-              {usePinMode ? 'PIN' : 'Password'}
+              {usePinMode ? t('login.pin') : t('login.password')}
             </span>
           </button>
         </div>
@@ -161,13 +124,13 @@ export default function Login() {
         {!usePinMode && (
           <div className="mb-5">
             <label className="block text-cream text-sm font-medium mb-1">
-              Password
+              {t('login.password')}
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder={t('login.passwordPlaceholder')}
               autoComplete="current-password"
               className="field-input"
             />
@@ -178,23 +141,17 @@ export default function Login() {
         {usePinMode && (
           <div className="mb-5">
             <label className="block text-cream text-sm font-medium mb-1">
-              PIN Code
+              {t('login.pinCode')}
             </label>
-            <div className="flex gap-2 justify-center" onPaste={handlePinPaste}>
-              {pin.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={(el) => (pinRefs.current[i] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handlePinChange(i, e.target.value)}
-                  onKeyDown={(e) => handlePinKeyDown(i, e)}
-                  className="w-10 h-12 text-center text-lg bg-navy border border-border text-accent rounded-md font-bold focus:border-accent focus:outline-none transition-colors"
-                />
-              ))}
-            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder={t('login.pinPlaceholder')}
+              className="field-input text-center tracking-[0.3em]"
+            />
           </div>
         )}
 
@@ -204,14 +161,14 @@ export default function Login() {
           disabled={submitting}
           className={`game-btn game-btn-blue w-full text-sm ${submitting ? 'opacity-60 cursor-wait' : ''}`}
         >
-          {submitting ? 'Signing in...' : 'Sign in'}
+          {submitting ? t('login.signingIn') : t('login.signIn')}
         </button>
 
         {/* Register link */}
         <p className="text-center mt-5 text-muted text-sm">
-          New here?{' '}
+          {t('login.newHere')}{' '}
           <Link to="/register" className="text-accent hover:text-accent-light font-medium transition-colors">
-            Create an account
+            {t('login.createAccount')}
           </Link>
         </p>
       </form>

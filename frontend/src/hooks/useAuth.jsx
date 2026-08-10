@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { api, setAccessToken, clearAccessToken, getAccessToken } from '../api/client';
 
+export const KIOSK_SESSION_KEY = 'chorequest_kiosk_session';
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -70,6 +72,32 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const kioskLogin = async (kidId, pin) => {
+    // Uses a direct fetch (not the shared api() helper): there is no prior
+    // session to refresh at this point, so api()'s 401-triggers-refresh
+    // retry would just mask a wrong-PIN error behind a misleading
+    // "Session expired" message.
+    const res = await fetch('/api/kiosk/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kid_id: kidId, pin }),
+    });
+    if (!res.ok) {
+      let detail = 'Could not select this kid';
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch { /* ignore */ }
+      throw new Error(detail);
+    }
+    const data = await res.json();
+    setAccessToken(data.access_token);
+    setUser(data.user);
+    sessionStorage.setItem(KIOSK_SESSION_KEY, '1');
+    return data.user;
+  };
+
   const register = async (username, password, display_name, role, invite_code) => {
     const body = { username, password, display_name, role };
     if (invite_code) body.invite_code = invite_code;
@@ -85,6 +113,7 @@ export function AuthProvider({ children }) {
     } catch { /* ignore */ }
     clearAccessToken();
     setUser(null);
+    sessionStorage.removeItem(KIOSK_SESSION_KEY);
   };
 
   const updateUser = (updates) => {
@@ -92,7 +121,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, pinLogin, register, logout, updateUser, refreshSession }}>
+    <AuthContext.Provider value={{ user, loading, login, pinLogin, kioskLogin, register, logout, updateUser, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );

@@ -8,10 +8,6 @@ import {
   renderFaceExtra,
   renderHat,
   renderAccessory,
-  renderPet,
-  renderPetExtras,
-  buildPetColors,
-  renderPetAccessory,
 } from './avatar';
 
 const SIZES = {
@@ -121,7 +117,6 @@ function SvgAvatar({ config, size }) {
   const bodyColor = config.body_color || hairColor;
   const hatColor = config.hat_color || '#f39c12';
   const accessoryColor = config.accessory_color || '#3b82f6';
-  const petColors = buildPetColors(config);
 
   const headShape = config.head || 'round';
   const hairStyle = config.hair || config.hair_style || 'short';
@@ -135,8 +130,6 @@ function SvgAvatar({ config, size }) {
     : (config.accessory && config.accessory !== 'none' ? [config.accessory] : []);
   const faceExtraStyle = config.face_extra || 'none';
   const outfitPatternStyle = config.outfit_pattern || 'none';
-  const petStyle = config.pet || 'none';
-  const petPosition = config.pet_position || 'right';
 
   const HeadComponent = HEAD_MAP[headShape] || HEAD_MAP.round;
   const EyesComponent = EYES_MAP[eyeStyle] || EYES_MAP.normal;
@@ -209,48 +202,6 @@ function SvgAvatar({ config, size }) {
           {i === 0 && <circle className="avatar-sparkle" cx="16" cy="23" r="0.6" fill="white" opacity="0" />}
         </g>
       ))}
-
-      {/* Pet — wrapped for wiggle animation, grows with pet level */}
-      <g className="avatar-pet">
-        {(() => {
-          // Per-pet XP: read from pet_xp_map for current pet, fallback to legacy
-          const xpMap = config.pet_xp_map || {};
-          const petXp = (petStyle && petStyle !== 'none' && petStyle in xpMap)
-            ? xpMap[petStyle]
-            : (config.pet_xp || 0);
-          const thresholds = [0, 50, 150, 350, 700, 1200, 2000, 3500];
-          let petLevel = 1;
-          for (let i = 0; i < thresholds.length; i++) {
-            if (petXp >= thresholds[i]) petLevel = i + 1;
-          }
-          // Scale 1.0 at lv1 up to 1.28 at lv8
-          const sc = 1 + (petLevel - 1) * 0.04;
-          const glowColor = petLevel >= 7 ? '#f59e0b' : petLevel >= 5 ? '#a855f7' : null;
-
-          // Determine glow center based on position
-          let px, py;
-          if (petPosition === 'custom' && config.pet_x != null) {
-            px = config.pet_x;
-            py = config.pet_y ?? 20;
-          } else {
-            px = petPosition === 'left' ? 3 : petPosition === 'head' ? 16 : 26;
-            py = petPosition === 'head' ? 4 : 20;
-          }
-
-          return (
-            <>
-              {glowColor && (
-                <circle cx={px} cy={py} r={4} fill={glowColor} opacity="0.15" />
-              )}
-              <g transform={sc !== 1 ? `translate(${px},${py}) scale(${sc}) translate(${-px},${-py})` : undefined}>
-                {renderPet(petStyle, petColors, petPosition, config)}
-                {renderPetExtras(petStyle, petLevel, petColors, petPosition, config)}
-                {renderPetAccessory(petStyle, config.pet_accessory, petPosition, config)}
-              </g>
-            </>
-          );
-        })()}
-      </g>
     </svg>
   );
 }

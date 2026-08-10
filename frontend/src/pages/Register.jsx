@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Swords } from 'lucide-react';
 
 export default function Register() {
+  const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -20,23 +22,23 @@ export default function Register() {
     setError('');
 
     if (!username.trim()) {
-      setError('Username is required');
+      setError(t('register.usernameRequired'));
       return;
     }
     if (!password) {
-      setError('Password is required');
+      setError(t('register.passwordRequired'));
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('register.passwordTooShort'));
       return;
     }
     if (!displayName.trim()) {
-      setError('Display name is required');
+      setError(t('register.displayNameRequired'));
       return;
     }
     if (displayName.trim().length > 10) {
-      setError('Display name must be 10 characters or less');
+      setError(t('register.displayNameTooLong'));
       return;
     }
 
@@ -51,7 +53,7 @@ export default function Register() {
       );
       navigate('/');
     } catch (err) {
-      setError(err?.message || 'Registration failed. Please try again.');
+      setError(err?.message || t('register.registrationFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -69,7 +71,7 @@ export default function Register() {
             <Swords size={16} className="text-navy" />
           </div>
           <h1 className="text-cream text-lg font-semibold">
-            Create account
+            {t('register.createAccount')}
           </h1>
         </div>
 
@@ -83,13 +85,13 @@ export default function Register() {
         {/* Username */}
         <div className="mb-3">
           <label className="block text-cream text-sm font-medium mb-1">
-            Username
+            {t('login.username')}
           </label>
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Choose a username"
+            placeholder={t('register.usernamePlaceholder')}
             autoComplete="username"
             className="field-input"
           />
@@ -98,13 +100,13 @@ export default function Register() {
         {/* Password */}
         <div className="mb-3">
           <label className="block text-cream text-sm font-medium mb-1">
-            Password
+            {t('login.password')}
           </label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min 6 characters"
+            placeholder={t('register.passwordPlaceholder')}
             autoComplete="new-password"
             className="field-input"
           />
@@ -113,14 +115,14 @@ export default function Register() {
         {/* Display Name */}
         <div className="mb-3">
           <label className="block text-cream text-sm font-medium mb-1">
-            Display Name
+            {t('profile.displayName')}
           </label>
           <input
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             maxLength={10}
-            placeholder="What others will see"
+            placeholder={t('register.displayNamePlaceholder')}
             autoComplete="off"
             className="field-input"
           />
@@ -129,7 +131,7 @@ export default function Register() {
         {/* Role */}
         <div className="mb-3">
           <label className="block text-cream text-sm font-medium mb-1">
-            Role
+            {t('register.role')}
           </label>
           <div className="relative">
             <select
@@ -137,8 +139,8 @@ export default function Register() {
               onChange={(e) => setRole(e.target.value)}
               className="field-input appearance-none cursor-pointer pr-10"
             >
-              <option value="kid">Adventurer (Kid)</option>
-              <option value="parent">Leader (Parent)</option>
+              <option value="kid">{t('register.roleKid')}</option>
+              <option value="parent">{t('register.roleParent')}</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted">
               <svg className="w-4 h-4 fill-current" viewBox="0 0 16 16">
@@ -151,18 +153,18 @@ export default function Register() {
         {/* Invite Code */}
         <div className="mb-5">
           <label className="block text-cream text-sm font-medium mb-1">
-            Invite Code
+            {t('register.inviteCode')}
           </label>
           <input
             type="text"
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value)}
-            placeholder="Enter invite code"
+            placeholder={t('register.inviteCodePlaceholder')}
             autoComplete="off"
             className="field-input"
           />
           <p className="text-muted text-xs mt-1">
-            Required unless you're the first user
+            {t('register.inviteCodeHint')}
           </p>
         </div>
 
@@ -172,14 +174,14 @@ export default function Register() {
           disabled={submitting}
           className={`game-btn game-btn-blue w-full text-sm ${submitting ? 'opacity-60 cursor-wait' : ''}`}
         >
-          {submitting ? 'Creating account...' : 'Create account'}
+          {submitting ? t('register.creatingAccount') : t('register.createAccount')}
         </button>
 
         {/* Login link */}
         <p className="text-center mt-5 text-muted text-sm">
-          Already have an account?{' '}
+          {t('register.alreadyHaveAccount')}{' '}
           <Link to="/login" className="text-accent hover:text-accent-light font-medium transition-colors">
-            Sign in
+            {t('login.signIn')}
           </Link>
         </p>
       </form>

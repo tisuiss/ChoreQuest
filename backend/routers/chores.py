@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, date, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from sqlalchemy import select, and_, func, delete, text
+from sqlalchemy import select, and_, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,7 +22,6 @@ from backend.models import (
     AssignmentStatus,
     PointTransaction,
     PointType,
-    SeasonalEvent,
     Notification,
     NotificationType,
     Recurrence,
@@ -112,6 +111,7 @@ def _quest_assigned_notification(user_id: int, chore: Chore) -> Notification:
         type=NotificationType.chore_assigned,
         title="New Quest Assigned!",
         message=f"You've been given a new quest: '{chore.title}' (+{chore.points} XP)",
+        params={"key": "chore_assigned", "title": chore.title, "points": chore.points},
         reference_type="chore",
         reference_id=chore.id,
     )
@@ -936,6 +936,12 @@ async def complete_chore(
             type=NotificationType.chore_completed,
             title="Quest Awaiting Approval",
             message=f"{user.display_name} completed '{chore.title}' - tap to approve (+{chore.points} XP)",
+            params={
+                "key": "chore_completed",
+                "kidName": user.display_name,
+                "title": chore.title,
+                "points": chore.points,
+            },
             reference_type="chore_assignment",
             reference_id=assignment.id,
         ))
@@ -978,21 +984,6 @@ async def verify_chore(
     assignment.verified_by = user.id
     assignment.updated_at = now
 
-    # Calculate event multiplier (use naive UTC to match SQLite storage)
-    now_naive = now.replace(tzinfo=None)
-    ev_result = await db.execute(
-        select(SeasonalEvent).where(
-            SeasonalEvent.is_active == True,
-            SeasonalEvent.start_date <= now_naive,
-            SeasonalEvent.end_date >= now_naive,
-        )
-    )
-    active_events = ev_result.scalars().all()
-
-    multiplier = 1.0
-    for event in active_events:
-        multiplier *= event.multiplier
-
     # Award base points
     db.add(PointTransaction(
         user_id=assignment.user_id,
@@ -1003,37 +994,12 @@ async def verify_chore(
     ))
     total_awarded = base_points
 
-    if multiplier > 1.0:
-        bonus_points = int(base_points * multiplier) - base_points
-        if bonus_points > 0:
-            event_names = ", ".join(e.title for e in active_events)
-            db.add(PointTransaction(
-                user_id=assignment.user_id,
-                amount=bonus_points,
-                type=PointType.event_multiplier,
-                description=f"Event bonus ({event_names}): {chore.title}",
-                reference_id=assignment.id,
-            ))
-            total_awarded += bonus_points
-
     # Update kid's points and streak
     kid_result = await db.execute(select(User).where(User.id == assignment.user_id))
     kid = kid_result.scalar_one()
 
     kid.points_balance += total_awarded
     kid.total_points_earned += total_awarded
-
-    # Pet XP — award the same amount as quest XP (per-pet tracking)
-    from backend.services.pet_leveling import award_pet_xp_db
-    pet_levelup = await award_pet_xp_db(db, kid, total_awarded)
-    if pet_levelup:
-        db.add(Notification(
-            user_id=kid.id,
-            type=NotificationType.pet_levelup,
-            title="Pet Leveled Up!",
-            message=f"Your pet reached level {pet_levelup['new_level']} — {pet_levelup['name']}!",
-            reference_type="pet",
-        ))
 
     if kid.last_streak_date == today:
         pass
@@ -1085,6 +1051,7 @@ async def verify_chore(
             type=NotificationType.streak_milestone,
             title=f"{kid.current_streak}-Day Streak!",
             message=f"You've completed quests {kid.current_streak} days in a row! Keep it up!",
+            params={"key": "streak_milestone", "streak": kid.current_streak},
             reference_type="streak",
         ))
 
@@ -1110,16 +1077,11 @@ async def verify_chore(
         type=NotificationType.chore_verified,
         title="Quest Approved!",
         message=f"'{chore.title}' was approved! You earned {total_awarded} XP!",
+        params={"key": "chore_verified", "title": chore.title, "points": total_awarded},
         reference_type="chore_assignment",
         reference_id=assignment.id,
     ))
     await db.commit()
-
-    # Roll for quest drop avatar item
-    from backend.routers.avatar import try_quest_drop
-    drop = await try_quest_drop(db, kid, chore.difficulty.value)
-    if drop:
-        await db.commit()
 
     ws_data = {
         "chore_id": chore.id,
@@ -1127,8 +1089,6 @@ async def verify_chore(
         "points": total_awarded,
         "assignment_id": assignment.id,
     }
-    if drop:
-        ws_data["avatar_drop"] = drop
 
     await ws_manager.send_to_user(
         assignment.user_id,
@@ -1171,9 +1131,7 @@ async def uncomplete_chore(
         select(PointTransaction).where(
             PointTransaction.user_id == assigned_user_id,
             PointTransaction.reference_id == assignment.id,
-            PointTransaction.type.in_(
-                [PointType.chore_complete, PointType.event_multiplier]
-            ),
+            PointTransaction.type == PointType.chore_complete,
         )
     )
     transactions = tx_result.scalars().all()
@@ -1186,26 +1144,8 @@ async def uncomplete_chore(
 
     assigned_user.points_balance = max(0, assigned_user.points_balance - total_deducted)
     # Note: do NOT decrement total_points_earned — it tracks lifetime XP
-    # earned and is used for milestone unlocks (avatar items, achievements).
+    # earned and is used for milestone unlocks (achievements).
     # Deducting it would cause kids to lose unlocks when quests are undone.
-
-    # Reverse pet XP for the currently equipped pet
-    if total_deducted > 0:
-        config = assigned_user.avatar_config or {}
-        if config.get("pet") and config["pet"] != "none":
-            from backend.services.pet_leveling import (
-                get_current_pet_xp, set_current_pet_xp, migrate_pet_xp,
-            )
-            import json as _json
-            config = migrate_pet_xp(config)
-            old_pet_xp = get_current_pet_xp(config)
-            new_pet_xp = max(0, old_pet_xp - total_deducted)
-            set_current_pet_xp(config, new_pet_xp)
-            await db.execute(
-                text("UPDATE users SET avatar_config = :config WHERE id = :uid"),
-                {"config": _json.dumps(config), "uid": assigned_user.id},
-            )
-            assigned_user.avatar_config = config
 
     for tx in transactions:
         await db.delete(tx)
@@ -1283,6 +1223,12 @@ async def add_quest_feedback(
         type=NotificationType.quest_feedback,
         title="Quest Feedback",
         message=f"{user.display_name} left feedback on \"{chore_title}\": {body.feedback}",
+        params={
+            "key": "quest_feedback",
+            "kidName": user.display_name,
+            "title": chore_title,
+            "feedback": body.feedback,
+        },
         reference_type="chore_assignment",
         reference_id=assignment.id,
     ))

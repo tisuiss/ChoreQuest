@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import ChoreIcon from './ChoreIcon';
 import { Lock, Star } from 'lucide-react';
 
 export default function BadgeDisplay({ achievement }) {
+  const { t } = useTranslation();
   if (!achievement) return null;
 
   const { title, icon, description, unlocked, points_reward } = achievement;
@@ -41,7 +43,7 @@ export default function BadgeDisplay({ achievement }) {
           {unlocked ? title : '???'}
         </p>
         <p className="text-muted text-xs truncate">
-          {unlocked ? description : 'Locked achievement'}
+          {unlocked ? description : t('badgeDisplay.locked')}
         </p>
       </div>
 

@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const EMOTES = [
-  { id: 'wave', icon: '\uD83D\uDC4B', label: 'Wave' },
-  { id: 'cheer', icon: '\uD83C\uDF89', label: 'Cheer' },
-  { id: 'dance', icon: '\uD83D\uDD7A', label: 'Dance' },
-  { id: 'flex', icon: '\uD83D\uDCAA', label: 'Flex' },
-  { id: 'sparkle', icon: '\u2728', label: 'Sparkle' },
-  { id: 'highfive', icon: '\uD83D\uDE4C', label: 'High Five' },
+  { id: 'wave', icon: '\uD83D\uDC4B', labelKey: 'emoteBar.wave' },
+  { id: 'cheer', icon: '\uD83C\uDF89', labelKey: 'emoteBar.cheer' },
+  { id: 'dance', icon: '\uD83D\uDD7A', labelKey: 'emoteBar.dance' },
+  { id: 'flex', icon: '\uD83D\uDCAA', labelKey: 'emoteBar.flex' },
+  { id: 'sparkle', icon: '\u2728', labelKey: 'emoteBar.sparkle' },
+  { id: 'highfive', icon: '\uD83D\uDE4C', labelKey: 'emoteBar.highFive' },
 ];
 
 function FloatingEmote({ emote, onDone }) {
@@ -27,6 +28,7 @@ function FloatingEmote({ emote, onDone }) {
 }
 
 export default function EmoteBar() {
+  const { t } = useTranslation();
   const [floaters, setFloaters] = useState([]);
   const [cooldown, setCooldown] = useState(false);
 
@@ -84,7 +86,7 @@ export default function EmoteBar() {
             className={`w-9 h-9 rounded-lg text-lg transition-colors bg-surface-raised border border-border/50 hover:border-border-light ${
               cooldown ? 'opacity-50 cursor-not-allowed' : ''
             }`}
-            title={emote.label}
+            title={t(emote.labelKey)}
           >
             {emote.icon}
           </button>

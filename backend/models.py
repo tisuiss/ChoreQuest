@@ -49,8 +49,6 @@ class PointType(str, enum.Enum):
     bonus = "bonus"
     adjustment = "adjustment"
     achievement = "achievement"
-    spin = "spin"
-    event_multiplier = "event_multiplier"
 
 
 class NotificationType(str, enum.Enum):
@@ -65,34 +63,9 @@ class NotificationType(str, enum.Enum):
     streak_milestone = "streak_milestone"
     reward_approved = "reward_approved"
     reward_denied = "reward_denied"
-    avatar_item_drop = "avatar_item_drop"
     shoutout = "shoutout"
-    pet_levelup = "pet_levelup"
     announcement = "announcement"
     quest_feedback = "quest_feedback"
-
-
-class AvatarItemRarity(str, enum.Enum):
-    common = "common"
-    uncommon = "uncommon"
-    rare = "rare"
-    epic = "epic"
-    legendary = "legendary"
-
-
-class AvatarUnlockMethod(str, enum.Enum):
-    free = "free"
-    xp = "xp"
-    streak = "streak"
-    shop = "shop"
-    quest_drop = "quest_drop"
-
-
-class AvatarAcquiredVia(str, enum.Enum):
-    free = "free"
-    purchase = "purchase"
-    drop = "drop"
-    milestone = "milestone"
 
 
 class RotationCadence(str, enum.Enum):
@@ -130,6 +103,7 @@ class User(Base):
     streak_freezes_used: Mapped[int] = mapped_column(Integer, default=0)
     streak_freeze_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     avatar_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    language: Mapped[str | None] = mapped_column(String(5), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -342,19 +316,6 @@ class WishlistItem(Base):
     reward = relationship("Reward")
 
 
-class SeasonalEvent(Base):
-    __tablename__ = "seasonal_events"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    multiplier: Mapped[float] = mapped_column(Float, nullable=False)
-    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    creator = relationship("User")
 
 
 class Notification(Base):
@@ -364,24 +325,13 @@ class Notification(Base):
     type: Mapped[NotificationType] = mapped_column(Enum(NotificationType), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
+    params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     reference_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     reference_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="notifications")
-
-
-class SpinResult(Base):
-    __tablename__ = "spin_results"
-    __table_args__ = (UniqueConstraint("user_id", "spin_date"),)
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    points_won: Mapped[int] = mapped_column(Integer, nullable=False)
-    spin_date: Mapped[date] = mapped_column(Date, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User")
 
 
 class ApiKey(Base):
@@ -441,35 +391,6 @@ class InviteCode(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     creator = relationship("User")
-
-
-class AvatarItem(Base):
-    """Catalogue of all avatar customisation items (free + unlockable)."""
-    __tablename__ = "avatar_items"
-    __table_args__ = (UniqueConstraint("category", "item_id"),)
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(30), nullable=False)
-    item_id: Mapped[str] = mapped_column(String(30), nullable=False)
-    display_name: Mapped[str] = mapped_column(String(60), nullable=False)
-    rarity: Mapped[AvatarItemRarity] = mapped_column(Enum(AvatarItemRarity), nullable=False)
-    unlock_method: Mapped[AvatarUnlockMethod] = mapped_column(Enum(AvatarUnlockMethod), nullable=False)
-    unlock_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-
-class UserAvatarItem(Base):
-    """Tracks which avatar items a user has unlocked."""
-    __tablename__ = "user_avatar_items"
-    __table_args__ = (UniqueConstraint("user_id", "avatar_item_id"),)
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    avatar_item_id: Mapped[int] = mapped_column(ForeignKey("avatar_items.id"), nullable=False)
-    acquired_via: Mapped[AvatarAcquiredVia] = mapped_column(Enum(AvatarAcquiredVia), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User")
-    avatar_item = relationship("AvatarItem")
 
 
 class Shoutout(Base):

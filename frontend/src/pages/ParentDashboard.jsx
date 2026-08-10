@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Flame,
@@ -22,6 +23,7 @@ import AvatarDisplay from '../components/AvatarDisplay';
 import Modal from '../components/Modal';
 
 export default function ParentDashboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { colorTheme } = useTheme();
@@ -40,6 +42,7 @@ export default function ParentDashboard() {
   const [bonusKidId, setBonusKidId] = useState('');
   const [bonusAmount, setBonusAmount] = useState('');
   const [bonusDescription, setBonusDescription] = useState('');
+  const [bonusIsMalus, setBonusIsMalus] = useState(false);
   const [bonusSubmitting, setBonusSubmitting] = useState(false);
   const [bonusError, setBonusError] = useState('');
 
@@ -61,11 +64,11 @@ export default function ParentDashboard() {
       );
       setPendingVerifications(needsVerification);
     } catch (err) {
-      setError(err.message || 'Failed to load family data');
+      setError(err.message || t('parentDashboard.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchData();
@@ -88,7 +91,7 @@ export default function ParentDashboard() {
       await api(`/api/chores/${choreId}/verify`, { method: 'POST' });
       await fetchData();
     } catch (err) {
-      setError(err.message || 'Failed to verify chore');
+      setError(err.message || t('parentDashboard.verifyError'));
     } finally {
       setActionBusy(key, false);
     }
@@ -101,7 +104,7 @@ export default function ParentDashboard() {
       await api(`/api/chores/${choreId}/uncomplete`, { method: 'POST' });
       await fetchData();
     } catch (err) {
-      setError(err.message || 'Failed to reject chore');
+      setError(err.message || t('parentDashboard.rejectError'));
     } finally {
       setActionBusy(key, false);
     }
@@ -110,16 +113,16 @@ export default function ParentDashboard() {
   const handleBonusSubmit = async () => {
     setBonusError('');
     if (!bonusKidId) {
-      setBonusError('Select a kid');
+      setBonusError(t('parentDashboard.selectKid'));
       return;
     }
     const amt = parseInt(bonusAmount, 10);
     if (!amt || amt <= 0) {
-      setBonusError('Enter a positive XP amount');
+      setBonusError(t('parentDashboard.enterPositiveAmount'));
       return;
     }
     if (!bonusDescription.trim()) {
-      setBonusError('Enter a description');
+      setBonusError(t('parentDashboard.enterReason'));
       return;
     }
 
@@ -127,15 +130,16 @@ export default function ParentDashboard() {
     try {
       await api(`/api/points/${bonusKidId}/bonus`, {
         method: 'POST',
-        body: { amount: amt, description: bonusDescription.trim() },
+        body: { amount: bonusIsMalus ? -amt : amt, description: bonusDescription.trim() },
       });
       setBonusKidId('');
       setBonusAmount('');
       setBonusDescription('');
+      setBonusIsMalus(false);
       setBonusModalOpen(false);
       await fetchData();
     } catch (err) {
-      setBonusError(err.message || 'Failed to award bonus XP');
+      setBonusError(err.message || (bonusIsMalus ? t('parentDashboard.malusError') : t('parentDashboard.bonusError')));
     } finally {
       setBonusSubmitting(false);
     }
@@ -183,11 +187,11 @@ export default function ParentDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-cream text-lg font-semibold">
-          Family Overview
+          {t('parentDashboard.familyOverview')}
         </h1>
         <div className="flex items-center gap-1.5 text-muted text-sm">
           <Users size={14} />
-          <span>{familyStats.length} members</span>
+          <span>{t('parentDashboard.membersCount', { count: familyStats.length })}</span>
         </div>
       </div>
 
@@ -203,7 +207,7 @@ export default function ParentDashboard() {
       {familyStats.length === 0 ? (
         <div className="game-panel p-8 text-center">
           <p className="text-muted text-sm">
-            No kids in your family yet.
+            {t('parentDashboard.noKids')}
           </p>
         </div>
       ) : (
@@ -228,7 +232,7 @@ export default function ParentDashboard() {
                   <div className="flex items-center gap-3 mt-1">
                     <span className="inline-flex items-center gap-1 text-gold text-xs font-medium">
                       <Star size={11} fill="currentColor" />
-                      {kid.points_balance.toLocaleString()} XP
+                      {t('chores.starsCount', { count: kid.points_balance })}
                     </span>
                     {kid.current_streak > 0 && (
                       <span className="inline-flex items-center gap-1 text-orange-400 text-xs font-medium">
@@ -242,9 +246,9 @@ export default function ParentDashboard() {
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted">Today</span>
+                  <span className="text-muted">{t('common.today')}</span>
                   <span className="text-cream font-medium">
-                    {kid.today_completed}/{kid.today_total} quests
+                    {t('parentDashboard.questsCount', { completed: kid.today_completed, total: kid.today_total })}
                   </span>
                 </div>
                 <ProgressBar
@@ -261,7 +265,7 @@ export default function ParentDashboard() {
       {hasPendingItems && (
         <section>
           <h2 className="text-cream text-sm font-semibold mb-2">
-            Pending Verifications
+            {t('parentDashboard.pendingVerifications')}
           </h2>
 
           <div className="space-y-2">
@@ -283,16 +287,16 @@ export default function ParentDashboard() {
                         className="text-cream text-sm font-medium truncate cursor-pointer hover:text-accent transition-colors"
                         onClick={() => navigate(`/chores/${assignment.chore_id}`)}
                       >
-                        {themedTitle(assignment.chore?.title || 'Chore', colorTheme)}
+                        {themedTitle(assignment.chore?.title || t('parentDashboard.chore'), colorTheme)}
                       </p>
                       <p className="text-muted text-xs mt-0.5">
-                        by {assignment.user?.display_name || 'Kid'}
+                        {t('parentDashboard.by', { name: assignment.user?.display_name || t('parentDashboard.kid') })}
                         {assignment.chore?.requires_photo && (
                           <span className="inline-flex items-center gap-1 ml-2 text-accent">
-                            <Camera size={10} /> Photo
+                            <Camera size={10} /> {t('chores.photo')}
                           </span>
                         )}
-                        <span className="ml-2 text-gold font-medium">+{assignment.chore?.points} XP</span>
+                        <span className="ml-2 text-gold font-medium">+{t('chores.starsCount', { count: assignment.chore?.points })}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -300,7 +304,7 @@ export default function ParentDashboard() {
                         className="game-btn game-btn-blue !px-2.5 !py-1.5"
                         disabled={isBusy}
                         onClick={() => handleVerifyChore(assignment.chore_id)}
-                        title="Approve"
+                        title={t('kidQuests.approve')}
                       >
                         {isVerifying ? (
                           <Loader2 size={14} className="animate-spin" />
@@ -312,7 +316,7 @@ export default function ParentDashboard() {
                         className="game-btn game-btn-red !px-2.5 !py-1.5"
                         disabled={isBusy}
                         onClick={() => handleRejectChore(assignment.chore_id)}
-                        title="Reject"
+                        title={t('kidQuests.reject')}
                       >
                         {isRejecting ? (
                           <Loader2 size={14} className="animate-spin" />
@@ -326,7 +330,7 @@ export default function ParentDashboard() {
                     <div className="mt-2">
                       <img
                         src={`/api/uploads/${assignment.photo_proof_path}`}
-                        alt="Photo proof"
+                        alt={t('kidQuests.photoProof')}
                         className="rounded-md max-h-48 object-cover border border-border"
                       />
                     </div>
@@ -338,7 +342,7 @@ export default function ParentDashboard() {
                       type="text"
                       value={feedbackText[assignment.id] || ''}
                       onChange={e => setFeedbackText(prev => ({ ...prev, [assignment.id]: e.target.value }))}
-                      placeholder="Leave feedback..."
+                      placeholder={t('parentDashboard.leaveFeedback')}
                       maxLength={500}
                       className="field-input !py-1.5 !text-xs flex-1"
                     />
@@ -346,7 +350,7 @@ export default function ParentDashboard() {
                       onClick={() => handleSendFeedback(assignment.id)}
                       disabled={feedbackSending[assignment.id] || !feedbackText[assignment.id]?.trim()}
                       className="game-btn game-btn-blue !py-1.5 !px-2 flex-shrink-0"
-                      title="Send feedback"
+                      title={t('parentDashboard.sendFeedback')}
                     >
                       {feedbackSending[assignment.id] ? (
                         <Loader2 size={12} className="animate-spin" />
@@ -357,7 +361,7 @@ export default function ParentDashboard() {
                   </div>
                   {assignment.feedback && (
                     <p className="mt-1.5 ml-5 text-muted text-xs italic">
-                      Feedback: {assignment.feedback}
+                      {t('parentDashboard.feedbackLabel', { feedback: assignment.feedback })}
                     </p>
                   )}
                 </div>
@@ -374,7 +378,7 @@ export default function ParentDashboard() {
           onClick={() => navigate('/chores')}
         >
           <Plus size={14} />
-          Create Quest
+          {t('parentDashboard.createQuest')}
         </button>
         <button
           className="game-btn game-btn-purple flex items-center gap-2 justify-center flex-1"
@@ -384,26 +388,26 @@ export default function ParentDashboard() {
           }}
         >
           <Sparkles size={14} />
-          Award Bonus XP
+          {t('parentDashboard.awardDeductStars')}
         </button>
       </section>
 
-      {/* Bonus XP Modal */}
+      {/* Bonus / Malus Modal */}
       <Modal
         isOpen={bonusModalOpen}
         onClose={() => setBonusModalOpen(false)}
-        title="Award Bonus XP"
+        title={bonusIsMalus ? t('parentDashboard.deductStars') : t('parentDashboard.awardBonusStars')}
         actions={[
           {
-            label: 'Cancel',
+            label: t('common.cancel'),
             onClick: () => setBonusModalOpen(false),
             className: 'game-btn game-btn-red',
           },
           {
-            label: bonusSubmitting ? 'Awarding...' : 'Award XP',
+            label: bonusSubmitting ? t('common.saving') : (bonusIsMalus ? t('parentDashboard.deductStars') : t('parentDashboard.awardStars')),
             onClick: handleBonusSubmit,
             disabled: bonusSubmitting,
-            className: 'game-btn game-btn-gold',
+            className: bonusIsMalus ? 'game-btn game-btn-red' : 'game-btn game-btn-gold',
           },
         ]}
       >
@@ -414,16 +418,37 @@ export default function ParentDashboard() {
             </div>
           )}
 
+          <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5">
+            <button
+              type="button"
+              onClick={() => setBonusIsMalus(false)}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                !bonusIsMalus ? 'bg-surface-raised text-cream' : 'text-muted hover:text-cream'
+              }`}
+            >
+              {t('parentDashboard.bonus')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBonusIsMalus(true)}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                bonusIsMalus ? 'bg-crimson/20 text-crimson' : 'text-muted hover:text-cream'
+              }`}
+            >
+              {t('parentDashboard.malus')}
+            </button>
+          </div>
+
           <div>
             <label className="block text-cream text-sm font-medium mb-1">
-              Select Kid
+              {t('parentDashboard.selectKidLabel')}
             </label>
             <select
               value={bonusKidId}
               onChange={(e) => setBonusKidId(e.target.value)}
               className="field-input"
             >
-              <option value="">-- Choose --</option>
+              <option value="">{t('parentDashboard.choose')}</option>
               {familyStats.map((kid) => (
                 <option key={kid.id} value={kid.id}>
                   {kid.display_name}
@@ -434,7 +459,7 @@ export default function ParentDashboard() {
 
           <div>
             <label className="block text-cream text-sm font-medium mb-1">
-              XP Amount
+              {t('parentDashboard.starAmount')}
             </label>
             <input
               type="number"
@@ -448,13 +473,13 @@ export default function ParentDashboard() {
 
           <div>
             <label className="block text-cream text-sm font-medium mb-1">
-              Reason
+              {t('parentDashboard.reason')}
             </label>
             <input
               type="text"
               value={bonusDescription}
               onChange={(e) => setBonusDescription(e.target.value)}
-              placeholder="Great job helping out!"
+              placeholder={bonusIsMalus ? t('parentDashboard.malusPlaceholder') : t('parentDashboard.bonusPlaceholder')}
               className="field-input"
             />
           </div>

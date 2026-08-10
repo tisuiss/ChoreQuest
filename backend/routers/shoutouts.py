@@ -98,6 +98,11 @@ async def create_shoutout(
         type=NotificationType.shoutout,
         title="Shoutout!",
         message=f"{current_user.display_name} gave you a shoutout: {body.message}",
+        params={
+            "key": "shoutout",
+            "senderName": current_user.display_name,
+            "message": body.message,
+        },
         reference_type="shoutout",
         reference_id=None,
     )

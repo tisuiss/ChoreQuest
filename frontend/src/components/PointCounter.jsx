@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Star } from 'lucide-react';
 
-export default function PointCounter({ value = 0, prefix = 'XP' }) {
+export default function PointCounter({ value = 0, prefix = 'Stars' }) {
   const [displayValue, setDisplayValue] = useState(value);
   const previousValue = useRef(value);
   const animationRef = useRef(null);

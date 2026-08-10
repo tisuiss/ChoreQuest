@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Flame } from 'lucide-react';
 
 function getFlameProps(streak) {
@@ -12,6 +13,7 @@ function getFlameProps(streak) {
 }
 
 export default function StreakDisplay({ streak = 0, longest = 0 }) {
+  const { t } = useTranslation();
   const [showTooltip, setShowTooltip] = useState(false);
   const flameProps = getFlameProps(streak);
   const isEpic = streak >= 30;
@@ -34,10 +36,10 @@ export default function StreakDisplay({ streak = 0, longest = 0 }) {
       {showTooltip && (
         <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-surface-raised border border-border rounded-lg text-center whitespace-nowrap z-10">
           <p className="text-cream text-xs font-medium">
-            {streak} day streak
+            {t('streakDisplay.dayStreak', { count: streak })}
           </p>
           <p className="text-muted text-[10px]">
-            Best: {longest}
+            {t('streakDisplay.best', { longest })}
           </p>
           <div className="absolute top-full right-3 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-border" />
         </div>

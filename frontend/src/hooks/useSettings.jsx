@@ -3,14 +3,12 @@ import { api } from '../api/client';
 
 const SettingsContext = createContext({
   leaderboard_enabled: true,
-  spin_wheel_enabled: true,
   chore_trading_enabled: true,
 });
 
 export function SettingsProvider({ children }) {
   const [features, setFeatures] = useState({
     leaderboard_enabled: true,
-    spin_wheel_enabled: true,
     chore_trading_enabled: true,
   });
 
@@ -19,7 +17,6 @@ export function SettingsProvider({ children }) {
       const data = await api('/api/admin/settings/features');
       setFeatures({
         leaderboard_enabled: data.leaderboard_enabled !== 'false',
-        spin_wheel_enabled: data.spin_wheel_enabled !== 'false',
         chore_trading_enabled: data.chore_trading_enabled !== 'false',
       });
     } catch {

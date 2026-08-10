@@ -244,6 +244,11 @@ async def propose_trade(
         type=NotificationType.trade_proposed,
         title="Chore Trade Proposed",
         message=f"{current_user.display_name} wants to trade '{chore_title}' with you.",
+        params={
+            "key": "trade_proposed",
+            "proposerName": current_user.display_name,
+            "title": chore_title,
+        },
         reference_type="trade",
         reference_id=assignment.id,
     )
@@ -292,6 +297,11 @@ async def accept_trade(
         type=NotificationType.trade_accepted,
         title="Trade Accepted",
         message=f"{current_user.display_name} accepted your trade for '{chore_title}'.",
+        params={
+            "key": "trade_accepted",
+            "accepterName": current_user.display_name,
+            "title": chore_title,
+        },
         reference_type="trade",
         reference_id=assignment.id,
     )
@@ -349,6 +359,11 @@ async def deny_trade(
         type=NotificationType.trade_denied,
         title="Trade Denied",
         message=f"{current_user.display_name} denied your trade for '{chore_title}'.",
+        params={
+            "key": "trade_denied",
+            "denierName": current_user.display_name,
+            "title": chore_title,
+        },
         reference_type="trade",
         reference_id=assignment.id,
     )

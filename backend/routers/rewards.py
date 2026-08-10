@@ -92,6 +92,7 @@ async def approve_redemption(
         type=NotificationType.reward_approved,
         title="Reward Approved!",
         message=f"Your redemption of '{redemption.reward.title}' has been approved!",
+        params={"key": "reward_approved", "title": redemption.reward.title},
         reference_type="redemption",
         reference_id=redemption.id,
     )
@@ -168,6 +169,11 @@ async def deny_redemption(
             f"Your redemption of '{redemption.reward.title}' was denied. "
             f"{redemption.points_spent} XP has been refunded."
         ),
+        params={
+            "key": "reward_denied",
+            "title": redemption.reward.title,
+            "points": redemption.points_spent,
+        },
         reference_type="redemption",
         reference_id=redemption.id,
     )
@@ -218,6 +224,7 @@ async def fulfill_redemption(
         type=NotificationType.reward_approved,
         title="Reward Delivered!",
         message=f"Your reward '{redemption.reward.title}' has been handed out!",
+        params={"key": "reward_delivered", "title": redemption.reward.title},
         reference_type="redemption",
         reference_id=redemption.id,
     )
@@ -429,6 +436,12 @@ async def redeem_reward(
             type=NotificationType.reward_approved,
             title="Reward Redeemed!",
             message=f"{current_user.display_name} redeemed '{reward.title}' for {reward.point_cost} XP",
+            params={
+                "key": "reward_redeemed_by_kid",
+                "kidName": current_user.display_name,
+                "title": reward.title,
+                "points": reward.point_cost,
+            },
             reference_type="redemption",
             reference_id=redemption.id,
         ))

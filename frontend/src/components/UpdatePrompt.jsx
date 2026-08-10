@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw } from 'lucide-react';
 
 export default function UpdatePrompt() {
+  const { t } = useTranslation();
   const [registration, setRegistration] = useState(null);
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function UpdatePrompt() {
                    transition-colors"
       >
         <RefreshCw size={16} />
-        Update available — tap to refresh
+        {t('updatePrompt.message')}
       </button>
     </div>
   );
