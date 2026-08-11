@@ -281,7 +281,7 @@ export default function KidDashboard() {
         </div>
       )}
 
-      {/* ── Today's quest cards (pending + validated; skipped stay hidden) ── */}
+      {/* ── Today's quest cards, grouped by category (pending + validated; skipped stay hidden) ── */}
       {(() => {
         const todaysAssignments = assignments.filter(
           (a) => a.status === 'pending' || a.status === 'assigned' || a.status === 'completed' || a.status === 'verified'
@@ -304,32 +304,68 @@ export default function KidDashboard() {
           );
         }
 
-        return (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {todaysAssignments.map((assignment, idx) => {
-              const chore = assignment.chore;
-              if (!chore) return null;
+        // Group by category, preserving first-appearance order
+        const groups = [];
+        const groupByKey = new Map();
+        todaysAssignments.forEach((assignment) => {
+          const chore = assignment.chore;
+          if (!chore) return;
+          const cat = chore.category;
+          const key = cat?.id ?? 'none';
+          let group = groupByKey.get(key);
+          if (!group) {
+            group = {
+              key,
+              name: cat?.name || t('choreDetail.generalCategory'),
+              icon: cat?.icon,
+              colour: cat?.colour || '#14b8a6',
+              items: [],
+            };
+            groupByKey.set(key, group);
+            groups.push(group);
+          }
+          group.items.push(assignment);
+        });
 
-              return (
-                <ChoreActionCard
-                  key={assignment.id}
-                  chore={chore}
-                  status={assignment.status}
-                  idx={idx}
-                  completing={completingId === chore.id}
-                  photoFile={photoFiles[chore.id]}
-                  onPhotoChange={(e) =>
-                    setPhotoFiles((prev) => ({
-                      ...prev,
-                      [chore.id]: e.target.files?.[0] || null,
-                    }))
-                  }
-                  onComplete={() => handleComplete(chore)}
-                  colorTheme={colorTheme}
-                  t={t}
-                />
-              );
-            })}
+        return (
+          <div className="space-y-5">
+            {groups.map((group) => (
+              <div key={group.key} className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <div
+                    className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${group.colour}26`, color: group.colour }}
+                  >
+                    <ChoreIcon name={group.icon} size={13} />
+                  </div>
+                  <h2 className="text-cream text-sm font-semibold">{group.name}</h2>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {group.items.map((assignment, idx) => {
+                    const chore = assignment.chore;
+                    return (
+                      <ChoreActionCard
+                        key={assignment.id}
+                        chore={chore}
+                        status={assignment.status}
+                        idx={idx}
+                        completing={completingId === chore.id}
+                        photoFile={photoFiles[chore.id]}
+                        onPhotoChange={(e) =>
+                          setPhotoFiles((prev) => ({
+                            ...prev,
+                            [chore.id]: e.target.files?.[0] || null,
+                          }))
+                        }
+                        onComplete={() => handleComplete(chore)}
+                        colorTheme={colorTheme}
+                        t={t}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         );
       })()}
