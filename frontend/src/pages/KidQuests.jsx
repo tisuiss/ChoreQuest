@@ -61,11 +61,11 @@ export default function KidQuests() {
     setActionLoading((prev) => ({ ...prev, [key]: busy }));
   };
 
-  const handleVerify = async (choreId) => {
-    const key = `verify-${choreId}`;
+  const handleVerify = async (assignment) => {
+    const key = `verify-${assignment.id}`;
     setActionBusy(key, true);
     try {
-      await api(`/api/chores/${choreId}/verify`, { method: 'POST' });
+      await api(`/api/chores/assignments/${assignment.id}/verify`, { method: 'POST' });
       await fetchData();
     } catch (err) {
       setError(err.message || t('kidQuests.verifyError'));
@@ -74,11 +74,11 @@ export default function KidQuests() {
     }
   };
 
-  const handleReject = async (choreId) => {
-    const key = `reject-${choreId}`;
+  const handleReject = async (assignment) => {
+    const key = `reject-${assignment.id}`;
     setActionBusy(key, true);
     try {
-      await api(`/api/chores/${choreId}/uncomplete`, { method: 'POST' });
+      await api(`/api/chores/assignments/${assignment.id}/uncomplete`, { method: 'POST' });
       await fetchData();
     } catch (err) {
       setError(err.message || t('kidQuests.rejectError'));
@@ -172,8 +172,8 @@ export default function KidQuests() {
             const StatusIcon = cfg.icon;
             const isCompleted = a.status === 'completed';
             const isVerified = a.status === 'verified';
-            const verifyKey = `verify-${a.chore_id}`;
-            const rejectKey = `reject-${a.chore_id}`;
+            const verifyKey = `verify-${a.id}`;
+            const rejectKey = `reject-${a.id}`;
             const isVerifying = actionLoading[verifyKey];
             const isRejecting = actionLoading[rejectKey];
             const isBusy = isVerifying || isRejecting;
@@ -224,7 +224,7 @@ export default function KidQuests() {
                       <button
                         className="game-btn game-btn-blue !px-3 !py-2"
                         disabled={isBusy}
-                        onClick={() => handleVerify(a.chore_id)}
+                        onClick={() => handleVerify(a)}
                         title={t('kidQuests.approve')}
                       >
                         {isVerifying ? (
@@ -236,7 +236,7 @@ export default function KidQuests() {
                       <button
                         className="game-btn game-btn-red !px-3 !py-2"
                         disabled={isBusy}
-                        onClick={() => handleReject(a.chore_id)}
+                        onClick={() => handleReject(a)}
                         title={t('kidQuests.reject')}
                       >
                         {isRejecting ? (

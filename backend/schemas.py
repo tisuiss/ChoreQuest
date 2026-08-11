@@ -101,6 +101,7 @@ class ChoreCreate(BaseModel):
     points: int = Field(gt=0)
     difficulty: Difficulty
     icon: str | None = None
+    photo_url: str | None = None
     category_id: int
     recurrence: Recurrence
     custom_days: list[int] | None = None
@@ -114,6 +115,7 @@ class ChoreUpdate(BaseModel):
     points: int | None = None
     difficulty: Difficulty | None = None
     icon: str | None = None
+    photo_url: str | None = None
     category_id: int | None = None
     recurrence: Recurrence | None = None
     custom_days: list[int] | None = None
@@ -128,6 +130,7 @@ class ChoreResponse(BaseModel):
     points: int
     difficulty: Difficulty
     icon: str | None
+    photo_url: str | None = None
     category_id: int
     category: CategoryResponse | None = None
     recurrence: Recurrence

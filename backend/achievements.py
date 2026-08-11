@@ -4,11 +4,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.models import (
     Achievement, UserAchievement, User, ChoreAssignment, AssignmentStatus,
     PointTransaction, PointType, RewardRedemption, Notification, NotificationType,
+    AppSetting,
 )
 from backend.websocket_manager import ws_manager
 
 
 async def check_achievements(db: AsyncSession, user: User):
+    setting_result = await db.execute(
+        select(AppSetting).where(AppSetting.key == "achievements_enabled")
+    )
+    setting = setting_result.scalar_one_or_none()
+    if setting is not None and setting.value == "false":
+        return
+
     result = await db.execute(select(Achievement))
     all_achievements = result.scalars().all()
 

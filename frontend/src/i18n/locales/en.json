@@ -86,6 +86,8 @@
     "featureToggles": "Feature Toggles",
     "leaderboard": "Leaderboard",
     "choreTrading": "Chore Trading",
+    "achievements": "Achievements",
+    "autoApproveChores": "Auto-approve quests (skip parent approval)",
     "defaultLanguage": "Family Default Language",
     "defaultLanguageHint": "Language shown on the kiosk screen before a kid is selected.",
     "dailyResetHour": "Daily Reset Hour",
@@ -454,7 +456,11 @@
     "starsReward": "Star Reward",
     "difficulty": "Difficulty",
     "category": "Category",
-    "selectCategory": "Select category..."
+    "selectCategory": "Select category...",
+    "photo": "Photo (optional)",
+    "choosePhoto": "Choose a photo",
+    "removePhoto": "Remove photo",
+    "photoUploadError": "Failed to upload photo"
   },
   "party": {
     "loadError": "Could not load party data.",

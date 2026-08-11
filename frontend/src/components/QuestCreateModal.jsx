@@ -8,6 +8,9 @@ import {
   BookTemplate,
   Star,
   Scroll,
+  Image,
+  X,
+  Loader2,
 } from 'lucide-react';
 
 const DIFFICULTY_OPTIONS = [
@@ -27,6 +30,7 @@ const emptyForm = {
   points: 10,
   difficulty: 'easy',
   category_id: '',
+  photo_url: null,
 };
 
 export default function QuestCreateModal({
@@ -43,6 +47,7 @@ export default function QuestCreateModal({
   const [submitting, setSubmitting] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +58,7 @@ export default function QuestCreateModal({
           points: editingChore.points || 10,
           difficulty: editingChore.difficulty || 'easy',
           category_id: editingChore.category_id ? String(editingChore.category_id) : '',
+          photo_url: editingChore.photo_url || null,
         });
       } else {
         setForm({ ...emptyForm });
@@ -72,6 +78,24 @@ export default function QuestCreateModal({
 
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoUploading(true);
+    setFormError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const uploaded = await api('/api/uploads', { method: 'POST', body: fd });
+      updateForm('photo_url', uploaded.path);
+    } catch (err) {
+      setFormError(err.message || t('questCreate.photoUploadError'));
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const applyTemplate = (tpl) => {
@@ -111,7 +135,8 @@ export default function QuestCreateModal({
       points: Number(form.points),
       difficulty: form.difficulty,
       category_id: Number(form.category_id),
-      // New quests from this flow don't set recurrence/photo on the chore itself
+      photo_url: form.photo_url || null,
+      // New quests from this flow don't set recurrence/photo-proof on the chore itself
       recurrence: 'once',
       requires_photo: false,
       assigned_user_ids: [],
@@ -294,6 +319,46 @@ export default function QuestCreateModal({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Photo */}
+        <div>
+          <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+            {t('questCreate.photo')}
+          </label>
+          {form.photo_url ? (
+            <div className="flex items-center gap-3">
+              <img
+                src={form.photo_url}
+                alt=""
+                className="w-14 h-14 rounded-lg object-cover border border-border"
+              />
+              <button
+                type="button"
+                onClick={() => updateForm('photo_url', null)}
+                className="flex items-center gap-1.5 text-crimson text-xs hover:text-crimson/80 transition-colors"
+              >
+                <X size={14} />
+                {t('questCreate.removePhoto')}
+              </button>
+            </div>
+          ) : (
+            <label className="inline-flex items-center gap-1.5 text-xs text-muted cursor-pointer hover:text-cream transition-colors bg-surface-raised px-3 py-2 rounded-md border border-border">
+              {photoUploading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Image size={14} />
+              )}
+              {photoUploading ? t('common.saving') : t('questCreate.choosePhoto')}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={photoUploading}
+                onChange={handlePhotoChange}
+              />
+            </label>
+          )}
         </div>
       </div>
     </Modal>

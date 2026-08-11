@@ -204,6 +204,16 @@ export default function Settings() {
                 onChange={(v) => updateSetting('chore_trading_enabled', v)}
                 label={t('settings.choreTrading')}
               />
+              <ToggleSwitch
+                enabled={settings.achievements_enabled ?? true}
+                onChange={(v) => updateSetting('achievements_enabled', v)}
+                label={t('settings.achievements')}
+              />
+              <ToggleSwitch
+                enabled={settings.auto_approve_chores ?? false}
+                onChange={(v) => updateSetting('auto_approve_chores', v)}
+                label={t('settings.autoApproveChores')}
+              />
             </div>
           </div>
 

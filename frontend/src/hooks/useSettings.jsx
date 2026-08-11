@@ -4,12 +4,14 @@ import { api } from '../api/client';
 const SettingsContext = createContext({
   leaderboard_enabled: true,
   chore_trading_enabled: true,
+  achievements_enabled: true,
 });
 
 export function SettingsProvider({ children }) {
   const [features, setFeatures] = useState({
     leaderboard_enabled: true,
     chore_trading_enabled: true,
+    achievements_enabled: true,
   });
 
   const fetchFeatures = useCallback(async () => {
@@ -18,6 +20,7 @@ export function SettingsProvider({ children }) {
       setFeatures({
         leaderboard_enabled: data.leaderboard_enabled !== 'false',
         chore_trading_enabled: data.chore_trading_enabled !== 'false',
+        achievements_enabled: data.achievements_enabled !== 'false',
       });
     } catch {
       // If fetch fails, keep defaults (all enabled)

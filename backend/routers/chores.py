@@ -25,6 +25,7 @@ from backend.models import (
     Notification,
     NotificationType,
     Recurrence,
+    AppSetting,
 )
 from backend.schemas import (
     ChoreCreate,
@@ -297,6 +298,7 @@ async def create_chore(
         points=body.points,
         difficulty=body.difficulty,
         icon=body.icon,
+        photo_url=body.photo_url,
         category_id=body.category_id,
         recurrence=body.recurrence,
         custom_days=body.custom_days,
@@ -900,88 +902,85 @@ async def complete_chore(
             f.write(contents)
         assignment.photo_proof_path = filename
 
-    assignment.status = AssignmentStatus.completed
-    assignment.completed_at = now
-    assignment.updated_at = now
+    auto_setting_result = await db.execute(
+        select(AppSetting).where(AppSetting.key == "auto_approve_chores")
+    )
+    auto_setting = auto_setting_result.scalar_one_or_none()
+    auto_approve = auto_setting is not None and auto_setting.value == "true"
 
-    await db.commit()
+    if auto_approve:
+        await _finalize_verification(db, assignment, chore, verified_by=None)
+    else:
+        assignment.status = AssignmentStatus.completed
+        assignment.completed_at = now
+        assignment.updated_at = now
 
-    # Notify parents for approval
-    parent_result = await db.execute(
-        select(User.id).where(
-            User.role.in_([UserRole.parent, UserRole.admin]),
-            User.is_active == True,
+        await db.commit()
+
+        # Notify parents for approval
+        parent_result = await db.execute(
+            select(User.id).where(
+                User.role.in_([UserRole.parent, UserRole.admin]),
+                User.is_active == True,
+            )
         )
-    )
-    parent_ids = [row[0] for row in parent_result.all()]
+        parent_ids = [row[0] for row in parent_result.all()]
 
-    await ws_manager.send_to_parents(
-        {
-            "type": "chore_completed",
-            "data": {
-                "chore_id": chore.id,
-                "chore_title": chore.title,
-                "user_id": user.id,
-                "user_display_name": user.display_name,
-                "points": chore.points,
-                "assignment_id": assignment.id,
+        await ws_manager.send_to_parents(
+            {
+                "type": "chore_completed",
+                "data": {
+                    "chore_id": chore.id,
+                    "chore_title": chore.title,
+                    "user_id": user.id,
+                    "user_display_name": user.display_name,
+                    "points": chore.points,
+                    "assignment_id": assignment.id,
+                },
             },
-        },
-        parent_ids,
-    )
+            parent_ids,
+        )
 
-    for pid in parent_ids:
-        db.add(Notification(
-            user_id=pid,
-            type=NotificationType.chore_completed,
-            title="Quest Awaiting Approval",
-            message=f"{user.display_name} completed '{chore.title}' - tap to approve (+{chore.points} XP)",
-            params={
-                "key": "chore_completed",
-                "kidName": user.display_name,
-                "title": chore.title,
-                "points": chore.points,
-            },
-            reference_type="chore_assignment",
-            reference_id=assignment.id,
-        ))
-    await db.commit()
+        for pid in parent_ids:
+            db.add(Notification(
+                user_id=pid,
+                type=NotificationType.chore_completed,
+                title="Quest Awaiting Approval",
+                message=f"{user.display_name} completed '{chore.title}' - tap to approve (+{chore.points} XP)",
+                params={
+                    "key": "chore_completed",
+                    "kidName": user.display_name,
+                    "title": chore.title,
+                    "points": chore.points,
+                },
+                reference_type="chore_assignment",
+                reference_id=assignment.id,
+            ))
+        await db.commit()
 
     assignment = await _reload_assignment_with_relations(db, assignment.id)
     return AssignmentResponse.model_validate(assignment)
 
 
-@router.post("/{chore_id}/verify", response_model=AssignmentResponse)
-async def verify_chore(
-    chore_id: int,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_parent),
-):
+async def _finalize_verification(
+    db: AsyncSession,
+    assignment: ChoreAssignment,
+    chore: Chore,
+    verified_by: int | None,
+) -> int:
+    """Award points, update streak/achievements, notify. Returns points awarded.
+
+    Shared by the parent-approval flow (verify_assignment) and auto-approval
+    (complete_chore when auto_approve_chores is on) — verified_by is None
+    for auto-approval since no parent actually reviewed it.
+    """
     today = date.today()
     now = datetime.now(timezone.utc)
-
-    result = await db.execute(
-        select(ChoreAssignment)
-        .where(
-            ChoreAssignment.chore_id == chore_id,
-            ChoreAssignment.date == today,
-            ChoreAssignment.status == AssignmentStatus.completed,
-        )
-        .options(selectinload(ChoreAssignment.chore))
-    )
-    assignment = result.scalar_one_or_none()
-    if assignment is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No completed assignment found to verify for this chore today",
-        )
-
-    chore = assignment.chore
     base_points = chore.points
 
     assignment.status = AssignmentStatus.verified
     assignment.verified_at = now
-    assignment.verified_by = user.id
+    assignment.verified_by = verified_by
     assignment.updated_at = now
 
     # Award base points
@@ -1063,7 +1062,7 @@ async def verify_chore(
     if chore.recurrence == Recurrence.once:
         rule_result = await db.execute(
             select(ChoreAssignmentRule).where(
-                ChoreAssignmentRule.chore_id == chore_id,
+                ChoreAssignmentRule.chore_id == chore.id,
                 ChoreAssignmentRule.user_id == assignment.user_id,
                 ChoreAssignmentRule.is_active == True,
             )
@@ -1095,35 +1094,73 @@ async def verify_chore(
         {"type": "chore_verified", "data": ws_data},
     )
 
-    assignment = await _reload_assignment_with_relations(db, assignment.id)
-    return AssignmentResponse.model_validate(assignment)
+    return total_awarded
 
 
-@router.post("/{chore_id}/uncomplete", response_model=AssignmentResponse)
-async def uncomplete_chore(
+@router.post("/{chore_id}/verify", response_model=AssignmentResponse)
+async def verify_chore(
     chore_id: int,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_parent),
 ):
+    """Legacy chore-scoped verify — ambiguous if 2+ kids share the chore today.
+
+    Kept as a fallback for callers that don't yet have an assignment id.
+    Prefer POST /assignments/{assignment_id}/verify.
+    """
     today = date.today()
-    now = datetime.now(timezone.utc)
 
     result = await db.execute(
-        select(ChoreAssignment).where(
+        select(ChoreAssignment)
+        .where(
             ChoreAssignment.chore_id == chore_id,
             ChoreAssignment.date == today,
-            ChoreAssignment.status.in_(
-                [AssignmentStatus.completed, AssignmentStatus.verified]
-            ),
+            ChoreAssignment.status == AssignmentStatus.completed,
         )
+        .options(selectinload(ChoreAssignment.chore))
     )
     assignment = result.scalar_one_or_none()
     if assignment is None:
         raise HTTPException(
             status_code=404,
-            detail="No completed assignment found to undo for this chore today",
+            detail="No completed assignment found to verify for this chore today",
         )
 
+    await _finalize_verification(db, assignment, assignment.chore, verified_by=user.id)
+    assignment = await _reload_assignment_with_relations(db, assignment.id)
+    return AssignmentResponse.model_validate(assignment)
+
+
+@router.post("/assignments/{assignment_id}/verify", response_model=AssignmentResponse)
+async def verify_assignment(
+    assignment_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    """Approve a specific assignment — unambiguous even when a chore is shared."""
+    result = await db.execute(
+        select(ChoreAssignment)
+        .where(
+            ChoreAssignment.id == assignment_id,
+            ChoreAssignment.status == AssignmentStatus.completed,
+        )
+        .options(selectinload(ChoreAssignment.chore))
+    )
+    assignment = result.scalar_one_or_none()
+    if assignment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No completed assignment found to verify",
+        )
+
+    await _finalize_verification(db, assignment, assignment.chore, verified_by=user.id)
+    assignment = await _reload_assignment_with_relations(db, assignment.id)
+    return AssignmentResponse.model_validate(assignment)
+
+
+async def _undo_assignment(db: AsyncSession, assignment: ChoreAssignment) -> None:
+    """Revert a completed/verified assignment back to pending, reversing points."""
+    now = datetime.now(timezone.utc)
     assigned_user_id = assignment.user_id
 
     # Reverse point transactions
@@ -1158,6 +1195,67 @@ async def uncomplete_chore(
 
     await db.commit()
 
+
+@router.post("/{chore_id}/uncomplete", response_model=AssignmentResponse)
+async def uncomplete_chore(
+    chore_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    """Legacy chore-scoped undo — ambiguous if 2+ kids share the chore today.
+
+    Kept as a fallback for callers that don't yet have an assignment id.
+    Prefer POST /assignments/{assignment_id}/uncomplete.
+    """
+    today = date.today()
+
+    result = await db.execute(
+        select(ChoreAssignment).where(
+            ChoreAssignment.chore_id == chore_id,
+            ChoreAssignment.date == today,
+            ChoreAssignment.status.in_(
+                [AssignmentStatus.completed, AssignmentStatus.verified]
+            ),
+        )
+    )
+    assignment = result.scalar_one_or_none()
+    if assignment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No completed assignment found to undo for this chore today",
+        )
+
+    await _undo_assignment(db, assignment)
+
+    assignment = await _reload_assignment_with_relations(db, assignment.id)
+    await ws_manager.broadcast(_CHORE_CHANGED, exclude_user=user.id)
+    return AssignmentResponse.model_validate(assignment)
+
+
+@router.post("/assignments/{assignment_id}/uncomplete", response_model=AssignmentResponse)
+async def uncomplete_assignment(
+    assignment_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    """Undo a specific assignment — unambiguous even when a chore is shared."""
+    result = await db.execute(
+        select(ChoreAssignment).where(
+            ChoreAssignment.id == assignment_id,
+            ChoreAssignment.status.in_(
+                [AssignmentStatus.completed, AssignmentStatus.verified]
+            ),
+        )
+    )
+    assignment = result.scalar_one_or_none()
+    if assignment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No completed assignment found to undo",
+        )
+
+    await _undo_assignment(db, assignment)
+
     assignment = await _reload_assignment_with_relations(db, assignment.id)
     await ws_manager.broadcast(_CHORE_CHANGED, exclude_user=user.id)
     return AssignmentResponse.model_validate(assignment)
@@ -1169,6 +1267,11 @@ async def skip_chore(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_parent),
 ):
+    """Legacy chore-scoped skip — ambiguous if 2+ kids share the chore today.
+
+    Kept as a fallback for callers that don't yet have an assignment id.
+    Prefer POST /assignments/{assignment_id}/skip.
+    """
     today = date.today()
     now = datetime.now(timezone.utc)
 
@@ -1184,6 +1287,38 @@ async def skip_chore(
         raise HTTPException(
             status_code=404,
             detail="No pending assignment found to skip for this chore today",
+        )
+
+    assignment.status = AssignmentStatus.skipped
+    assignment.updated_at = now
+    await db.commit()
+
+    await ws_manager.broadcast(_CHORE_CHANGED, exclude_user=user.id)
+
+    assignment = await _reload_assignment_with_relations(db, assignment.id)
+    return AssignmentResponse.model_validate(assignment)
+
+
+@router.post("/assignments/{assignment_id}/skip", response_model=AssignmentResponse)
+async def skip_assignment(
+    assignment_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    """Skip a specific assignment — unambiguous even when a chore is shared."""
+    now = datetime.now(timezone.utc)
+
+    result = await db.execute(
+        select(ChoreAssignment).where(
+            ChoreAssignment.id == assignment_id,
+            ChoreAssignment.status == AssignmentStatus.pending,
+        )
+    )
+    assignment = result.scalar_one_or_none()
+    if assignment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No pending assignment found to skip",
         )
 
     assignment.status = AssignmentStatus.skipped

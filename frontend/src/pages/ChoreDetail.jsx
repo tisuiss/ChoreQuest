@@ -356,6 +356,13 @@ export default function ChoreDetail() {
       <div className="game-panel p-6 space-y-5">
         {/* Title */}
         <div className="flex items-start gap-3">
+          {chore.photo_url && (
+            <img
+              src={chore.photo_url}
+              alt=""
+              className="w-14 h-14 rounded-lg object-cover flex-shrink-0 border border-border"
+            />
+          )}
           <div className="flex-1">
             <h1 className="text-cream text-lg font-semibold leading-relaxed">
               {themedTitle(chore.title, colorTheme)}

@@ -132,6 +132,7 @@ class Chore(Base):
     points: Mapped[int] = mapped_column(Integer, nullable=False)
     difficulty: Mapped[Difficulty] = mapped_column(Enum(Difficulty), nullable=False)
     icon: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("chore_categories.id"), nullable=False)
     recurrence: Mapped[Recurrence] = mapped_column(Enum(Recurrence), nullable=False)
     custom_days: Mapped[list | None] = mapped_column(JSON, nullable=True)

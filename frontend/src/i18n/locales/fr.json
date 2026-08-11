@@ -86,6 +86,8 @@
     "featureToggles": "Fonctionnalités",
     "leaderboard": "Classement",
     "choreTrading": "Échange de corvées",
+    "achievements": "Succès",
+    "autoApproveChores": "Validation automatique des corvées (sans approbation parent)",
     "defaultLanguage": "Langue par défaut de la famille",
     "defaultLanguageHint": "Langue affichée sur l'écran kiosque avant qu'un enfant ne soit sélectionné.",
     "dailyResetHour": "Heure de réinitialisation quotidienne",
@@ -454,7 +456,11 @@
     "starsReward": "Récompense en étoiles",
     "difficulty": "Difficulté",
     "category": "Catégorie",
-    "selectCategory": "Sélectionner une catégorie..."
+    "selectCategory": "Sélectionner une catégorie...",
+    "photo": "Photo (optionnel)",
+    "choosePhoto": "Choisir une photo",
+    "removePhoto": "Retirer la photo",
+    "photoUploadError": "Échec de l'envoi de la photo"
   },
   "party": {
     "loadError": "Impossible de charger les données familiales.",

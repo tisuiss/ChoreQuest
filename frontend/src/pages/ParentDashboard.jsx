@@ -84,11 +84,11 @@ export default function ParentDashboard() {
     setActionLoading((prev) => ({ ...prev, [key]: busy }));
   };
 
-  const handleVerifyChore = async (choreId) => {
-    const key = `verify-${choreId}`;
+  const handleVerifyChore = async (assignment) => {
+    const key = `verify-${assignment.id}`;
     setActionBusy(key, true);
     try {
-      await api(`/api/chores/${choreId}/verify`, { method: 'POST' });
+      await api(`/api/chores/assignments/${assignment.id}/verify`, { method: 'POST' });
       await fetchData();
     } catch (err) {
       setError(err.message || t('parentDashboard.verifyError'));
@@ -97,11 +97,11 @@ export default function ParentDashboard() {
     }
   };
 
-  const handleRejectChore = async (choreId) => {
-    const key = `reject-${choreId}`;
+  const handleRejectChore = async (assignment) => {
+    const key = `reject-${assignment.id}`;
     setActionBusy(key, true);
     try {
-      await api(`/api/chores/${choreId}/uncomplete`, { method: 'POST' });
+      await api(`/api/chores/assignments/${assignment.id}/uncomplete`, { method: 'POST' });
       await fetchData();
     } catch (err) {
       setError(err.message || t('parentDashboard.rejectError'));
@@ -271,8 +271,8 @@ export default function ParentDashboard() {
 
           <div className="space-y-2">
             {pendingVerifications.map((assignment) => {
-              const verifyKey = `verify-${assignment.chore_id}`;
-              const rejectKey = `reject-${assignment.chore_id}`;
+              const verifyKey = `verify-${assignment.id}`;
+              const rejectKey = `reject-${assignment.id}`;
               const isVerifying = actionLoading[verifyKey];
               const isRejecting = actionLoading[rejectKey];
               const isBusy = isVerifying || isRejecting;
@@ -304,7 +304,7 @@ export default function ParentDashboard() {
                       <button
                         className="game-btn game-btn-blue !px-2.5 !py-1.5"
                         disabled={isBusy}
-                        onClick={() => handleVerifyChore(assignment.chore_id)}
+                        onClick={() => handleVerifyChore(assignment)}
                         title={t('kidQuests.approve')}
                       >
                         {isVerifying ? (
@@ -316,7 +316,7 @@ export default function ParentDashboard() {
                       <button
                         className="game-btn game-btn-red !px-2.5 !py-1.5"
                         disabled={isBusy}
-                        onClick={() => handleRejectChore(assignment.chore_id)}
+                        onClick={() => handleRejectChore(assignment)}
                         title={t('kidQuests.reject')}
                       >
                         {isRejecting ? (

@@ -51,6 +51,8 @@ DEFAULT_SETTINGS = {
     "leaderboard_enabled": "true",
     "chore_trading_enabled": "true",
     "default_language": "fr",
+    "achievements_enabled": "true",
+    "auto_approve_chores": "false",
 }
 
 # Template quests with RPG-flavoured descriptions

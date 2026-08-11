@@ -62,12 +62,20 @@ function ChoreActionCard({ chore, idx, completing, photoFile, onPhotoChange, onC
       animate="visible"
       custom={idx}
     >
-      <div
-        className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: `${categoryColor}26`, color: categoryColor }}
-      >
-        <ChoreIcon name={iconName} size={30} />
-      </div>
+      {chore.photo_url ? (
+        <img
+          src={chore.photo_url}
+          alt=""
+          className="w-16 h-16 rounded-full object-cover flex-shrink-0 border-2 border-border"
+        />
+      ) : (
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${categoryColor}26`, color: categoryColor }}
+        >
+          <ChoreIcon name={iconName} size={30} />
+        </div>
+      )}
 
       <h3 className="text-cream text-sm font-semibold leading-tight line-clamp-2">
         {themedTitle(chore.title, colorTheme)}

@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme, COLOR_THEMES } from '../hooks/useTheme';
 import { useLanguage, SUPPORTED_LANGUAGES } from '../hooks/useLanguage';
+import { useSettings } from '../hooks/useSettings';
 import AvatarDisplay from '../components/AvatarDisplay';
 import { useNavigate } from 'react-router-dom';
 import ChoreIcon from '../components/ChoreIcon';
@@ -155,6 +156,7 @@ export default function Profile() {
   const { user, logout, updateUser } = useAuth();
   const { theme, mode, setMode, colorTheme, setColorTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
+  const { achievements_enabled } = useSettings();
 
   const [displayName, setDisplayName] = useState(user?.display_name || '');
   const [nameSaving, setNameSaving] = useState(false);
@@ -420,18 +422,20 @@ export default function Profile() {
                   </p>
                   <p className="text-muted text-xs">{t('profile.streak')}</p>
                 </div>
-                <button
-                  className="text-center hover:bg-surface-raised/50 rounded-md py-1 transition-colors"
-                  onClick={() => setShowAchievements((v) => !v)}
-                >
-                  <Trophy size={16} className="text-purple mx-auto mb-1" />
-                  <p className="text-purple text-sm font-medium">
-                    {stats.achievements_count ?? 0}
-                  </p>
-                  <p className="text-muted text-xs flex items-center justify-center gap-0.5">
-                    {t('profile.achievements')} <ChevronRight size={10} />
-                  </p>
-                </button>
+                {achievements_enabled && (
+                  <button
+                    className="text-center hover:bg-surface-raised/50 rounded-md py-1 transition-colors"
+                    onClick={() => setShowAchievements((v) => !v)}
+                  >
+                    <Trophy size={16} className="text-purple mx-auto mb-1" />
+                    <p className="text-purple text-sm font-medium">
+                      {stats.achievements_count ?? 0}
+                    </p>
+                    <p className="text-muted text-xs flex items-center justify-center gap-0.5">
+                      {t('profile.achievements')} <ChevronRight size={10} />
+                    </p>
+                  </button>
+                )}
               </div>
 
               <button
@@ -459,7 +463,7 @@ export default function Profile() {
       )}
 
       {/* Achievements (kids only) */}
-      {isKid && showAchievements && (
+      {isKid && achievements_enabled && showAchievements && (
         <div className="game-panel p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-cream text-sm font-semibold flex items-center gap-2">
