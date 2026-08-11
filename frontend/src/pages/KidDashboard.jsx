@@ -236,7 +236,7 @@ export default function KidDashboard() {
   const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-6xl mx-auto space-y-5">
       {/* ── Confetti overlay ── */}
       <AnimatePresence>
         {showConfetti && (
@@ -340,7 +340,7 @@ export default function KidDashboard() {
                   </div>
                   <h2 className="text-cream text-sm font-semibold">{group.name}</h2>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                   {group.items.map((assignment, idx) => {
                     const chore = assignment.chore;
                     return (
