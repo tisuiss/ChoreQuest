@@ -1169,12 +1169,19 @@ async def verify_assignment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_parent),
 ):
-    """Approve a specific assignment — unambiguous even when a chore is shared."""
+    """Approve a specific assignment — unambiguous even when a chore is shared.
+
+    Also accepts a still-pending assignment, letting a parent validate a
+    quest directly on the kid's behalf without waiting for them to tap
+    "complete" first.
+    """
     result = await db.execute(
         select(ChoreAssignment)
         .where(
             ChoreAssignment.id == assignment_id,
-            ChoreAssignment.status == AssignmentStatus.completed,
+            ChoreAssignment.status.in_(
+                [AssignmentStatus.pending, AssignmentStatus.completed]
+            ),
         )
         .options(selectinload(ChoreAssignment.chore))
     )
@@ -1182,8 +1189,10 @@ async def verify_assignment(
     if assignment is None:
         raise HTTPException(
             status_code=404,
-            detail="No completed assignment found to verify",
+            detail="No pending or completed assignment found to verify",
         )
+    if assignment.status == AssignmentStatus.pending:
+        assignment.completed_at = datetime.now(timezone.utc)
 
     await _finalize_verification(db, assignment, assignment.chore, verified_by=user.id)
     assignment = await _reload_assignment_with_relations(db, assignment.id)

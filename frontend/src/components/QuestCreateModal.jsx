@@ -20,6 +20,16 @@ const DIFFICULTY_OPTIONS = [
   { value: 'expert', labelKey: 'chores.difficulty.expert', level: 4 },
 ];
 
+const FREQUENCY_OPTIONS = [
+  { value: 'once', labelKey: 'questAssign.frequency.once' },
+  { value: 'daily', labelKey: 'questAssign.frequency.daily' },
+  { value: 'weekly', labelKey: 'questAssign.frequency.weekly' },
+  { value: 'fortnightly', labelKey: 'questAssign.frequency.fortnightly' },
+  { value: 'custom', labelKey: 'questAssign.frequency.custom' },
+];
+
+const DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
+
 const selectClass =
   'bg-navy-light border border-border text-cream p-2 rounded text-sm ' +
   'focus:border-accent focus:outline-none transition-colors';
@@ -31,6 +41,9 @@ const emptyForm = {
   difficulty: 'easy',
   category_id: '',
   photo_url: null,
+  recurrence: 'once',
+  customDays: [],
+  assignedUserIds: [],
 };
 
 export default function QuestCreateModal({
@@ -39,8 +52,10 @@ export default function QuestCreateModal({
   onCreated,
   categories,
   editingChore,
+  kids = [],
 }) {
   const { t } = useTranslation();
+  const DAY_NAMES = DAY_KEYS.map((k) => t(k));
   const { colorTheme } = useTheme();
   const [form, setForm] = useState({ ...emptyForm });
   const [formError, setFormError] = useState('');
@@ -53,6 +68,7 @@ export default function QuestCreateModal({
     if (isOpen) {
       if (editingChore) {
         setForm({
+          ...emptyForm,
           title: editingChore.title || '',
           description: editingChore.description || '',
           points: editingChore.points || 10,
@@ -80,6 +96,22 @@ export default function QuestCreateModal({
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const toggleAssignedKid = (id) => {
+    setForm((prev) => {
+      const set = new Set(prev.assignedUserIds);
+      if (set.has(id)) set.delete(id); else set.add(id);
+      return { ...prev, assignedUserIds: [...set] };
+    });
+  };
+
+  const toggleCustomDay = (day) => {
+    setForm((prev) => {
+      const set = new Set(prev.customDays);
+      if (set.has(day)) set.delete(day); else set.add(day);
+      return { ...prev, customDays: [...set].sort() };
+    });
+  };
+
   const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -102,13 +134,14 @@ export default function QuestCreateModal({
     const catMatch = categories.find(
       (c) => c.name.toLowerCase() === tpl.category_name.toLowerCase()
     );
-    setForm({
+    setForm((prev) => ({
+      ...prev,
       title: tpl.title,
       description: tpl.description || '',
       points: tpl.suggested_points,
       difficulty: tpl.difficulty,
       category_id: catMatch ? String(catMatch.id) : '',
-    });
+    }));
     setShowTemplates(false);
   };
 
@@ -129,24 +162,46 @@ export default function QuestCreateModal({
     setSubmitting(true);
     setFormError('');
 
-    const body = {
+    const baseBody = {
       title: form.title.trim(),
       description: form.description.trim() || null,
       points: Number(form.points),
       difficulty: form.difficulty,
       category_id: Number(form.category_id),
       photo_url: form.photo_url || null,
-      // New quests from this flow don't set recurrence/photo-proof on the chore itself
-      recurrence: 'once',
-      requires_photo: false,
-      assigned_user_ids: [],
     };
 
     try {
       if (editingChore) {
-        await api(`/api/chores/${editingChore.id}`, { method: 'PUT', body });
+        // Editing only ever touches these basic fields — recurrence and
+        // assignment stay under "Gérer" so an unrelated edit here can't
+        // silently reset or wipe out an existing assignment setup.
+        await api(`/api/chores/${editingChore.id}`, { method: 'PUT', body: baseBody });
       } else {
-        await api('/api/chores', { method: 'POST', body });
+        const customDays = form.recurrence === 'custom' ? form.customDays : null;
+        const created = await api('/api/chores', {
+          method: 'POST',
+          body: {
+            ...baseBody,
+            recurrence: form.recurrence,
+            custom_days: customDays,
+            requires_photo: false,
+            assigned_user_ids: [],
+          },
+        });
+        if (form.assignedUserIds.length > 0) {
+          await api(`/api/chores/${created.id}/assign`, {
+            method: 'POST',
+            body: {
+              assignments: form.assignedUserIds.map((uid) => ({
+                user_id: uid,
+                recurrence: form.recurrence,
+                custom_days: customDays,
+                requires_photo: false,
+              })),
+            },
+          });
+        }
       }
       onCreated();
       onClose();
@@ -320,6 +375,76 @@ export default function QuestCreateModal({
             ))}
           </select>
         </div>
+
+        {/* Recurrence + assignment (creation only — edits stay scoped to basic fields, see Gérer for changing this later) */}
+        {!editingChore && (
+          <>
+            <div>
+              <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+                {t('questCreate.recurrence')}
+              </label>
+              <select
+                value={form.recurrence}
+                onChange={(e) => updateForm('recurrence', e.target.value)}
+                className={`${selectClass} w-full p-3`}
+              >
+                {FREQUENCY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {t(opt.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {form.recurrence === 'custom' && (
+              <div>
+                <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+                  {t('questAssign.questDays')}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAY_KEYS.map((key, i) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleCustomDay(i)}
+                      className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                        form.customDays.includes(i)
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border text-muted hover:border-border-light'
+                      }`}
+                    >
+                      {DAY_NAMES[i]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {kids.length > 0 && (
+              <div>
+                <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+                  {t('questCreate.assignTo')}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {kids.map((kid) => (
+                    <button
+                      key={kid.id}
+                      type="button"
+                      onClick={() => toggleAssignedKid(kid.id)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                        form.assignedUserIds.includes(kid.id)
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border text-muted hover:border-border-light'
+                      }`}
+                    >
+                      {kid.display_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Photo */}
         <div>

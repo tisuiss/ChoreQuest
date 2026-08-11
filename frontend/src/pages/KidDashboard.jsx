@@ -11,7 +11,6 @@ import {
   Loader2,
   AlertTriangle,
   ShieldOff,
-  X,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -58,10 +57,11 @@ const cardVariants = {
 
 // ---------- chore card ----------
 
-function ChoreActionCard({ chore, idx, completing, photoFile, onPhotoChange, onComplete, colorTheme, t }) {
+function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoChange, onComplete, colorTheme, t }) {
   const categoryColor = chore.category?.colour || '#14b8a6';
   const iconName = chore.icon || chore.category?.icon;
   const needsPhoto = chore.requires_photo && !photoFile;
+  const isValidated = status === 'completed' || status === 'verified';
 
   return (
     <motion.div
@@ -95,7 +95,7 @@ function ChoreActionCard({ chore, idx, completing, photoFile, onPhotoChange, onC
         {t('chores.starsCount', { count: chore.points })}
       </span>
 
-      {chore.requires_photo && (
+      {!isValidated && chore.requires_photo && (
         <label className="inline-flex items-center gap-1.5 text-[11px] text-muted cursor-pointer hover:text-cream transition-colors bg-surface-raised px-2 py-1 rounded-md border border-border w-full justify-center">
           <Camera size={11} />
           <span className="truncate">{photoFile ? photoFile.name : t('chores.attachPhoto')}</span>
@@ -103,23 +103,24 @@ function ChoreActionCard({ chore, idx, completing, photoFile, onPhotoChange, onC
         </label>
       )}
 
-      <div className="flex items-center gap-2 w-full mt-1">
-        <button
-          onClick={onComplete}
-          disabled={completing || needsPhoto}
-          className={`flex-1 rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 transition-opacity bg-emerald text-navy ${
-            completing || needsPhoto ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90'
-          }`}
-        >
-          {completing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-          {t('common.yes')}
-        </button>
-        <button
-          className="flex-1 rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 bg-crimson/70 text-white cursor-default"
-        >
-          <X size={14} />
-          {t('common.no')}
-        </button>
+      <div className="w-full mt-1">
+        {isValidated ? (
+          <div className="rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald/15 text-emerald border border-emerald/40">
+            <CheckCircle2 size={14} />
+            {t('kidDashboard.validated')}
+          </div>
+        ) : (
+          <button
+            onClick={onComplete}
+            disabled={completing || needsPhoto}
+            className={`w-full rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 transition-opacity bg-emerald text-navy ${
+              completing || needsPhoto ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90'
+            }`}
+          >
+            {completing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            {t('common.yes')}
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -280,13 +281,13 @@ export default function KidDashboard() {
         </div>
       )}
 
-      {/* ── Active Quest cards (pending only) ── */}
+      {/* ── Today's quest cards (pending + validated; skipped stay hidden) ── */}
       {(() => {
-        const pendingAssignments = assignments.filter(
-          (a) => a.status === 'pending' || a.status === 'assigned'
+        const todaysAssignments = assignments.filter(
+          (a) => a.status === 'pending' || a.status === 'assigned' || a.status === 'completed' || a.status === 'verified'
         );
 
-        if (pendingAssignments.length === 0 && !loading) {
+        if (todaysAssignments.length === 0 && !loading) {
           return (
             <motion.div
               className="game-panel p-10 flex flex-col items-center gap-3 text-center"
@@ -305,7 +306,7 @@ export default function KidDashboard() {
 
         return (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {pendingAssignments.map((assignment, idx) => {
+            {todaysAssignments.map((assignment, idx) => {
               const chore = assignment.chore;
               if (!chore) return null;
 
@@ -313,6 +314,7 @@ export default function KidDashboard() {
                 <ChoreActionCard
                   key={assignment.id}
                   chore={chore}
+                  status={assignment.status}
                   idx={idx}
                   completing={completingId === chore.id}
                   photoFile={photoFiles[chore.id]}

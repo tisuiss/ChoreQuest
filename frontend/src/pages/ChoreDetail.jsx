@@ -649,16 +649,28 @@ export default function ChoreDetail() {
                   </button>
                 )}
                 {selectedCell.status === 'pending' && (
-                  <button
-                    onClick={() => handleSkip(selectedCell.assignmentId)}
-                    disabled={!!actionLoading}
-                    className={`game-btn game-btn-red flex items-center gap-2 !text-xs !py-1.5 ${
-                      actionLoading === 'skip' ? 'opacity-60 cursor-wait' : ''
-                    }`}
-                  >
-                    <SkipForward size={14} />
-                    {actionLoading === 'skip' ? t('choreDetail.skipping') : t('choreDetail.skipToday')}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleVerify(selectedCell.assignmentId)}
+                      disabled={!!actionLoading}
+                      className={`game-btn game-btn-blue flex items-center gap-2 !text-xs !py-1.5 ${
+                        actionLoading === 'verify' ? 'opacity-60 cursor-wait' : ''
+                      }`}
+                    >
+                      <CheckCircle2 size={14} />
+                      {actionLoading === 'verify' ? t('choreDetail.verifying') : t('choreDetail.validateForKid')}
+                    </button>
+                    <button
+                      onClick={() => handleSkip(selectedCell.assignmentId)}
+                      disabled={!!actionLoading}
+                      className={`game-btn game-btn-red flex items-center gap-2 !text-xs !py-1.5 ${
+                        actionLoading === 'skip' ? 'opacity-60 cursor-wait' : ''
+                      }`}
+                    >
+                      <SkipForward size={14} />
+                      {actionLoading === 'skip' ? t('choreDetail.skipping') : t('choreDetail.skipToday')}
+                    </button>
+                  </>
                 )}
                 {selectedCell.status === 'skipped' && (
                   <p className="text-muted text-xs">{t('chores.status.skipped')}</p>

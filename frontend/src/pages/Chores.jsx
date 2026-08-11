@@ -572,6 +572,7 @@ export default function Chores() {
         onCreated={fetchChores}
         categories={categories}
         editingChore={editingChore}
+        kids={kids}
       />
 
       <QuestAssignModal
