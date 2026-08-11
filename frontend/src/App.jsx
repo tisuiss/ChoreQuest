@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useWebSocket } from './hooks/useWebSocket';
 import Layout from './components/Layout';
@@ -33,6 +33,7 @@ function Loading() {
 
 export default function App() {
   const { user, loading, refreshSession } = useAuth();
+  const location = useLocation();
 
   const handleWsMessage = useCallback((msg) => {
     // Refresh user object (points_balance, etc.) on every WS event
@@ -44,6 +45,22 @@ export default function App() {
 
   if (loading) return <Loading />;
 
+  // /kiosk/<username> must work regardless of auth state — switching from
+  // one kid's pinned kiosk session straight to another's, without an
+  // explicit logout step, needs this route reachable even while a kid is
+  // already logged in (it's absent from the routes below once !user is
+  // false, which otherwise silently swallows the navigation).
+  if (location.pathname.startsWith('/kiosk/')) {
+    return (
+      <Suspense fallback={<Loading />}>
+        <Routes>
+          <Route path="/kiosk/:username" element={<KioskDirect />} />
+          <Route path="*" element={<Navigate to="/kiosk" replace />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
   if (!user) {
     return (
       <Suspense fallback={<Loading />}>
@@ -52,7 +69,6 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/kiosk" element={<Kiosk />} />
-          <Route path="/kiosk/:username" element={<KioskDirect />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
