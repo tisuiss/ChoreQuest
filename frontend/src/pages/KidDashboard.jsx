@@ -66,7 +66,7 @@ function ChoreActionCard({ chore, idx, completing, photoFile, onPhotoChange, onC
         <img
           src={chore.photo_url}
           alt=""
-          className="w-16 h-16 rounded-full object-cover flex-shrink-0 border-2 border-border"
+          className="w-28 h-28 rounded-2xl object-cover flex-shrink-0 border-2 border-border"
         />
       ) : (
         <div

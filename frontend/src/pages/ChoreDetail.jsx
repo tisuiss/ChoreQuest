@@ -89,7 +89,7 @@ const CELL_STYLES = {
   missed: { icon: XCircle, className: 'bg-crimson/20 text-crimson border-crimson/40' },
 };
 
-function AssignmentGrid({ assignmentRules, allKids, assignments, selectedCell, onSelectCell, t }) {
+function AssignmentGrid({ rows, assignments, selectedCell, onSelectCell, t }) {
   const days = lastNDays(7);
   const todayStr = days[days.length - 1];
 
@@ -112,14 +112,12 @@ function AssignmentGrid({ assignmentRules, allKids, assignments, selectedCell, o
           </tr>
         </thead>
         <tbody>
-          {assignmentRules.map((rule) => {
-            const kid = allKids.find((k) => k.id === rule.user_id);
-            const kidName = kid?.display_name || rule.user?.display_name || t('choreDetail.kidFallback', { id: rule.user_id });
+          {rows.map((row) => {
             return (
-              <tr key={rule.id}>
-                <td className="text-cream font-medium py-1 pr-2 whitespace-nowrap">{kidName}</td>
+              <tr key={row.id}>
+                <td className="text-cream font-medium py-1 pr-2 whitespace-nowrap">{row.kidName}</td>
                 {days.map((d) => {
-                  const a = assignments.find((x) => x.user_id === rule.user_id && x.date === d);
+                  const a = assignments.find((x) => x.user_id === row.user_id && x.date === d);
                   if (!a) {
                     return (
                       <td key={d} className="text-center py-1 px-1">
@@ -134,7 +132,7 @@ function AssignmentGrid({ assignmentRules, allKids, assignments, selectedCell, o
                   return (
                     <td key={d} className="text-center py-1 px-1">
                       <button
-                        onClick={() => onSelectCell({ assignmentId: a.id, userId: rule.user_id, kidName, date: d, status: a.status })}
+                        onClick={() => onSelectCell({ assignmentId: a.id, userId: row.user_id, kidName: row.kidName, date: d, status: a.status })}
                         className={`inline-flex items-center justify-center w-7 h-7 rounded-md border transition-all ${style.className} ${
                           isSelected ? 'ring-2 ring-accent' : ''
                         }`}
@@ -413,6 +411,27 @@ export default function ChoreDetail() {
   );
   const hasPendingToday = todayAssignment && todayAssignment.status === 'pending';
 
+  // Grid rows = union of currently-assigned kids (active rules) and kids with
+  // recent assignment data — a one-time chore's rule is deactivated once
+  // verified, but the assignment (and its "undo" action) must stay visible.
+  const gridUserIds = [
+    ...new Set([
+      ...assignmentRules.map((r) => r.user_id),
+      ...assignments.map((a) => a.user_id),
+    ]),
+  ];
+  const gridRows = gridUserIds.map((uid) => {
+    const rule = assignmentRules.find((r) => r.user_id === uid);
+    const kid = allKids.find((k) => k.id === uid);
+    const fallbackAssignment = assignments.find((a) => a.user_id === uid);
+    const kidName =
+      kid?.display_name ||
+      rule?.user?.display_name ||
+      fallbackAssignment?.user?.display_name ||
+      t('choreDetail.kidFallback', { id: uid });
+    return { id: `kid-${uid}`, user_id: uid, kidName };
+  });
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Back button */}
@@ -554,7 +573,7 @@ export default function ChoreDetail() {
       )}
 
       {/* Per-kid assignment grid (parent only) */}
-      {isParent && assignmentRules.length > 0 && (
+      {isParent && gridRows.length > 0 && (
         <div className="game-panel p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
@@ -562,8 +581,7 @@ export default function ChoreDetail() {
           </div>
           <p className="text-muted text-xs">{t('choreDetail.selectDayHint')}</p>
           <AssignmentGrid
-            assignmentRules={assignmentRules}
-            allKids={allKids}
+            rows={gridRows}
             assignments={assignments}
             selectedCell={selectedCell}
             onSelectCell={setSelectedCell}
