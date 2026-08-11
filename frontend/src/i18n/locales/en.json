@@ -59,6 +59,7 @@
   },
   "layout": {
     "backToSelection": "Back to selection",
+    "exitKiosk": "Exit kiosk mode",
     "goBack": "Go back",
     "notifications": "Notifications",
     "markAllRead": "Mark all read",
@@ -74,7 +75,9 @@
     "loadError": "Could not load kids",
     "invalidPin": "Invalid PIN",
     "noKids": "No kids set up yet.",
-    "parentLogin": "Parent login"
+    "parentLogin": "Parent login",
+    "directLoginError": "Could not open this kid's kiosk. Check the link or the kid's account.",
+    "backToPicker": "Back to kid selection"
   },
   "settings": {
     "profile": "Profile",

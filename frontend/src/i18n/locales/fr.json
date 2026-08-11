@@ -59,6 +59,7 @@
   },
   "layout": {
     "backToSelection": "Retour à la sélection",
+    "exitKiosk": "Quitter le mode kiosque",
     "goBack": "Retour",
     "notifications": "Notifications",
     "markAllRead": "Tout marquer comme lu",
@@ -74,7 +75,9 @@
     "loadError": "Impossible de charger la liste des enfants",
     "invalidPin": "PIN incorrect",
     "noKids": "Aucun enfant configuré pour l'instant.",
-    "parentLogin": "Connexion parent"
+    "parentLogin": "Connexion parent",
+    "directLoginError": "Impossible d'ouvrir le kiosque de cet enfant. Vérifie le lien ou le compte.",
+    "backToPicker": "Retour au choix des enfants"
   },
   "settings": {
     "profile": "Profil",

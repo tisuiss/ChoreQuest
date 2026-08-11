@@ -58,6 +58,9 @@ export default function Layout({ children }) {
   const backToSelection = () => {
     logout().finally(() => navigate('/kiosk'));
   };
+  const exitKioskMode = () => {
+    logout().finally(() => navigate('/login'));
+  };
   const { chore_trading_enabled } = settings;
   const { syncFromUser } = useTheme();
   const { syncFromUser: syncLanguageFromUser } = useLanguage();
@@ -125,14 +128,24 @@ export default function Layout({ children }) {
   if (isKioskSession) {
     return (
       <div className="min-h-screen bg-navy">
-        <button
-          onClick={backToSelection}
-          className="fixed top-3 right-3 z-40 p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
-          title={t('layout.backToSelection')}
-          aria-label={t('layout.backToSelection')}
-        >
-          <LogOut size={18} />
-        </button>
+        <div className="fixed top-3 right-3 z-40 flex items-center gap-2">
+          <button
+            onClick={backToSelection}
+            className="p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
+            title={t('layout.backToSelection')}
+            aria-label={t('layout.backToSelection')}
+          >
+            <LogOut size={18} />
+          </button>
+          <button
+            onClick={exitKioskMode}
+            className="p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
+            title={t('layout.exitKiosk')}
+            aria-label={t('layout.exitKiosk')}
+          >
+            <Home size={18} />
+          </button>
+        </div>
         <main className="p-4 pb-6 max-w-[100vw] overflow-x-clip">{children}</main>
       </div>
     );

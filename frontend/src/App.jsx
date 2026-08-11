@@ -8,6 +8,7 @@ import UpdatePrompt from './components/UpdatePrompt';
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const Kiosk = lazy(() => import('./pages/Kiosk'));
+const KioskDirect = lazy(() => import('./pages/KioskDirect'));
 const KidDashboard = lazy(() => import('./pages/KidDashboard'));
 const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/kiosk" element={<Kiosk />} />
+          <Route path="/kiosk/:username" element={<KioskDirect />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>

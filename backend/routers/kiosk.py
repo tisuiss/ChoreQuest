@@ -87,3 +87,47 @@ async def kiosk_login(
     await db.commit()
 
     return await issue_tokens(kid, db, response)
+
+
+# ---------- POST /login-direct/{username} ----------
+@router.post("/login-direct/{username}", response_model=AuthResponse)
+async def kiosk_login_direct(
+    username: str,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Log straight into a kid's kiosk session by username, bypassing any PIN.
+
+    Powers a bookmarkable /kiosk/<username> URL for a device dedicated to one
+    kid (e.g. a tablet mounted in their room) — intentionally skips the PIN
+    gate that /login normally enforces, since the whole point is frictionless
+    access from a trusted, already-physically-secured device. Still rate
+    limited and audit-logged (with a distinct "kiosk-direct" method) so this
+    bypass stays visible and abuse-resistant.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limiter.check(f"kiosk-direct:{client_ip}", 20, 900)
+    rate_limiter.check(f"kiosk-direct:{client_ip}:{username}", 10, 900)
+
+    result = await db.execute(
+        select(User).where(
+            User.username == username,
+            User.role == UserRole.kid,
+            User.is_active == True,
+        )
+    )
+    kid = result.scalar_one_or_none()
+    if kid is None:
+        raise HTTPException(status_code=404, detail="Kid not found")
+
+    audit = AuditLog(
+        user_id=kid.id,
+        action="login",
+        details={"method": "kiosk-direct"},
+        ip_address=request.client.host if request.client else None,
+    )
+    db.add(audit)
+    await db.commit()
+
+    return await issue_tokens(kid, db, response)

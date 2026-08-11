@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { api, setAccessToken, clearAccessToken, getAccessToken } from '../api/client';
 
 export const KIOSK_SESSION_KEY = 'chorequest_kiosk_session';
+export const KIOSK_PINNED_SESSION_KEY = 'chorequest_kiosk_pinned_session';
 
 const AuthContext = createContext(null);
 
@@ -98,6 +99,28 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const kioskLoginDirect = async (username) => {
+    // Same rationale as kioskLogin for using a raw fetch instead of api().
+    const res = await fetch(`/api/kiosk/login-direct/${encodeURIComponent(username)}`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      let detail = 'Could not open this kid\'s kiosk';
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch { /* ignore */ }
+      throw new Error(detail);
+    }
+    const data = await res.json();
+    setAccessToken(data.access_token);
+    setUser(data.user);
+    sessionStorage.setItem(KIOSK_SESSION_KEY, '1');
+    sessionStorage.setItem(KIOSK_PINNED_SESSION_KEY, '1');
+    return data.user;
+  };
+
   const register = async (username, password, display_name, role, invite_code) => {
     const body = { username, password, display_name, role };
     if (invite_code) body.invite_code = invite_code;
@@ -114,6 +137,7 @@ export function AuthProvider({ children }) {
     clearAccessToken();
     setUser(null);
     sessionStorage.removeItem(KIOSK_SESSION_KEY);
+    sessionStorage.removeItem(KIOSK_PINNED_SESSION_KEY);
   };
 
   const updateUser = (updates) => {
@@ -121,7 +145,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, pinLogin, kioskLogin, register, logout, updateUser, refreshSession }}>
+    <AuthContext.Provider value={{ user, loading, login, pinLogin, kioskLogin, kioskLoginDirect, register, logout, updateUser, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
