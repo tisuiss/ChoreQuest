@@ -10,6 +10,7 @@ import QuestCreateModal from '../components/QuestCreateModal';
 import QuestAssignModal from '../components/QuestAssignModal';
 import CategoryManageModal from '../components/CategoryManageModal';
 import AvatarDisplay from '../components/AvatarDisplay';
+import ChoreIcon from '../components/ChoreIcon';
 import {
   Swords,
   Plus,
@@ -243,6 +244,28 @@ export default function Chores() {
     ? Object.values(assignmentStatusMap).filter((s) => s === 'completed' || s === 'verified').length
     : 0;
 
+  // Group by category, preserving the order chores already come back in
+  // (backend sorts by category then sort_order, so this reads as a routine).
+  const groupedChores = [];
+  const groupByKey = new Map();
+  filteredChores.forEach((chore) => {
+    const cat = chore.category;
+    const key = cat?.id ?? 'none';
+    let group = groupByKey.get(key);
+    if (!group) {
+      group = {
+        key,
+        name: cat?.name || t('choreDetail.generalCategory'),
+        icon: cat?.icon,
+        colour: cat?.colour || '#14b8a6',
+        items: [],
+      };
+      groupByKey.set(key, group);
+      groupedChores.push(group);
+    }
+    group.items.push(chore);
+  });
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -391,8 +414,20 @@ export default function Chores() {
           )}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredChores.map((chore) => {
+        <div className="space-y-5">
+          {groupedChores.map((group) => (
+            <div key={group.key} className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <div
+                  className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: `${group.colour}26`, color: group.colour }}
+                >
+                  <ChoreIcon name={group.icon} size={13} />
+                </div>
+                <h2 className="text-cream text-sm font-semibold">{group.name}</h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {group.items.map((chore) => {
             const kidStatus = isKid ? assignmentStatusMap[chore.id] : null;
             const isDone = kidStatus === 'completed' || kidStatus === 'verified';
             const isPending = isKid && (kidStatus === 'pending' || kidStatus === 'assigned');
@@ -574,7 +609,10 @@ export default function Chores() {
                 )}
               </div>
             );
-          })}
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

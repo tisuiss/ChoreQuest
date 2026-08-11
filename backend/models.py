@@ -137,6 +137,7 @@ class Chore(Base):
     recurrence: Mapped[Recurrence] = mapped_column(Enum(Recurrence), nullable=False)
     custom_days: Mapped[list | None] = mapped_column(JSON, nullable=True)
     requires_photo: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

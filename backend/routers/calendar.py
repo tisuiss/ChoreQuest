@@ -134,6 +134,7 @@ def _build_assignment_entry(
             "difficulty": a.chore.difficulty.value if a.chore.difficulty else None,
             "icon": a.chore.icon,
             "photo_url": a.chore.photo_url,
+            "sort_order": a.chore.sort_order,
             "category_id": a.chore.category_id,
             "category": {
                 "id": a.chore.category.id,

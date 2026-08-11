@@ -41,6 +41,7 @@ const emptyForm = {
   difficulty: 'easy',
   category_id: '',
   photo_url: null,
+  sort_order: 0,
   recurrence: 'once',
   customDays: [],
   assignedUserIds: [],
@@ -75,6 +76,7 @@ export default function QuestCreateModal({
           difficulty: editingChore.difficulty || 'easy',
           category_id: editingChore.category_id ? String(editingChore.category_id) : '',
           photo_url: editingChore.photo_url || null,
+          sort_order: editingChore.sort_order ?? 0,
         });
       } else {
         setForm({ ...emptyForm });
@@ -169,6 +171,7 @@ export default function QuestCreateModal({
       difficulty: form.difficulty,
       category_id: Number(form.category_id),
       photo_url: form.photo_url || null,
+      sort_order: Number(form.sort_order) || 0,
     };
 
     try {
@@ -374,6 +377,20 @@ export default function QuestCreateModal({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Display order */}
+        <div>
+          <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+            {t('questCreate.sortOrder')}
+          </label>
+          <input
+            type="number"
+            value={form.sort_order}
+            onChange={(e) => updateForm('sort_order', e.target.value)}
+            className="field-input"
+          />
+          <p className="text-muted text-xs mt-1">{t('questCreate.sortOrderHint')}</p>
         </div>
 
         {/* Recurrence + assignment (creation only — edits stay scoped to basic fields, see Gérer for changing this later) */}

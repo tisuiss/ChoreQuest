@@ -106,6 +106,7 @@ class ChoreCreate(BaseModel):
     recurrence: Recurrence
     custom_days: list[int] | None = None
     requires_photo: bool = False
+    sort_order: int = 0
     assigned_user_ids: list[int] = []
 
 
@@ -120,6 +121,7 @@ class ChoreUpdate(BaseModel):
     recurrence: Recurrence | None = None
     custom_days: list[int] | None = None
     requires_photo: bool | None = None
+    sort_order: int | None = None
     assigned_user_ids: list[int] | None = None
 
 
@@ -136,6 +138,7 @@ class ChoreResponse(BaseModel):
     recurrence: Recurrence
     custom_days: list[int] | None
     requires_photo: bool
+    sort_order: int = 0
     is_active: bool
     created_by: int
     created_at: datetime

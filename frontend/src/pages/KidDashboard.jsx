@@ -11,6 +11,7 @@ import {
   Loader2,
   AlertTriangle,
   ShieldOff,
+  X,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -57,7 +58,7 @@ const cardVariants = {
 
 // ---------- chore card ----------
 
-function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoChange, onComplete, colorTheme, t }) {
+function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoChange, onComplete, onZoomPhoto, colorTheme, t }) {
   const categoryColor = chore.category?.colour || '#14b8a6';
   const iconName = chore.icon || chore.category?.icon;
   const needsPhoto = chore.requires_photo && !photoFile;
@@ -72,11 +73,17 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
       custom={idx}
     >
       {chore.photo_url ? (
-        <img
-          src={chore.photo_url}
-          alt=""
-          className="w-28 h-28 rounded-2xl object-cover flex-shrink-0 border-2 border-border"
-        />
+        <button
+          type="button"
+          onClick={() => onZoomPhoto(chore.photo_url, themedTitle(chore.title, colorTheme))}
+          className="active:scale-95 transition-transform"
+        >
+          <img
+            src={chore.photo_url}
+            alt=""
+            className="w-28 h-28 rounded-2xl object-cover flex-shrink-0 border-2 border-border cursor-zoom-in"
+          />
+        </button>
       ) : (
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0"
@@ -142,6 +149,7 @@ export default function KidDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [zoomedPhoto, setZoomedPhoto] = useState(null);
 
   // completion state
   const [completingId, setCompletingId] = useState(null);
@@ -304,10 +312,19 @@ export default function KidDashboard() {
           );
         }
 
+        // Sort by category then display order (parent-defined routine sequence)
+        // before grouping, same ordering as the backend applies to /api/chores.
+        const sortedAssignments = [...todaysAssignments].sort((a, b) => {
+          const catA = a.chore?.category?.id ?? 0;
+          const catB = b.chore?.category?.id ?? 0;
+          if (catA !== catB) return catA - catB;
+          return (a.chore?.sort_order ?? 0) - (b.chore?.sort_order ?? 0);
+        });
+
         // Group by category, preserving first-appearance order
         const groups = [];
         const groupByKey = new Map();
-        todaysAssignments.forEach((assignment) => {
+        sortedAssignments.forEach((assignment) => {
           const chore = assignment.chore;
           if (!chore) return;
           const cat = chore.category;
@@ -358,6 +375,7 @@ export default function KidDashboard() {
                           }))
                         }
                         onComplete={() => handleComplete(chore)}
+                        onZoomPhoto={(url, title) => setZoomedPhoto({ url, title })}
                         colorTheme={colorTheme}
                         t={t}
                       />
@@ -380,6 +398,37 @@ export default function KidDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── Enlarged chore photo ── */}
+      <AnimatePresence>
+        {zoomedPhoto && (
+          <motion.div
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/85 p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setZoomedPhoto(null)}
+          >
+            <button
+              onClick={() => setZoomedPhoto(null)}
+              className="absolute top-4 right-4 p-2.5 rounded-full bg-surface/90 text-cream hover:text-accent transition-colors"
+              aria-label={t('common.close')}
+            >
+              <X size={20} />
+            </button>
+            <img
+              src={zoomedPhoto.url}
+              alt=""
+              className="max-w-full max-h-[75vh] rounded-2xl object-contain border-2 border-border"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {zoomedPhoto.title && (
+              <p className="text-cream text-lg font-semibold text-center">{zoomedPhoto.title}</p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

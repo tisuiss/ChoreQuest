@@ -465,6 +465,8 @@
     "selectCategory": "Sélectionner une catégorie...",
     "recurrence": "Récurrence",
     "assignTo": "Assigner à",
+    "sortOrder": "Ordre d'affichage",
+    "sortOrderHint": "Les nombres les plus petits s'affichent en premier — utile pour construire une routine pour l'enfant (ex: se réveiller = 1, petit-déjeuner = 2, s'habiller = 3).",
     "photo": "Photo (optionnel)",
     "choosePhoto": "Choisir une photo",
     "removePhoto": "Retirer la photo",

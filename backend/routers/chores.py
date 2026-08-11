@@ -215,6 +215,7 @@ async def list_chores(
             select(Chore)
             .where(Chore.is_active == True)
             .options(selectinload(Chore.category))
+            .order_by(Chore.category_id, Chore.sort_order, Chore.id)
         )
 
         if view == "active":
@@ -262,6 +263,7 @@ async def list_chores(
                 ChoreAssignment.user_id == user.id,
             )
             .options(selectinload(Chore.category))
+            .order_by(Chore.category_id, Chore.sort_order, Chore.id)
             .distinct()
         )
         chores = result.scalars().all()
@@ -312,6 +314,7 @@ async def create_chore(
         recurrence=body.recurrence,
         custom_days=body.custom_days,
         requires_photo=body.requires_photo,
+        sort_order=body.sort_order,
         created_by=user.id,
     )
     db.add(chore)

@@ -465,6 +465,8 @@
     "selectCategory": "Select category...",
     "recurrence": "Recurrence",
     "assignTo": "Assign to",
+    "sortOrder": "Display order",
+    "sortOrderHint": "Lower numbers show first — use this to build a routine sequence for the kid (e.g. wake up = 1, breakfast = 2, get dressed = 3).",
     "photo": "Photo (optional)",
     "choosePhoto": "Choose a photo",
     "removePhoto": "Remove photo",

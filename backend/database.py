@@ -48,6 +48,7 @@ async def init_db():
             ("notifications", "params", "TEXT"),
             ("users", "avatar_photo_url", "VARCHAR(255)"),
             ("chores", "photo_url", "VARCHAR(255)"),
+            ("chores", "sort_order", "INTEGER DEFAULT 0"),
         ]
         for table, col, typedef in _migrations:
             try:
