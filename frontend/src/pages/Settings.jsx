@@ -11,9 +11,25 @@ import {
   Award,
   ArrowLeft,
   Globe,
+  Clock,
 } from 'lucide-react';
 import VacationSettings from '../components/VacationSettings';
 import { SUPPORTED_LANGUAGES } from '../hooks/useLanguage';
+
+const TIMEZONE_OPTIONS = [
+  'Europe/Paris',
+  'Europe/London',
+  'Europe/Madrid',
+  'Europe/Berlin',
+  'Europe/Rome',
+  'Europe/Brussels',
+  'Africa/Casablanca',
+  'Africa/Tunis',
+  'Africa/Algiers',
+  'America/Montreal',
+  'America/New_York',
+  'America/Los_Angeles',
+];
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -241,6 +257,26 @@ export default function Settings() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Family timezone */}
+          <div className="game-panel p-4">
+            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+              <Clock size={16} className="text-muted" />
+              {t('settings.timezone')}
+            </h2>
+            <p className="text-muted text-xs mb-3">
+              {t('settings.timezoneHint')}
+            </p>
+            <select
+              value={settings.timezone ?? 'Europe/Paris'}
+              onChange={(e) => updateSetting('timezone', e.target.value)}
+              className="field-input max-w-xs"
+            >
+              {TIMEZONE_OPTIONS.map((tz) => (
+                <option key={tz} value={tz}>{tz}</option>
+              ))}
+            </select>
           </div>
 
           {/* Daily reset hour */}

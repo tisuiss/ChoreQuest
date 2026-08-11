@@ -53,6 +53,7 @@ DEFAULT_SETTINGS = {
     "default_language": "fr",
     "achievements_enabled": "true",
     "auto_approve_chores": "false",
+    "timezone": "Europe/Paris",
 }
 
 # Template quests with RPG-flavoured descriptions

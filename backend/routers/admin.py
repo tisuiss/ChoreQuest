@@ -3,6 +3,7 @@ import os
 import secrets
 import string
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
@@ -23,6 +24,7 @@ from backend.schemas import (
 )
 from backend.auth import hash_password
 from backend.dependencies import require_admin, require_parent, get_current_user
+from backend.services.family_timezone import apply_family_timezone
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -318,6 +320,15 @@ async def update_settings(
     _parent: User = Depends(require_parent),
 ):
     """Update application settings. Body: {"settings": {"key": "value"}}."""
+    if "timezone" in body.settings:
+        try:
+            ZoneInfo(body.settings["timezone"])
+        except ZoneInfoNotFoundError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown timezone: {body.settings['timezone']}",
+            )
+
     for key, value in body.settings.items():
         result = await db.execute(
             select(AppSetting).where(AppSetting.key == key)
@@ -331,4 +342,8 @@ async def update_settings(
             db.add(new_setting)
 
     await db.commit()
+
+    if "timezone" in body.settings:
+        await apply_family_timezone(db)
+
     return {"detail": "Settings updated"}

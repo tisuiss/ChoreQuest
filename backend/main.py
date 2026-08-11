@@ -18,6 +18,7 @@ from backend.auth import decode_access_token
 from backend.websocket_manager import ws_manager
 from backend.models import RefreshToken, User, UserRole
 from backend.services.assignment_generator import generate_daily_assignments
+from backend.services.family_timezone import apply_family_timezone
 from backend.services.push_hook import install_push_hooks
 
 logger = logging.getLogger(__name__)
@@ -82,7 +83,12 @@ async def daily_reset_task():
     - Clean up expired refresh tokens
     """
     while True:
-        now = datetime.now(timezone.utc)
+        async with async_session() as db:
+            await apply_family_timezone(db)
+
+        # Naive "now" — reflects the family's timezone applied above, so
+        # DAILY_RESET_HOUR means that hour in the family's local time, not UTC.
+        now = datetime.now()
         target_hour = settings.DAILY_RESET_HOUR
         next_run = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
         if now >= next_run:
@@ -117,6 +123,7 @@ async def lifespan(app: FastAPI):
     install_push_hooks()
     async with async_session() as db:
         await seed_database(db)
+        await apply_family_timezone(db)
     task = asyncio.create_task(daily_reset_task())
     yield
     task.cancel()

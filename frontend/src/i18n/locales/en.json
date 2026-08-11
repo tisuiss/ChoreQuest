@@ -90,6 +90,8 @@
     "autoApproveChores": "Auto-approve quests (skip parent approval)",
     "defaultLanguage": "Family Default Language",
     "defaultLanguageHint": "Language shown on the kiosk screen before a kid is selected.",
+    "timezone": "Family Timezone",
+    "timezoneHint": "Used to determine \"today\" for streaks, chore reset, and the calendar. Applies immediately, no restart needed.",
     "dailyResetHour": "Daily Reset Hour",
     "dailyResetHourHint": "Hour of day (0-23) when daily chores reset.",
     "saveSettings": "Save Settings",
