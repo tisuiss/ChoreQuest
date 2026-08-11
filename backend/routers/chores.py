@@ -393,7 +393,10 @@ async def get_chore_assignments(
             ChoreAssignment.date >= start,
             ChoreAssignment.date <= today,
         )
-        .options(selectinload(ChoreAssignment.user))
+        .options(
+            selectinload(ChoreAssignment.user),
+            selectinload(ChoreAssignment.chore).selectinload(Chore.category),
+        )
         .order_by(ChoreAssignment.date)
     )
     assignments = result.scalars().all()
