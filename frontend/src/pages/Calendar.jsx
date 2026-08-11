@@ -20,20 +20,25 @@ import {
   Trash2,
 } from 'lucide-react';
 
+// Format using local date components — toISOString() would shift the date
+// by the UTC offset (e.g. back a day for UTC+1/+2 timezones like France).
 function toISO(date) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function addDays(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  return toISO(d);
 }
 
 const SHORT_DAY_KEYS = ['calendar.days.sun', 'calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat'];
 
 function statusStyle(assignment, dayStr) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toISO(new Date());
 
   if (assignment.status === 'verified') {
     return {

@@ -65,13 +65,22 @@ function DifficultyStars({ level }) {
   );
 }
 
+// Format using local date components — toISOString() would shift the date
+// by the UTC offset (e.g. back a day for UTC+1/+2 timezones like France).
+function toISO(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function lastNDays(n) {
   const dates = [];
   const now = new Date();
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
-    dates.push(d.toISOString().split('T')[0]);
+    dates.push(toISO(d));
   }
   return dates;
 }
@@ -405,7 +414,7 @@ export default function ChoreDetail() {
     CATEGORY_COLORS[categoryName?.toLowerCase()] || CATEGORY_COLORS.default;
 
   // Determine today's assignment for the logged-in kid
-  const today = new Date().toISOString().split('T')[0];
+  const today = toISO(new Date());
   const todayAssignment = assignments.find(
     (a) => a.date === today && a.user_id === user?.id
   );

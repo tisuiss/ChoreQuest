@@ -24,17 +24,26 @@ import ChoreIcon from '../components/ChoreIcon';
 
 // ---------- helpers ----------
 
+// Local date components — toISOString() would shift the date by the UTC
+// offset (e.g. back a day for UTC+1/+2 timezones like France).
+function toISO(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function getMondayOfThisWeek() {
   const now = new Date();
   const day = now.getDay(); // 0=Sun, 1=Mon, ...
   const diff = day === 0 ? -6 : 1 - day;
   const monday = new Date(now);
   monday.setDate(now.getDate() + diff);
-  return monday.toISOString().slice(0, 10);
+  return toISO(monday);
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return toISO(new Date());
 }
 
 // ---------- card animation variants ----------
