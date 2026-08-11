@@ -371,6 +371,35 @@ async def get_chore(
     return ChoreResponse.model_validate(chore)
 
 
+@router.get("/{chore_id}/assignments", response_model=list[AssignmentResponse])
+async def get_chore_assignments(
+    chore_id: int,
+    days: int = Query(7, ge=1, le=31),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Assignments for this chore across the last N days (today inclusive).
+
+    Returns every assigned kid's rows regardless of caller role — same
+    exposure pattern as GET /api/calendar, which the frontend already
+    filters client-side to a single kid's own rows when needed.
+    """
+    today = date.today()
+    start = today - timedelta(days=days - 1)
+    result = await db.execute(
+        select(ChoreAssignment)
+        .where(
+            ChoreAssignment.chore_id == chore_id,
+            ChoreAssignment.date >= start,
+            ChoreAssignment.date <= today,
+        )
+        .options(selectinload(ChoreAssignment.user))
+        .order_by(ChoreAssignment.date)
+    )
+    assignments = result.scalars().all()
+    return [AssignmentResponse.model_validate(a) for a in assignments]
+
+
 @router.put("/{chore_id}", response_model=ChoreResponse)
 async def update_chore(
     chore_id: int,

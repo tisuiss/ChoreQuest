@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   XCircle,
   SkipForward,
-  Calendar,
   Clock,
   Shield,
   Loader2,
@@ -21,6 +20,7 @@ import {
   Trash2,
   ChevronRight,
   Users,
+  X,
 } from 'lucide-react';
 
 const DIFFICULTY_LEVEL = { easy: 1, medium: 2, hard: 3, expert: 4 };
@@ -65,23 +65,92 @@ function DifficultyStars({ level }) {
   );
 }
 
-function StatusBadge({ status }) {
-  const { t } = useTranslation();
-  const styles = {
-    pending: 'bg-gold/20 text-gold border-gold/40',
-    completed: 'bg-emerald/20 text-emerald border-emerald/40',
-    verified: 'bg-accent/20 text-accent border-accent/40',
-    skipped: 'bg-cream/10 text-muted border-border',
-    missed: 'bg-crimson/20 text-crimson border-crimson/40',
-  };
+function lastNDays(n) {
+  const dates = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
+function cellStatus(status, dateStr, todayStr) {
+  if (status === 'pending' && dateStr < todayStr) return 'missed';
+  return status;
+}
+
+const CELL_STYLES = {
+  pending: { icon: Clock, className: 'bg-gold/10 text-gold border-gold/30' },
+  completed: { icon: Clock, className: 'bg-gold/20 text-gold border-gold/40' },
+  verified: { icon: CheckCircle2, className: 'bg-emerald/20 text-emerald border-emerald/40' },
+  skipped: { icon: SkipForward, className: 'bg-cream/10 text-muted border-border' },
+  missed: { icon: XCircle, className: 'bg-crimson/20 text-crimson border-crimson/40' },
+};
+
+function AssignmentGrid({ assignmentRules, allKids, assignments, selectedCell, onSelectCell, t }) {
+  const days = lastNDays(7);
+  const todayStr = days[days.length - 1];
+
   return (
-    <span
-      className={`inline-block px-2 py-0.5 rounded-md text-sm border capitalize ${
-        styles[status] || styles.pending
-      }`}
-    >
-      {t(`chores.status.${status || 'pending'}`, status || 'pending')}
-    </span>
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <th className="text-left text-muted font-medium pb-2 pr-2">{t('choreDetail.kid')}</th>
+            {days.map((d) => {
+              const jsDay = new Date(`${d}T00:00:00`).getDay();
+              const mondayIndex = jsDay === 0 ? 6 : jsDay - 1;
+              const dayNum = parseInt(d.split('-')[2], 10);
+              return (
+                <th key={d} className="text-center text-muted font-medium pb-2 px-1 whitespace-nowrap">
+                  {t(DAY_KEYS[mondayIndex])} {dayNum}
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {assignmentRules.map((rule) => {
+            const kid = allKids.find((k) => k.id === rule.user_id);
+            const kidName = kid?.display_name || rule.user?.display_name || t('choreDetail.kidFallback', { id: rule.user_id });
+            return (
+              <tr key={rule.id}>
+                <td className="text-cream font-medium py-1 pr-2 whitespace-nowrap">{kidName}</td>
+                {days.map((d) => {
+                  const a = assignments.find((x) => x.user_id === rule.user_id && x.date === d);
+                  if (!a) {
+                    return (
+                      <td key={d} className="text-center py-1 px-1">
+                        <span className="inline-flex items-center justify-center w-7 h-7 text-muted/30" title={t('choreDetail.noAssignment')}>–</span>
+                      </td>
+                    );
+                  }
+                  const status = cellStatus(a.status, d, todayStr);
+                  const style = CELL_STYLES[status] || CELL_STYLES.pending;
+                  const Icon = style.icon;
+                  const isSelected = selectedCell?.assignmentId === a.id;
+                  return (
+                    <td key={d} className="text-center py-1 px-1">
+                      <button
+                        onClick={() => onSelectCell({ assignmentId: a.id, userId: rule.user_id, kidName, date: d, status: a.status })}
+                        className={`inline-flex items-center justify-center w-7 h-7 rounded-md border transition-all ${style.className} ${
+                          isSelected ? 'ring-2 ring-accent' : ''
+                        }`}
+                        title={t(`chores.status.${status}`, status)}
+                      >
+                        <Icon size={13} />
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -108,6 +177,10 @@ export default function ChoreDetail() {
   const [selectedCadence, setSelectedCadence] = useState('daily');
   const [assignmentRules, setAssignmentRules] = useState([]);
 
+  // Per-kid assignment grid (last 7 days)
+  const [assignments, setAssignments] = useState([]);
+  const [selectedCell, setSelectedCell] = useState(null);
+
   const fetchRotation = useCallback(async () => {
     if (!isParent) return;
     try {
@@ -125,6 +198,13 @@ export default function ChoreDetail() {
     } catch { setAssignmentRules([]); }
   }, [id, isParent]);
 
+  const fetchAssignments = useCallback(async () => {
+    try {
+      const data = await api(`/api/chores/${id}/assignments?days=7`);
+      setAssignments(Array.isArray(data) ? data : []);
+    } catch { setAssignments([]); }
+  }, [id]);
+
   const fetchChore = useCallback(async () => {
     try {
       setError('');
@@ -141,17 +221,18 @@ export default function ChoreDetail() {
     fetchChore();
     fetchRotation();
     fetchAssignmentRules();
+    fetchAssignments();
     if (isParent) {
       api('/api/stats/kids').then((data) => setAllKids(data || [])).catch(() => {});
     }
-  }, [fetchChore, fetchRotation, fetchAssignmentRules, isParent]);
+  }, [fetchChore, fetchRotation, fetchAssignmentRules, fetchAssignments, isParent]);
 
   // Live updates via WebSocket
   useEffect(() => {
-    const handler = () => { fetchChore(); fetchRotation(); };
+    const handler = () => { fetchChore(); fetchRotation(); fetchAssignments(); };
     window.addEventListener('ws:message', handler);
     return () => window.removeEventListener('ws:message', handler);
-  }, [fetchChore, fetchRotation]);
+  }, [fetchChore, fetchRotation, fetchAssignments]);
 
   const handleComplete = async () => {
     setActionLoading('complete');
@@ -160,7 +241,7 @@ export default function ChoreDetail() {
       await api(`/api/chores/${id}/complete`, { method: 'POST' });
       setActionMessage(t('choreDetail.completedMsg'));
       setActionOk(true);
-      await fetchChore();
+      await Promise.all([fetchChore(), fetchAssignments()]);
     } catch (err) {
       setActionMessage(err.message || t('choreDetail.completeError'));
       setActionOk(false);
@@ -173,13 +254,11 @@ export default function ChoreDetail() {
     setActionLoading('verify');
     setActionMessage('');
     try {
-      const path = assignmentId
-        ? `/api/chores/assignments/${assignmentId}/verify`
-        : `/api/chores/${id}/verify`;
-      await api(path, { method: 'POST' });
+      await api(`/api/chores/assignments/${assignmentId}/verify`, { method: 'POST' });
       setActionMessage(t('choreDetail.verifiedMsg'));
       setActionOk(true);
-      await fetchChore();
+      setSelectedCell(null);
+      await Promise.all([fetchChore(), fetchAssignments()]);
     } catch (err) {
       setActionMessage(err.message || t('choreDetail.verifyError'));
       setActionOk(false);
@@ -192,13 +271,11 @@ export default function ChoreDetail() {
     setActionLoading('uncomplete');
     setActionMessage('');
     try {
-      const path = assignmentId
-        ? `/api/chores/assignments/${assignmentId}/uncomplete`
-        : `/api/chores/${id}/uncomplete`;
-      await api(path, { method: 'POST' });
+      await api(`/api/chores/assignments/${assignmentId}/uncomplete`, { method: 'POST' });
       setActionMessage(t('choreDetail.uncompletedMsg'));
       setActionOk(true);
-      await fetchChore();
+      setSelectedCell(null);
+      await Promise.all([fetchChore(), fetchAssignments()]);
     } catch (err) {
       setActionMessage(err.message || t('choreDetail.uncompleteError'));
       setActionOk(false);
@@ -211,13 +288,11 @@ export default function ChoreDetail() {
     setActionLoading('skip');
     setActionMessage('');
     try {
-      const path = assignmentId
-        ? `/api/chores/assignments/${assignmentId}/skip`
-        : `/api/chores/${id}/skip`;
-      await api(path, { method: 'POST' });
+      await api(`/api/chores/assignments/${assignmentId}/skip`, { method: 'POST' });
       setActionMessage(t('choreDetail.skippedMsg'));
       setActionOk(true);
-      await fetchChore();
+      setSelectedCell(null);
+      await Promise.all([fetchChore(), fetchAssignments()]);
     } catch (err) {
       setActionMessage(err.message || t('choreDetail.skipError'));
       setActionOk(false);
@@ -331,15 +406,12 @@ export default function ChoreDetail() {
   const categoryColorClass =
     CATEGORY_COLORS[categoryName?.toLowerCase()] || CATEGORY_COLORS.default;
 
-  // Determine today's assignment
-  const assignments = chore.assignments || chore.history || [];
+  // Determine today's assignment for the logged-in kid
   const today = new Date().toISOString().split('T')[0];
   const todayAssignment = assignments.find(
-    (a) => a.date === today || a.assigned_date === today || a.due_date === today
+    (a) => a.date === today && a.user_id === user?.id
   );
-  const hasPendingToday =
-    todayAssignment && (todayAssignment.status === 'pending' || todayAssignment.status === 'assigned');
-  const recentAssignments = assignments.slice(0, 10);
+  const hasPendingToday = todayAssignment && todayAssignment.status === 'pending';
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -481,81 +553,92 @@ export default function ChoreDetail() {
         </div>
       )}
 
-      {/* Actions for parents */}
-      {isParent && (
-        <div className="game-panel p-5">
-          <p className="text-cream text-sm font-semibold mb-3">{t('choreDetail.actions')}</p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => handleVerify(todayAssignment?.id)}
-              disabled={!!actionLoading}
-              className={`game-btn game-btn-blue flex items-center gap-2 ${
-                actionLoading === 'verify' ? 'opacity-60 cursor-wait' : ''
-              }`}
-            >
-              <CheckCircle2 size={14} />
-              {actionLoading === 'verify' ? t('choreDetail.verifying') : t('choreDetail.verify')}
-            </button>
-            <button
-              onClick={() => handleUncomplete(todayAssignment?.id)}
-              disabled={!!actionLoading}
-              className={`game-btn game-btn-blue flex items-center gap-2 ${
-                actionLoading === 'uncomplete' ? 'opacity-60 cursor-wait' : ''
-              }`}
-            >
-              <XCircle size={14} />
-              {actionLoading === 'uncomplete' ? t('choreDetail.undoing') : t('choreDetail.uncomplete')}
-            </button>
-            <button
-              onClick={() => handleSkip(todayAssignment?.id)}
-              disabled={!!actionLoading}
-              className={`game-btn game-btn-red flex items-center gap-2 ${
-                actionLoading === 'skip' ? 'opacity-60 cursor-wait' : ''
-              }`}
-            >
-              <SkipForward size={14} />
-              {actionLoading === 'skip' ? t('choreDetail.skipping') : t('choreDetail.skipToday')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Assignment Rules Panel (parent only) */}
+      {/* Per-kid assignment grid (parent only) */}
       {isParent && assignmentRules.length > 0 && (
         <div className="game-panel p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-accent" />
             <h2 className="text-cream text-sm font-semibold">{t('choreDetail.assignedTo')}</h2>
           </div>
-          <div className="space-y-2">
-            {assignmentRules.map((rule) => {
-              const kid = allKids.find((k) => k.id === rule.user_id);
-              return (
-                <div
-                  key={rule.id}
-                  className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border border-border bg-surface-raised/20"
+          <p className="text-muted text-xs">{t('choreDetail.selectDayHint')}</p>
+          <AssignmentGrid
+            assignmentRules={assignmentRules}
+            allKids={allKids}
+            assignments={assignments}
+            selectedCell={selectedCell}
+            onSelectCell={setSelectedCell}
+            t={t}
+          />
+
+          {selectedCell && (
+            <div className="pt-3 border-t border-border space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-cream text-sm font-medium">
+                  {selectedCell.kidName} · {selectedCell.date}
+                </p>
+                <button
+                  onClick={() => setSelectedCell(null)}
+                  className="text-muted hover:text-cream transition-colors"
+                  aria-label={t('common.close')}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-cream text-sm font-medium truncate">
-                      {kid?.display_name || rule.user?.display_name || t('choreDetail.kidFallback', { id: rule.user_id })}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-muted text-xs capitalize flex items-center gap-1">
-                      <RefreshCw size={10} />
-                      {t(`questAssign.frequency.${rule.recurrence}`, rule.recurrence)}
-                    </span>
-                    {rule.requires_photo && (
-                      <span className="text-muted text-xs flex items-center gap-1">
-                        <Camera size={10} />
-                        {t('choreDetail.photo')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedCell.status === 'completed' && (
+                  <>
+                    <button
+                      onClick={() => handleVerify(selectedCell.assignmentId)}
+                      disabled={!!actionLoading}
+                      className={`game-btn game-btn-blue flex items-center gap-2 !text-xs !py-1.5 ${
+                        actionLoading === 'verify' ? 'opacity-60 cursor-wait' : ''
+                      }`}
+                    >
+                      <CheckCircle2 size={14} />
+                      {actionLoading === 'verify' ? t('choreDetail.verifying') : t('choreDetail.verify')}
+                    </button>
+                    <button
+                      onClick={() => handleUncomplete(selectedCell.assignmentId)}
+                      disabled={!!actionLoading}
+                      className={`game-btn game-btn-red flex items-center gap-2 !text-xs !py-1.5 ${
+                        actionLoading === 'uncomplete' ? 'opacity-60 cursor-wait' : ''
+                      }`}
+                    >
+                      <XCircle size={14} />
+                      {actionLoading === 'uncomplete' ? t('choreDetail.undoing') : t('choreDetail.uncomplete')}
+                    </button>
+                  </>
+                )}
+                {selectedCell.status === 'verified' && (
+                  <button
+                    onClick={() => handleUncomplete(selectedCell.assignmentId)}
+                    disabled={!!actionLoading}
+                    className={`game-btn game-btn-red flex items-center gap-2 !text-xs !py-1.5 ${
+                      actionLoading === 'uncomplete' ? 'opacity-60 cursor-wait' : ''
+                    }`}
+                  >
+                    <XCircle size={14} />
+                    {actionLoading === 'uncomplete' ? t('choreDetail.undoing') : t('choreDetail.uncomplete')}
+                  </button>
+                )}
+                {selectedCell.status === 'pending' && (
+                  <button
+                    onClick={() => handleSkip(selectedCell.assignmentId)}
+                    disabled={!!actionLoading}
+                    className={`game-btn game-btn-red flex items-center gap-2 !text-xs !py-1.5 ${
+                      actionLoading === 'skip' ? 'opacity-60 cursor-wait' : ''
+                    }`}
+                  >
+                    <SkipForward size={14} />
+                    {actionLoading === 'skip' ? t('choreDetail.skipping') : t('choreDetail.skipToday')}
+                  </button>
+                )}
+                {selectedCell.status === 'skipped' && (
+                  <p className="text-muted text-xs">{t('chores.status.skipped')}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -649,38 +732,6 @@ export default function ChoreDetail() {
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Assignment History */}
-      {recentAssignments.length > 0 && (
-        <div className="game-panel p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-accent" />
-            <h2 className="text-cream text-sm font-semibold">{t('choreDetail.history')}</h2>
-          </div>
-
-          <div className="space-y-2">
-            {recentAssignments.map((assignment, idx) => (
-              <div
-                key={assignment.id || idx}
-                className="flex items-center justify-between p-3 rounded bg-surface-raised/30 border border-border"
-              >
-                <div className="flex items-center gap-3">
-                  <Clock size={14} className="text-cream/30" />
-                  <span className="text-muted text-xs">
-                    {assignment.date || assignment.assigned_date || assignment.due_date || t('choreDetail.notAvailable')}
-                  </span>
-                  {assignment.assigned_to_name && (
-                    <span className="text-muted text-xs">
-                      - {assignment.assigned_to_name}
-                    </span>
-                  )}
-                </div>
-                <StatusBadge status={assignment.status} />
-              </div>
-            ))}
-          </div>
         </div>
       )}
 

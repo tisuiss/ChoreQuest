@@ -596,6 +596,7 @@ def _build_kid_assignment(a: ChoreAssignment) -> dict:
             "difficulty": a.chore.difficulty.value if a.chore.difficulty else None,
             "category": a.chore.category.name if a.chore.category else None,
             "requires_photo": a.chore.requires_photo,
+            "photo_url": a.chore.photo_url,
             "recurrence": a.chore.recurrence.value if a.chore.recurrence else None,
         } if a.chore else None,
     }
