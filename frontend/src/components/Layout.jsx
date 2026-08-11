@@ -119,6 +119,25 @@ export default function Layout({ children }) {
 
   const isActive = (path) => path === '/' ? location.pathname === '/' : (location.pathname === path || location.pathname.startsWith(path + '/'));
 
+  // Kiosk sessions get a distraction-free, full-screen view — no sidebar,
+  // no top bar, no notifications — just the page content and a small
+  // exit button to return to the kid-selection screen.
+  if (isKioskSession) {
+    return (
+      <div className="min-h-screen bg-navy">
+        <button
+          onClick={backToSelection}
+          className="fixed top-3 right-3 z-40 p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
+          title={t('layout.backToSelection')}
+          aria-label={t('layout.backToSelection')}
+        >
+          <LogOut size={18} />
+        </button>
+        <main className="p-4 pb-6 max-w-[100vw] overflow-x-clip">{children}</main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-navy flex overflow-x-clip max-w-[100vw]">
       {/* Desktop Sidebar */}
