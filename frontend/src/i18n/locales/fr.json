@@ -925,5 +925,17 @@
       "next": "Suiv.",
       "showing": "Affichage {{from}} - {{to}}"
     }
+  },
+  "categories": {
+    "manage": "Gérer les catégories",
+    "manageTitle": "Gérer les catégories",
+    "builtIn": "Intégrée",
+    "addNew": "Ajouter une catégorie",
+    "namePlaceholder": "ex. Garage",
+    "icon": "Icône",
+    "colour": "Couleur",
+    "nameRequired": "Donne un nom à la catégorie.",
+    "saveError": "Échec de la création de la catégorie.",
+    "deleteError": "Échec de la suppression de la catégorie."
   }
 }

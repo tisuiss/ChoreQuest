@@ -8,6 +8,7 @@ import { themedTitle, themedDescription } from '../utils/questThemeText';
 import Modal from '../components/Modal';
 import QuestCreateModal from '../components/QuestCreateModal';
 import QuestAssignModal from '../components/QuestAssignModal';
+import CategoryManageModal from '../components/CategoryManageModal';
 import AvatarDisplay from '../components/AvatarDisplay';
 import {
   Swords,
@@ -26,6 +27,7 @@ import {
   Users,
   ScrollText,
   Zap,
+  Tag,
 } from 'lucide-react';
 
 const DIFFICULTY_OPTIONS = [
@@ -120,6 +122,7 @@ export default function Chores() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingChore, setEditingChore] = useState(null);
   const [assigningChore, setAssigningChore] = useState(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -355,6 +358,15 @@ export default function Chores() {
               <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
             ))}
           </select>
+          {isParent && (
+            <button
+              onClick={() => setShowCategoryModal(true)}
+              className="flex items-center gap-1.5 text-muted hover:text-cream text-sm transition-colors sm:ml-auto"
+            >
+              <Tag size={14} />
+              {t('categories.manage')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -581,6 +593,13 @@ export default function Chores() {
         onAssigned={() => { fetchChores(); }}
         chore={assigningChore}
         kids={kids}
+      />
+
+      <CategoryManageModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        categories={categories}
+        onChanged={fetchCategories}
       />
 
       <Modal

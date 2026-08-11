@@ -925,5 +925,17 @@
       "next": "Next",
       "showing": "Showing {{from}} - {{to}}"
     }
+  },
+  "categories": {
+    "manage": "Manage categories",
+    "manageTitle": "Manage Categories",
+    "builtIn": "Built-in",
+    "addNew": "Add category",
+    "namePlaceholder": "e.g. Garage",
+    "icon": "Icon",
+    "colour": "Colour",
+    "nameRequired": "Give the category a name.",
+    "saveError": "Failed to create category.",
+    "deleteError": "Failed to delete category."
   }
 }

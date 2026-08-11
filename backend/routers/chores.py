@@ -185,6 +185,15 @@ async def delete_category(
     if category.is_default:
         raise HTTPException(status_code=400, detail="Cannot delete a default category")
 
+    in_use_result = await db.execute(
+        select(func.count()).select_from(Chore).where(Chore.category_id == category_id)
+    )
+    if in_use_result.scalar() > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete a category that still has chores assigned to it",
+        )
+
     await db.delete(category)
     await db.commit()
     await ws_manager.broadcast(_CATEGORY_CHANGED, exclude_user=user.id)
