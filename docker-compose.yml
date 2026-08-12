@@ -15,3 +15,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+
+  # Second, fully independent family — separate data, separate secret,
+  # separate port. Rename freely (service name, port, ./data-family2) to
+  # match your actual second family. Same image, no code changes needed.
+  chorequest-family2:
+    build: .
+    ports:
+      - "8123:8122"
+    environment:
+      - SECRET_KEY=${SECRET_KEY_FAMILY2}
+      - TZ=Europe/Paris
+    volumes:
+      - ./data-family2:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8122/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

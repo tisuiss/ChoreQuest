@@ -77,6 +77,26 @@ docker compose up -d
 
 The app runs on port **8122**. The first user to register automatically becomes the admin. After that, registration requires an invite code (generate them from the admin dashboard).
 
+### Running multiple independent families
+
+ChoreQuest is single-family per instance by design — there's no "family" concept in the database, everything (users, chores, categories, settings) is global to one deployment. To host a second, fully independent family, run a second container from the same image rather than trying to share one: separate data, separate login, separate admin, zero cross-family visibility, and no code changes required.
+
+`docker-compose.yml` already has a `chorequest-family2` service scaffolded for this (rename it to match your actual second family). It reuses the same image, on a different host port (`8123`), with its own data volume (`./data-family2`) and its own secret key. Add the second secret to your `.env`:
+
+```env
+SECRET_KEY=your-first-family-secret-min-16-chars
+SECRET_KEY_FAMILY2=your-second-family-secret-min-16-chars
+TZ=Europe/London
+```
+
+Then:
+
+```bash
+docker compose up -d chorequest-family2
+```
+
+The second family registers and manages itself at `http://<host>:8123`, completely separately from the first. To expose it over HTTPS, add a second Cloudflare Tunnel route (see below) pointing at `http://localhost:8123` instead of `8122`.
+
 ### Expose with Cloudflare Tunnel
 
 ChoreQuest works great behind a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) — no port forwarding needed, free HTTPS, and it enables push notifications and PWA install on all devices.

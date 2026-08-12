@@ -23,8 +23,10 @@ import {
   Trophy,
   MoreHorizontal,
   LogOut,
+  Star,
 } from 'lucide-react';
 import AvatarDisplay from './AvatarDisplay';
+import PointsHistoryModal from './PointsHistoryModal';
 
 const ALL_NAV_ITEMS = [
   { labelKey: 'nav.home', icon: Home, path: '/' },
@@ -80,6 +82,7 @@ export default function Layout({ children }) {
   }, [user, syncFromUser, syncLanguageFromUser]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [showPointsHistory, setShowPointsHistory] = useState(false);
   const panelRef = useRef(null);
   const moreRef = useRef(null);
 
@@ -128,6 +131,36 @@ export default function Layout({ children }) {
   if (isKioskSession) {
     return (
       <div className="min-h-screen bg-navy">
+        <div className="fixed top-3 left-3 z-40 flex items-center gap-2">
+          <button
+            onClick={() => navigate('/')}
+            className={`p-2.5 rounded-full backdrop-blur border transition-colors shadow-lg ${
+              isHome ? 'bg-accent/20 border-accent text-accent' : 'bg-surface/90 border-border text-muted hover:text-cream'
+            }`}
+            title={t('nav.home')}
+            aria-label={t('nav.home')}
+          >
+            <Home size={18} />
+          </button>
+          <button
+            onClick={() => navigate('/calendar')}
+            className={`p-2.5 rounded-full backdrop-blur border transition-colors shadow-lg ${
+              isActive('/calendar') ? 'bg-accent/20 border-accent text-accent' : 'bg-surface/90 border-border text-muted hover:text-cream'
+            }`}
+            title={t('nav.calendar')}
+            aria-label={t('nav.calendar')}
+          >
+            <CalendarDays size={18} />
+          </button>
+          <button
+            onClick={() => setShowPointsHistory(true)}
+            className="p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
+            title={t('profile.pointsHistory')}
+            aria-label={t('profile.pointsHistory')}
+          >
+            <Star size={18} />
+          </button>
+        </div>
         <div className="fixed top-3 right-3 z-40 flex items-center gap-2">
           <button
             onClick={backToSelection}
@@ -143,10 +176,11 @@ export default function Layout({ children }) {
             title={t('layout.exitKiosk')}
             aria-label={t('layout.exitKiosk')}
           >
-            <Home size={18} />
+            <X size={18} />
           </button>
         </div>
         <main className="p-4 pb-6 max-w-[100vw] overflow-x-clip">{children}</main>
+        <PointsHistoryModal isOpen={showPointsHistory} onClose={() => setShowPointsHistory(false)} />
       </div>
     );
   }
