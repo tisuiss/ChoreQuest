@@ -59,15 +59,38 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('auth:expired', handleExpired);
   }, [refreshSession]);
 
+  // login/pinLogin/register all use a raw fetch (not the shared api()
+  // helper): there is no prior session to refresh at this point, so
+  // api()'s 401-triggers-refresh retry would mask a real "wrong
+  // password"/"wrong PIN"/"username taken" error behind a misleading
+  // "Session expired" message once the refresh attempt also fails.
+  const rawAuthRequest = async (path, body, fallbackDetail) => {
+    const res = await fetch(path, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let detail = fallbackDetail;
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch { /* ignore */ }
+      throw new Error(detail);
+    }
+    return res.json();
+  };
+
   const login = async (username, password) => {
-    const data = await api('/api/auth/login', { method: 'POST', body: { username, password } });
+    const data = await rawAuthRequest('/api/auth/login', { username, password }, 'Invalid username or password');
     setAccessToken(data.access_token);
     setUser(data.user);
     return data.user;
   };
 
   const pinLogin = async (username, pin) => {
-    const data = await api('/api/auth/pin-login', { method: 'POST', body: { username, pin } });
+    const data = await rawAuthRequest('/api/auth/pin-login', { username, pin }, 'Invalid PIN');
     setAccessToken(data.access_token);
     setUser(data.user);
     return data.user;
@@ -124,7 +147,7 @@ export function AuthProvider({ children }) {
   const register = async (username, password, display_name, role, invite_code) => {
     const body = { username, password, display_name, role };
     if (invite_code) body.invite_code = invite_code;
-    const data = await api('/api/auth/register', { method: 'POST', body });
+    const data = await rawAuthRequest('/api/auth/register', body, 'Could not create account');
     setAccessToken(data.access_token);
     setUser(data.user);
     return data.user;
