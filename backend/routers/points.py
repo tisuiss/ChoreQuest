@@ -108,6 +108,54 @@ async def get_family_points_history(
     ]
 
 
+@router.delete("/family/history/{transaction_id}", status_code=204)
+async def delete_family_points_transaction(
+    transaction_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_parent),
+):
+    """Delete a point transaction and reverse its effect on the balance.
+
+    Parent+ only. Lifetime total_points_earned is left untouched (mirrors
+    _undo_assignment in chores.py) so achievement unlocks aren't revoked.
+    """
+    result = await db.execute(
+        select(PointTransaction).where(PointTransaction.id == transaction_id)
+    )
+    tx = result.scalar_one_or_none()
+    if tx is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    user_result = await db.execute(select(User).where(User.id == tx.user_id))
+    target_user = user_result.scalar_one_or_none()
+    if target_user is not None:
+        target_user.points_balance = max(0, target_user.points_balance - tx.amount)
+
+    client_ip = request.client.host if request.client else None
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="point_transaction_delete",
+        details={
+            "target_user_id": tx.user_id,
+            "amount": tx.amount,
+            "description": tx.description,
+            "type": tx.type.value,
+        },
+        ip_address=client_ip,
+    )
+    db.add(audit)
+
+    await db.delete(tx)
+    await db.commit()
+
+    if target_user is not None:
+        await ws_manager.send_to_user(target_user.id, {
+            "type": "data_changed",
+            "data": {"entity": "points", "new_balance": target_user.points_balance},
+        })
+
+
 @router.post("/{user_id}/bonus", response_model=PointTransactionResponse)
 async def award_bonus(
     user_id: int,

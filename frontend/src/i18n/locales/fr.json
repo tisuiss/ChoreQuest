@@ -89,7 +89,10 @@
     "loadError": "Impossible de charger l'historique",
     "empty": "Aucun historique pour le moment.",
     "weekOf": "Semaine du {{date}}",
-    "quarterLabel": "T{{quarter}} {{year}}"
+    "quarterLabel": "T{{quarter}} {{year}}",
+    "deleteEntry": "Supprimer cette entrée",
+    "deleteConfirm": "Supprimer « {{description}} » ({{amount}} étoiles) ? Le solde de l'enfant sera ajusté en conséquence.",
+    "deleteError": "Impossible de supprimer cette entrée"
   },
   "settings": {
     "profile": "Profil",

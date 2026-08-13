@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
-import { History, Loader2, Star, Shield } from 'lucide-react';
+import { History, Loader2, Star, Shield, Trash2 } from 'lucide-react';
+import Modal from '../components/Modal';
 
 function timeAgo(dateStr, t) {
   if (!dateStr) return '';
@@ -54,7 +55,7 @@ function periodLabel(cadence, boundaryDate, locale, t) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function TransactionRow({ tx, showKidName, t }) {
+function TransactionRow({ tx, showKidName, deleting, onDeleteClick, t }) {
   return (
     <div className="flex items-center gap-2.5 px-3 py-2 rounded-md border border-border/50 bg-surface-raised/20">
       <div className="flex-1 min-w-0">
@@ -67,6 +68,14 @@ function TransactionRow({ tx, showKidName, t }) {
       <span className={`text-sm font-medium flex-shrink-0 ${tx.amount > 0 ? 'text-gold' : 'text-crimson'}`}>
         {tx.amount > 0 ? '+' : ''}{tx.amount}
       </span>
+      <button
+        onClick={() => onDeleteClick(tx)}
+        disabled={deleting}
+        className="p-1.5 rounded-md text-muted hover:text-crimson hover:bg-crimson/10 transition-colors flex-shrink-0"
+        title={t('pointsHistory.deleteEntry')}
+      >
+        {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+      </button>
     </div>
   );
 }
@@ -83,6 +92,8 @@ export default function PointsHistory() {
   const [resetSettings, setResetSettings] = useState({ enabled: false, cadence: 'monthly', weekday: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     if (!isParent) return;
@@ -124,6 +135,21 @@ export default function PointsHistory() {
     window.addEventListener('ws:message', handler);
     return () => window.removeEventListener('ws:message', handler);
   }, [fetchHistory]);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const txId = deleteTarget.id;
+    setDeletingId(txId);
+    try {
+      await api(`/api/points/family/history/${txId}`, { method: 'DELETE' });
+      setTransactions((prev) => prev.filter((tx) => tx.id !== txId));
+      setDeleteTarget(null);
+    } catch (err) {
+      setError(err.message || t('pointsHistory.deleteError'));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (!isParent) {
     return (
@@ -195,7 +221,14 @@ export default function PointsHistory() {
               </h2>
               <div className="space-y-1.5">
                 {group.items.map((tx) => (
-                  <TransactionRow key={tx.id} tx={tx} showKidName={!selectedKidFilter} t={t} />
+                  <TransactionRow
+                    key={tx.id}
+                    tx={tx}
+                    showKidName={!selectedKidFilter}
+                    deleting={deletingId === tx.id}
+                    onDeleteClick={setDeleteTarget}
+                    t={t}
+                  />
                 ))}
               </div>
             </div>
@@ -204,10 +237,44 @@ export default function PointsHistory() {
       ) : (
         <div className="space-y-1.5">
           {transactions.map((tx) => (
-            <TransactionRow key={tx.id} tx={tx} showKidName={!selectedKidFilter} t={t} />
+            <TransactionRow
+              key={tx.id}
+              tx={tx}
+              showKidName={!selectedKidFilter}
+              deleting={deletingId === tx.id}
+              onDeleteClick={setDeleteTarget}
+              t={t}
+            />
           ))}
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title={t('pointsHistory.deleteEntry')}
+        actions={[
+          {
+            label: t('common.cancel'),
+            onClick: () => setDeleteTarget(null),
+            className: 'game-btn game-btn-blue',
+          },
+          {
+            label: deletingId ? t('common.saving') : t('common.delete'),
+            onClick: confirmDelete,
+            className: 'game-btn game-btn-red',
+            disabled: !!deletingId,
+          },
+        ]}
+      >
+        <p className="text-muted text-sm">
+          {t('pointsHistory.deleteConfirm', {
+            description: deleteTarget?.description,
+            amount: deleteTarget?.amount > 0 ? `+${deleteTarget?.amount}` : deleteTarget?.amount,
+          })}
+        </p>
+      </Modal>
     </div>
   );
 }

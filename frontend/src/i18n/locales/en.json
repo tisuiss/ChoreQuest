@@ -89,7 +89,10 @@
     "loadError": "Failed to load history",
     "empty": "No history yet.",
     "weekOf": "Week of {{date}}",
-    "quarterLabel": "Q{{quarter}} {{year}}"
+    "quarterLabel": "Q{{quarter}} {{year}}",
+    "deleteEntry": "Delete this entry",
+    "deleteConfirm": "Delete \"{{description}}\" ({{amount}} stars)? The kid's balance will be adjusted accordingly.",
+    "deleteError": "Failed to delete this entry"
   },
   "settings": {
     "profile": "Profile",
