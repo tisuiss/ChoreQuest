@@ -49,6 +49,9 @@ async def init_db():
             ("users", "avatar_photo_url", "VARCHAR(255)"),
             ("chores", "photo_url", "VARCHAR(255)"),
             ("chores", "sort_order", "INTEGER DEFAULT 0"),
+            ("chores", "pauses_during_vacation", "BOOLEAN DEFAULT 1"),
+            ("chores", "window_start", "TIME"),
+            ("chores", "window_end", "TIME"),
         ]
         for table, col, typedef in _migrations:
             try:

@@ -1,7 +1,7 @@
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, time
 from sqlalchemy import (
-    Integer, String, Text, Boolean, Float, Date, DateTime, Enum, JSON,
+    Integer, String, Text, Boolean, Float, Date, DateTime, Time, Enum, JSON,
     ForeignKey, UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -138,6 +138,9 @@ class Chore(Base):
     custom_days: Mapped[list | None] = mapped_column(JSON, nullable=True)
     requires_photo: Mapped[bool] = mapped_column(Boolean, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    pauses_during_vacation: Mapped[bool] = mapped_column(Boolean, default=True)
+    window_start: Mapped[time | None] = mapped_column(Time, nullable=True)
+    window_end: Mapped[time | None] = mapped_column(Time, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

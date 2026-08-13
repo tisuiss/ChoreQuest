@@ -300,13 +300,17 @@ async def get_feature_settings(
     _user: User = Depends(get_current_user),
 ):
     """Get feature toggle settings (accessible by any authenticated user)."""
-    feature_keys = ["leaderboard_enabled", "chore_trading_enabled", "achievements_enabled"]
+    feature_keys = [
+        "leaderboard_enabled", "chore_trading_enabled", "achievements_enabled",
+        "chore_window_enforcement",
+    ]
     result = await db.execute(
         select(AppSetting).where(AppSetting.key.in_(feature_keys))
     )
     settings_list = result.scalars().all()
     # Return with defaults for any missing keys
     features = {k: "true" for k in feature_keys}
+    features["chore_window_enforcement"] = "indicative"
     for s in settings_list:
         features[s.key] = s.value
     return features

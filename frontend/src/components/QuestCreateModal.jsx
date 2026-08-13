@@ -45,6 +45,9 @@ const emptyForm = {
   recurrence: 'once',
   customDays: [],
   assignedUserIds: [],
+  pausesDuringVacation: true,
+  windowStart: '',
+  windowEnd: '',
 };
 
 export default function QuestCreateModal({
@@ -77,6 +80,12 @@ export default function QuestCreateModal({
           category_id: editingChore.category_id ? String(editingChore.category_id) : '',
           photo_url: editingChore.photo_url || null,
           sort_order: editingChore.sort_order ?? 0,
+          // Not editable here (see "Gérer") but needed to gate the vacation
+          // checkbox's visibility the same way as when creating.
+          recurrence: editingChore.recurrence || 'once',
+          pausesDuringVacation: editingChore.pauses_during_vacation ?? true,
+          windowStart: editingChore.window_start ? editingChore.window_start.slice(0, 5) : '',
+          windowEnd: editingChore.window_end ? editingChore.window_end.slice(0, 5) : '',
         });
       } else {
         setForm({ ...emptyForm });
@@ -160,6 +169,10 @@ export default function QuestCreateModal({
       setFormError(t('questCreate.categoryRequired'));
       return;
     }
+    if (Boolean(form.windowStart) !== Boolean(form.windowEnd)) {
+      setFormError(t('questCreate.windowBothRequired'));
+      return;
+    }
 
     setSubmitting(true);
     setFormError('');
@@ -172,6 +185,9 @@ export default function QuestCreateModal({
       category_id: Number(form.category_id),
       photo_url: form.photo_url || null,
       sort_order: Number(form.sort_order) || 0,
+      pauses_during_vacation: !!form.pausesDuringVacation,
+      window_start: form.windowStart || null,
+      window_end: form.windowEnd || null,
     };
 
     try {
@@ -392,6 +408,45 @@ export default function QuestCreateModal({
           />
           <p className="text-muted text-xs mt-1">{t('questCreate.sortOrderHint')}</p>
         </div>
+
+        {/* Time window */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+              {t('questCreate.windowStart')}
+            </label>
+            <input
+              type="time"
+              value={form.windowStart}
+              onChange={(e) => updateForm('windowStart', e.target.value)}
+              className="field-input"
+            />
+          </div>
+          <div>
+            <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+              {t('questCreate.windowEnd')}
+            </label>
+            <input
+              type="time"
+              value={form.windowEnd}
+              onChange={(e) => updateForm('windowEnd', e.target.value)}
+              className="field-input"
+            />
+          </div>
+        </div>
+
+        {/* Vacation pause (only meaningful for recurring chores) */}
+        {form.recurrence !== 'once' && (
+          <label className="flex items-center gap-2 text-cream text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.pausesDuringVacation}
+              onChange={(e) => updateForm('pausesDuringVacation', e.target.checked)}
+              className="w-4 h-4"
+            />
+            {t('questCreate.pausesDuringVacation')}
+          </label>
+        )}
 
         {/* Recurrence + assignment (creation only — edits stay scoped to basic fields, see Gérer for changing this later) */}
         {!editingChore && (

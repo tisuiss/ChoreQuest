@@ -54,6 +54,7 @@ DEFAULT_SETTINGS = {
     "achievements_enabled": "true",
     "auto_approve_chores": "false",
     "timezone": "Europe/Paris",
+    "chore_window_enforcement": "indicative",
 }
 
 # Template quests with RPG-flavoured descriptions

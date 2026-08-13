@@ -598,6 +598,9 @@ def _build_kid_assignment(a: ChoreAssignment) -> dict:
             "requires_photo": a.chore.requires_photo,
             "photo_url": a.chore.photo_url,
             "sort_order": a.chore.sort_order,
+            "pauses_during_vacation": a.chore.pauses_during_vacation,
+            "window_start": a.chore.window_start.isoformat() if a.chore.window_start else None,
+            "window_end": a.chore.window_end.isoformat() if a.chore.window_end else None,
             "recurrence": a.chore.recurrence.value if a.chore.recurrence else None,
         } if a.chore else None,
     }

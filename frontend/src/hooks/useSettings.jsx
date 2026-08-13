@@ -5,6 +5,7 @@ const SettingsContext = createContext({
   leaderboard_enabled: true,
   chore_trading_enabled: true,
   achievements_enabled: true,
+  chore_window_enforcement: 'indicative',
 });
 
 export function SettingsProvider({ children }) {
@@ -12,6 +13,7 @@ export function SettingsProvider({ children }) {
     leaderboard_enabled: true,
     chore_trading_enabled: true,
     achievements_enabled: true,
+    chore_window_enforcement: 'indicative',
   });
 
   const fetchFeatures = useCallback(async () => {
@@ -21,6 +23,7 @@ export function SettingsProvider({ children }) {
         leaderboard_enabled: data.leaderboard_enabled !== 'false',
         chore_trading_enabled: data.chore_trading_enabled !== 'false',
         achievements_enabled: data.achievements_enabled !== 'false',
+        chore_window_enforcement: data.chore_window_enforcement === 'strict' ? 'strict' : 'indicative',
       });
     } catch {
       // If fetch fails, keep defaults (all enabled)

@@ -315,6 +315,9 @@ async def create_chore(
         custom_days=body.custom_days,
         requires_photo=body.requires_photo,
         sort_order=body.sort_order,
+        pauses_during_vacation=body.pauses_during_vacation,
+        window_start=body.window_start,
+        window_end=body.window_end,
         created_by=user.id,
     )
     db.add(chore)
@@ -908,6 +911,19 @@ async def complete_chore(
         )
 
     chore = assignment.chore
+
+    if chore.window_start is not None and chore.window_end is not None:
+        enforcement_result = await db.execute(
+            select(AppSetting).where(AppSetting.key == "chore_window_enforcement")
+        )
+        enforcement_setting = enforcement_result.scalar_one_or_none()
+        if enforcement_setting is not None and enforcement_setting.value == "strict":
+            now_local = datetime.now().time()
+            if not (chore.window_start <= now_local <= chore.window_end):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Outside the allowed time window",
+                )
 
     # Determine if photo is required: per-kid rule overrides chore-level
     requires_photo = chore.requires_photo

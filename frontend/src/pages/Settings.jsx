@@ -300,6 +300,35 @@ export default function Settings() {
             />
           </div>
 
+          {/* Chore time window enforcement */}
+          <div className="game-panel p-4">
+            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+              <Clock size={16} className="text-muted" />
+              {t('settings.choreWindowEnforcement')}
+            </h2>
+            <p className="text-muted text-xs mb-3">
+              {t('settings.choreWindowEnforcementHint')}
+            </p>
+            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+              {[
+                { id: 'indicative', label: t('settings.enforcementIndicative') },
+                { id: 'strict', label: t('settings.enforcementStrict') },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => updateSetting('chore_window_enforcement', opt.id)}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    (settings.chore_window_enforcement ?? 'indicative') === opt.id
+                      ? 'bg-surface-raised text-cream'
+                      : 'text-muted hover:text-cream'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Save button */}
           <button
             onClick={saveSettings}

@@ -12,10 +12,12 @@ import {
   AlertTriangle,
   ShieldOff,
   X,
+  Clock,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import { useSettings } from '../hooks/useSettings';
 import { themedTitle } from '../utils/questThemeText';
 import PointCounter from '../components/PointCounter';
 import StreakDisplay from '../components/StreakDisplay';
@@ -46,6 +48,16 @@ function todayISO() {
   return toISO(new Date());
 }
 
+// "HH:MM:SS", zero-padded, comparable lexicographically against the
+// backend's time.isoformat() strings (chore.window_start/window_end).
+function nowTimeString() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
 // ---------- card animation variants ----------
 
 const cardVariants = {
@@ -58,15 +70,28 @@ const cardVariants = {
 
 // ---------- chore card ----------
 
-function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoChange, onComplete, onZoomPhoto, colorTheme, t }) {
+function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoChange, onComplete, onZoomPhoto, colorTheme, enforcement, t }) {
   const categoryColor = chore.category?.colour || '#14b8a6';
   const iconName = chore.icon || chore.category?.icon;
   const needsPhoto = chore.requires_photo && !photoFile;
   const isValidated = status === 'completed' || status === 'verified';
 
+  const hasWindow = Boolean(chore.window_start && chore.window_end);
+  const windowLabel = hasWindow
+    ? `${chore.window_start.slice(0, 5)}–${chore.window_end.slice(0, 5)}`
+    : null;
+  const strict = enforcement === 'strict';
+  const nowStr = hasWindow && strict ? nowTimeString() : null;
+  const beforeWindow = strict && hasWindow && nowStr < chore.window_start;
+  const afterWindow = strict && hasWindow && nowStr > chore.window_end;
+  const isGrayed = beforeWindow && !isValidated;
+  const isMissedWindow = afterWindow && !isValidated;
+
   return (
     <motion.div
-      className="game-panel p-3 flex flex-col items-center gap-2 text-center"
+      className={`game-panel p-3 flex flex-col items-center gap-2 text-center ${
+        isGrayed ? 'opacity-50' : ''
+      } ${isMissedWindow ? 'border-crimson/40' : ''}`}
       variants={cardVariants}
       initial="hidden"
       animate="visible"
@@ -102,7 +127,18 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
         {t('chores.starsCount', { count: chore.points })}
       </span>
 
-      {!isValidated && chore.requires_photo && (
+      {hasWindow && (
+        <span
+          className={`inline-flex items-center gap-1 text-[11px] font-medium ${
+            isMissedWindow ? 'text-crimson' : 'text-muted'
+          }`}
+        >
+          <Clock size={11} />
+          {windowLabel}
+        </span>
+      )}
+
+      {!isValidated && !isGrayed && !isMissedWindow && chore.requires_photo && (
         <label className="inline-flex items-center gap-1.5 text-[11px] text-muted cursor-pointer hover:text-cream transition-colors bg-surface-raised px-2 py-1 rounded-md border border-border w-full justify-center">
           <Camera size={11} />
           <span className="truncate">{photoFile ? photoFile.name : t('chores.attachPhoto')}</span>
@@ -115,6 +151,16 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
           <div className="rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald/15 text-emerald border border-emerald/40">
             <CheckCircle2 size={14} />
             {t('kidDashboard.validated')}
+          </div>
+        ) : isMissedWindow ? (
+          <div className="rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 bg-crimson/15 text-crimson border border-crimson/40">
+            <Clock size={14} />
+            {t('kidDashboard.windowMissed')}
+          </div>
+        ) : isGrayed ? (
+          <div className="rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 bg-surface-raised text-muted border border-border">
+            <Clock size={14} />
+            {t('kidDashboard.availableFrom', { time: chore.window_start.slice(0, 5) })}
           </div>
         ) : (
           <button
@@ -139,6 +185,7 @@ export default function KidDashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
+  const { chore_window_enforcement } = useSettings();
 
   // data state
   const [assignments, setAssignments] = useState([]);
@@ -377,6 +424,7 @@ export default function KidDashboard() {
                         onComplete={() => handleComplete(chore)}
                         onZoomPhoto={(url, title) => setZoomedPhoto({ url, title })}
                         colorTheme={colorTheme}
+                        enforcement={chore_window_enforcement}
                         t={t}
                       />
                     );

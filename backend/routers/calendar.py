@@ -135,6 +135,9 @@ def _build_assignment_entry(
             "icon": a.chore.icon,
             "photo_url": a.chore.photo_url,
             "sort_order": a.chore.sort_order,
+            "pauses_during_vacation": a.chore.pauses_during_vacation,
+            "window_start": a.chore.window_start.isoformat() if a.chore.window_start else None,
+            "window_end": a.chore.window_end.isoformat() if a.chore.window_end else None,
             "category_id": a.chore.category_id,
             "category": {
                 "id": a.chore.category.id,
