@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { themedTitle, themedDescription } from '../utils/questThemeText';
+import ChoreVacationSettings from '../components/ChoreVacationSettings';
 import {
   ArrowLeft,
   Star,
@@ -772,6 +773,11 @@ export default function ChoreDetail() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Per-chore vacation periods (parent only, recurring chores) */}
+      {isParent && chore.recurrence && chore.recurrence !== 'once' && (
+        <ChoreVacationSettings choreId={id} />
       )}
 
     </div>

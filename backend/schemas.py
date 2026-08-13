@@ -498,6 +498,24 @@ class VacationResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# Per-chore vacation periods
+class ChoreVacationCreate(BaseModel):
+    start_date: date
+    end_date: date
+
+
+class ChoreVacationResponse(BaseModel):
+    id: int
+    chore_id: int
+    start_date: date
+    end_date: date
+    created_by: int
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # Announcements (Bulletin Board)
 class AnnouncementCreate(BaseModel):
     title: str = Field(max_length=200)

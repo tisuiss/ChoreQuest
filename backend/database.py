@@ -26,7 +26,7 @@ async def init_db():
             Achievement, UserAchievement, WishlistItem,
             Notification, ApiKey, AuditLog, AppSetting,
             InviteCode, RefreshToken, PushSubscription,
-            Shoutout, VacationPeriod,
+            Shoutout, VacationPeriod, ChoreVacationPeriod,
         )
         await conn.run_sync(Base.metadata.create_all)
 

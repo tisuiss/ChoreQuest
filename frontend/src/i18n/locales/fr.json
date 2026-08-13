@@ -306,6 +306,10 @@
     "cancelVacation": "Annuler les vacances",
     "createError": "Échec de la création des vacances"
   },
+  "choreVacation": {
+    "title": "Pauses spécifiques à cette corvée",
+    "description": "En plus des vacances familiales, tu peux définir des périodes pendant lesquelles cette corvée précise est suspendue, sans toucher aux autres corvées."
+  },
   "shoutouts": {
     "title": "Bravos",
     "give": "+ Donner un bravo",

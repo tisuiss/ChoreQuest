@@ -437,4 +437,17 @@ class VacationPeriod(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+
+class ChoreVacationPeriod(Base):
+    """Blackout periods scoped to a single chore, on top of family-wide
+    vacations (see VacationPeriod / Chore.pauses_during_vacation)."""
+    __tablename__ = "chore_vacation_periods"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chore_id: Mapped[int] = mapped_column(ForeignKey("chores.id"), nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
     creator = relationship("User")

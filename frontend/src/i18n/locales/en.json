@@ -306,6 +306,10 @@
     "cancelVacation": "Cancel vacation",
     "createError": "Failed to create vacation"
   },
+  "choreVacation": {
+    "title": "Pauses specific to this chore",
+    "description": "On top of family vacations, you can set periods during which this particular chore is paused, without affecting other chores."
+  },
   "shoutouts": {
     "title": "Shoutouts",
     "give": "+ Give Shoutout",

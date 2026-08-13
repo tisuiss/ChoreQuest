@@ -16,6 +16,7 @@ from backend.models import (
     ChoreAssignmentRule,
     ChoreExclusion,
     ChoreRotation,
+    ChoreVacationPeriod,
     AssignmentStatus,
     Recurrence,
 )
@@ -55,15 +56,18 @@ async def auto_generate_week_assignments(
     chores = await _load_active_chores(db)
 
     for chore in chores:
+        own_dates = await _load_chore_vacation_dates(db, chore.id, week_start, week_end)
+        paused_dates = (vacation_dates if chore.pauses_during_vacation else set()) | own_dates
+
         rules = await _load_active_rules(db, chore.id)
 
         if rules:
             rotation = await _load_rotation(db, chore.id)
             await _generate_from_rules(
-                db, chore, rules, rotation, week_dates, exclusion_set, vacation_dates,
+                db, chore, rules, rotation, week_dates, exclusion_set, paused_dates,
             )
         else:
-            await _generate_legacy(db, chore, week_dates, exclusion_set, vacation_dates)
+            await _generate_legacy(db, chore, week_dates, exclusion_set, paused_dates)
 
     await db.commit()
 
@@ -87,7 +91,9 @@ async def generate_daily_assignments(db: AsyncSession, today: date) -> None:
     chores = await _load_active_chores(db)
 
     for chore in chores:
-        chore_paused_today = today_is_vacation and chore.pauses_during_vacation
+        chore_paused_today = (
+            today_is_vacation and chore.pauses_during_vacation
+        ) or await _is_chore_vacation_day(db, chore.id, today)
         rules = await _load_active_rules(db, chore.id)
 
         if rules:
@@ -191,6 +197,41 @@ async def _load_exclusion_set(
     }
 
 
+async def _load_chore_vacation_dates(
+    db: AsyncSession, chore_id: int, start: date, end: date
+) -> set[date]:
+    """Expand this chore's own blackout periods (on top of any family-wide
+    vacation) into the set of individual dates they cover within [start, end]."""
+    result = await db.execute(
+        select(ChoreVacationPeriod).where(
+            ChoreVacationPeriod.chore_id == chore_id,
+            ChoreVacationPeriod.is_active == True,
+            ChoreVacationPeriod.start_date <= end,
+            ChoreVacationPeriod.end_date >= start,
+        )
+    )
+    dates: set[date] = set()
+    for period in result.scalars().all():
+        d = max(period.start_date, start)
+        period_end = min(period.end_date, end)
+        while d <= period_end:
+            dates.add(d)
+            d += timedelta(days=1)
+    return dates
+
+
+async def _is_chore_vacation_day(db: AsyncSession, chore_id: int, day: date) -> bool:
+    result = await db.execute(
+        select(ChoreVacationPeriod).where(
+            ChoreVacationPeriod.chore_id == chore_id,
+            ChoreVacationPeriod.is_active == True,
+            ChoreVacationPeriod.start_date <= day,
+            ChoreVacationPeriod.end_date >= day,
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
 async def _get_legacy_user_ids(db: AsyncSession, chore_id: int) -> list[int]:
     """Fall back to distinct user IDs from past assignments."""
     result = await db.execute(
@@ -261,7 +302,7 @@ async def _generate_from_rules(
     rotation: ChoreRotation | None,
     week_dates: list[date],
     exclusion_set: set[tuple[int, int, date]],
-    vacation_dates: set[date] = frozenset(),
+    paused_dates: set[date] = frozenset(),
 ) -> None:
     """Generate week assignments using per-kid assignment rules."""
     active_weekdays = _collect_active_weekdays(rules, chore) if rotation else None
@@ -280,7 +321,7 @@ async def _generate_from_rules(
             continue
 
         for day in week_dates:
-            if chore.pauses_during_vacation and day in vacation_dates:
+            if day in paused_dates:
                 continue
 
             if not should_create_on_day(
@@ -333,7 +374,7 @@ async def _generate_legacy(
     chore: Chore,
     week_dates: list[date],
     exclusion_set: set[tuple[int, int, date]],
-    vacation_dates: set[date] = frozenset(),
+    paused_dates: set[date] = frozenset(),
 ) -> None:
     """Generate week assignments using chore-level recurrence (legacy path)."""
     if chore.recurrence == Recurrence.once:
@@ -359,7 +400,7 @@ async def _generate_legacy(
         return
 
     for day in week_dates:
-        if chore.pauses_during_vacation and day in vacation_dates:
+        if day in paused_dates:
             continue
 
         if not should_create_on_day(

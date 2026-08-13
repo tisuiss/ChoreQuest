@@ -26,6 +26,7 @@ from backend.models import (
     NotificationType,
     Recurrence,
     AppSetting,
+    ChoreVacationPeriod,
 )
 from backend.schemas import (
     ChoreCreate,
@@ -40,6 +41,8 @@ from backend.schemas import (
     QuestTemplateResponse,
     RotationResponse,
     QuestFeedbackRequest,
+    ChoreVacationCreate,
+    ChoreVacationResponse,
 )
 from backend.config import settings
 from backend.dependencies import get_current_user, require_parent
@@ -528,6 +531,72 @@ async def get_chore_rotation(
     if rotation is None:
         return None
     return RotationResponse.model_validate(rotation)
+
+
+@router.get("/{chore_id}/vacations", response_model=list[ChoreVacationResponse])
+async def list_chore_vacations(
+    chore_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    """List blackout periods scoped to this chore only."""
+    result = await db.execute(
+        select(ChoreVacationPeriod)
+        .where(
+            ChoreVacationPeriod.chore_id == chore_id,
+            ChoreVacationPeriod.is_active == True,
+        )
+        .order_by(ChoreVacationPeriod.start_date.desc())
+    )
+    return result.scalars().all()
+
+
+@router.post("/{chore_id}/vacations", response_model=ChoreVacationResponse, status_code=201)
+async def create_chore_vacation(
+    chore_id: int,
+    body: ChoreVacationCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    """Create a blackout period for this chore only (on top of any
+    family-wide vacation the chore may also be set to follow)."""
+    chore = await _get_chore_or_404(db, chore_id)
+    if body.end_date < body.start_date:
+        raise HTTPException(status_code=400, detail="End date must be after start date")
+    if body.end_date < date.today():
+        raise HTTPException(status_code=400, detail="Cannot create vacation in the past")
+
+    vacation = ChoreVacationPeriod(
+        chore_id=chore.id,
+        start_date=body.start_date,
+        end_date=body.end_date,
+        created_by=user.id,
+    )
+    db.add(vacation)
+    await db.commit()
+    await db.refresh(vacation)
+    return vacation
+
+
+@router.delete("/{chore_id}/vacations/{vacation_id}", status_code=204)
+async def cancel_chore_vacation(
+    chore_id: int,
+    vacation_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    result = await db.execute(
+        select(ChoreVacationPeriod).where(
+            ChoreVacationPeriod.id == vacation_id,
+            ChoreVacationPeriod.chore_id == chore_id,
+        )
+    )
+    vacation = result.scalar_one_or_none()
+    if not vacation:
+        raise HTTPException(status_code=404, detail="Vacation not found")
+
+    vacation.is_active = False
+    await db.commit()
 
 
 @router.post("/{chore_id}/assign", status_code=201)
