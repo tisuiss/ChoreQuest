@@ -16,7 +16,6 @@ from backend.models import (
     ChoreAssignmentRule,
     ChoreExclusion,
     ChoreRotation,
-    ChoreVacationPeriod,
     AssignmentStatus,
     Recurrence,
 )
@@ -48,7 +47,7 @@ async def auto_generate_week_assignments(
     # out individually via Chore.pauses_during_vacation, so this can no
     # longer be filtered out of week_dates up front (see per-chore checks
     # in _generate_from_rules/_generate_legacy).
-    from backend.routers.vacation import is_vacation_day
+    from backend.routers.vacation import is_vacation_day, load_chore_vacation_dates
     vacation_dates = {d for d in week_dates if await is_vacation_day(db, d)}
 
     exclusion_set = await _load_exclusion_set(db, week_start, week_end)
@@ -56,7 +55,7 @@ async def auto_generate_week_assignments(
     chores = await _load_active_chores(db)
 
     for chore in chores:
-        own_dates = await _load_chore_vacation_dates(db, chore.id, week_start, week_end)
+        own_dates = await load_chore_vacation_dates(db, chore.id, week_start, week_end)
         paused_dates = (vacation_dates if chore.pauses_during_vacation else set()) | own_dates
 
         rules = await _load_active_rules(db, chore.id)
@@ -84,7 +83,7 @@ async def generate_daily_assignments(db: AsyncSession, today: date) -> None:
     # Vacation mode is per-chore now (Chore.pauses_during_vacation) — compute
     # once whether today is a vacation day, then let each chore below decide
     # whether that pauses it (default yes, matching the old blanket skip).
-    from backend.routers.vacation import is_vacation_day
+    from backend.routers.vacation import is_vacation_day, is_chore_vacation_day
     today_is_vacation = await is_vacation_day(db, today)
 
     now = datetime.now(timezone.utc)
@@ -93,7 +92,7 @@ async def generate_daily_assignments(db: AsyncSession, today: date) -> None:
     for chore in chores:
         chore_paused_today = (
             today_is_vacation and chore.pauses_during_vacation
-        ) or await _is_chore_vacation_day(db, chore.id, today)
+        ) or await is_chore_vacation_day(db, chore.id, today)
         rules = await _load_active_rules(db, chore.id)
 
         if rules:
@@ -195,41 +194,6 @@ async def _load_exclusion_set(
     return {
         (e.chore_id, e.user_id, e.date) for e in result.scalars().all()
     }
-
-
-async def _load_chore_vacation_dates(
-    db: AsyncSession, chore_id: int, start: date, end: date
-) -> set[date]:
-    """Expand this chore's own blackout periods (on top of any family-wide
-    vacation) into the set of individual dates they cover within [start, end]."""
-    result = await db.execute(
-        select(ChoreVacationPeriod).where(
-            ChoreVacationPeriod.chore_id == chore_id,
-            ChoreVacationPeriod.is_active == True,
-            ChoreVacationPeriod.start_date <= end,
-            ChoreVacationPeriod.end_date >= start,
-        )
-    )
-    dates: set[date] = set()
-    for period in result.scalars().all():
-        d = max(period.start_date, start)
-        period_end = min(period.end_date, end)
-        while d <= period_end:
-            dates.add(d)
-            d += timedelta(days=1)
-    return dates
-
-
-async def _is_chore_vacation_day(db: AsyncSession, chore_id: int, day: date) -> bool:
-    result = await db.execute(
-        select(ChoreVacationPeriod).where(
-            ChoreVacationPeriod.chore_id == chore_id,
-            ChoreVacationPeriod.is_active == True,
-            ChoreVacationPeriod.start_date <= day,
-            ChoreVacationPeriod.end_date >= day,
-        )
-    )
-    return result.scalar_one_or_none() is not None
 
 
 async def _get_legacy_user_ids(db: AsyncSession, chore_id: int) -> list[int]:

@@ -96,6 +96,8 @@ export default function Calendar() {
   const [tradeAssignment, setTradeAssignment] = useState(null);
   const [familyKids, setFamilyKids] = useState([]);
   const [selectedKid, setSelectedKid] = useState('');
+  const [allKids, setAllKids] = useState([]);
+  const [selectedKidFilter, setSelectedKidFilter] = useState('');
   const [tradeSubmitting, setTradeSubmitting] = useState(false);
   const [tradeError, setTradeError] = useState('');
   const [removingId, setRemovingId] = useState(null);
@@ -147,6 +149,13 @@ export default function Calendar() {
   useEffect(() => {
     fetchCalendar();
   }, [fetchCalendar]);
+
+  useEffect(() => {
+    if (isKid) return;
+    api('/api/stats/kids')
+      .then((data) => setAllKids(data || []))
+      .catch(() => setAllKids([]));
+  }, [isKid]);
 
   // Live updates via WebSocket
   useEffect(() => {
@@ -271,6 +280,19 @@ export default function Calendar() {
             </button>
           )}
 
+          {!isKid && allKids.length > 0 && (
+            <select
+              value={selectedKidFilter}
+              onChange={(e) => setSelectedKidFilter(e.target.value)}
+              className="bg-surface-raised text-cream text-sm rounded-md border border-border px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent"
+            >
+              <option value="">{t('calendar.allKids')}</option>
+              {allKids.map((kid) => (
+                <option key={kid.id} value={kid.id}>{kid.display_name}</option>
+              ))}
+            </select>
+          )}
+
           {!isKid && (
             <button
               onClick={cleanupStale}
@@ -321,7 +343,9 @@ export default function Calendar() {
             const allDayAssignments = assignments[dayStr] || [];
             const dayAssignments = isKid
               ? allDayAssignments.filter((a) => a.user_id === user?.id)
-              : allDayAssignments;
+              : allDayAssignments.filter(
+                  (a) => !selectedKidFilter || a.user_id === Number(selectedKidFilter)
+                );
 
             return (
               <div key={dayStr} className="min-w-0">

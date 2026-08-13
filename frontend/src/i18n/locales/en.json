@@ -620,6 +620,7 @@
       "fri": "Fri",
       "sat": "Sat"
     },
+    "allKids": "All kids",
     "loadError": "Failed to load calendar",
     "selectHero": "Select a hero to trade with",
     "tradeFailed": "Trade failed",

@@ -1,11 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import User, VacationPeriod
+from backend.models import User, VacationPeriod, ChoreVacationPeriod
 from backend.schemas import VacationCreate, VacationResponse
 from backend.dependencies import require_parent
 
@@ -74,6 +74,42 @@ async def is_vacation_day(db: AsyncSession, check_date: date) -> bool:
             VacationPeriod.is_active == True,
             VacationPeriod.start_date <= check_date,
             VacationPeriod.end_date >= check_date,
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def load_chore_vacation_dates(
+    db: AsyncSession, chore_id: int, start: date, end: date
+) -> set[date]:
+    """Expand a chore's own blackout periods (on top of any family-wide
+    vacation) into the set of individual dates they cover within [start, end]."""
+    result = await db.execute(
+        select(ChoreVacationPeriod).where(
+            ChoreVacationPeriod.chore_id == chore_id,
+            ChoreVacationPeriod.is_active == True,
+            ChoreVacationPeriod.start_date <= end,
+            ChoreVacationPeriod.end_date >= start,
+        )
+    )
+    dates: set[date] = set()
+    for period in result.scalars().all():
+        d = max(period.start_date, start)
+        period_end = min(period.end_date, end)
+        while d <= period_end:
+            dates.add(d)
+            d += timedelta(days=1)
+    return dates
+
+
+async def is_chore_vacation_day(db: AsyncSession, chore_id: int, day: date) -> bool:
+    """Check if a given date falls within this chore's own blackout period."""
+    result = await db.execute(
+        select(ChoreVacationPeriod).where(
+            ChoreVacationPeriod.chore_id == chore_id,
+            ChoreVacationPeriod.is_active == True,
+            ChoreVacationPeriod.start_date <= day,
+            ChoreVacationPeriod.end_date >= day,
         )
     )
     return result.scalar_one_or_none() is not None

@@ -22,6 +22,7 @@ from backend.schemas import TradeRequest
 from backend.dependencies import get_current_user, require_parent
 from backend.websocket_manager import ws_manager
 from backend.services.assignment_generator import auto_generate_week_assignments
+from backend.routers.vacation import is_vacation_day, load_chore_vacation_dates
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
@@ -81,6 +82,18 @@ async def get_weekly_calendar(
         for r in rules_result.scalars().all():
             rule_map[(r.chore_id, r.user_id)] = r
 
+    # Pending occurrences whose chore is paused by a vacation (family-wide,
+    # if the chore follows it, or the chore's own period) are hidden from
+    # the calendar -- covers slots already generated before the vacation
+    # was set up. Completed/verified/skipped occurrences are left alone so
+    # history stays intact.
+    family_vacation_dates = {
+        week_start + timedelta(days=i)
+        for i in range(7)
+        if await is_vacation_day(db, week_start + timedelta(days=i))
+    }
+    chore_own_vacation_cache: dict[int, set[date]] = {}
+
     # Group by day
     grouped: dict[str, list] = {}
     for day_offset in range(7):
@@ -91,6 +104,19 @@ async def get_weekly_calendar(
         day_key = a.date.isoformat()
         if day_key not in grouped:
             continue
+
+        if a.status == AssignmentStatus.pending and a.chore:
+            if a.chore.id not in chore_own_vacation_cache:
+                chore_own_vacation_cache[a.chore.id] = await load_chore_vacation_dates(
+                    db, a.chore.id, week_start, week_end
+                )
+            own_dates = chore_own_vacation_cache[a.chore.id]
+            chore_paused = (
+                (a.chore.pauses_during_vacation and a.date in family_vacation_dates)
+                or a.date in own_dates
+            )
+            if chore_paused:
+                continue
 
         kid_rule = rule_map.get((a.chore_id, a.user_id))
         effective_requires_photo = (

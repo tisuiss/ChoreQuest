@@ -620,6 +620,7 @@
       "fri": "Ven",
       "sat": "Sam"
     },
+    "allKids": "Tous les enfants",
     "loadError": "Impossible de charger le calendrier",
     "selectHero": "Choisis un héros avec qui échanger",
     "tradeFailed": "Échec de l'échange",
