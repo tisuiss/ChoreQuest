@@ -1,6 +1,9 @@
 {
   "common": {
     "cancel": "Cancel",
+    "selectDate": "Select a date",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
     "save": "Save",
     "saving": "Saving...",
     "delete": "Delete",

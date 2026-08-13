@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { Palmtree, Trash2, Plus, Loader2 } from 'lucide-react';
+import DatePicker from './DatePicker';
 
 export default function VacationSettings() {
   const { t } = useTranslation();
@@ -84,23 +85,15 @@ export default function VacationSettings() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-muted text-[10px] font-semibold uppercase">{t('vacation.start')}</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                min={today}
-                className="field-input text-sm mt-1"
-              />
+              <div className="mt-1">
+                <DatePicker value={startDate} onChange={setStartDate} min={today} />
+              </div>
             </div>
             <div>
               <label className="text-muted text-[10px] font-semibold uppercase">{t('vacation.end')}</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={startDate || today}
-                className="field-input text-sm mt-1"
-              />
+              <div className="mt-1">
+                <DatePicker value={endDate} onChange={setEndDate} min={startDate || today} />
+              </div>
             </div>
           </div>
           {error && <p className="text-crimson text-xs">{error}</p>}
