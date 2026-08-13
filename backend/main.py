@@ -171,13 +171,22 @@ async def daily_reset_task():
     - Clean up expired refresh tokens
     """
     while True:
+        target_hour = settings.DAILY_RESET_HOUR
         async with async_session() as db:
             await apply_family_timezone(db)
+            hour_result = await db.execute(
+                select(AppSetting).where(AppSetting.key == "daily_reset_hour")
+            )
+            hour_setting = hour_result.scalar_one_or_none()
+            if hour_setting is not None:
+                try:
+                    target_hour = max(0, min(23, int(hour_setting.value)))
+                except ValueError:
+                    pass
 
         # Naive "now" — reflects the family's timezone applied above, so
-        # DAILY_RESET_HOUR means that hour in the family's local time, not UTC.
+        # target_hour means that hour in the family's local time, not UTC.
         now = datetime.now()
-        target_hour = settings.DAILY_RESET_HOUR
         next_run = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
         if now >= next_run:
             next_run += timedelta(days=1)
