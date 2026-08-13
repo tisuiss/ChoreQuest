@@ -24,6 +24,7 @@ import {
   MoreHorizontal,
   LogOut,
   Star,
+  History,
 } from 'lucide-react';
 import AvatarDisplay from './AvatarDisplay';
 import PointsHistoryModal from './PointsHistoryModal';
@@ -35,6 +36,7 @@ const ALL_NAV_ITEMS = [
   { labelKey: 'nav.leaderboard', icon: Trophy, path: '/leaderboard', settingKey: 'leaderboard_enabled', mobileMore: true },
   { labelKey: 'nav.rewards', icon: Gift, path: '/rewards' },
   { labelKey: 'nav.calendar', icon: CalendarDays, path: '/calendar', mobileMore: true },
+  { labelKey: 'nav.history', icon: History, path: '/history', parentOnly: true, mobileMore: true },
 ];
 
 function timeAgo(dateStr, t) {

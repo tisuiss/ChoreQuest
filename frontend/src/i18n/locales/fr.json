@@ -58,7 +58,8 @@
     "party": "Famille",
     "leaderboard": "Classement",
     "rewards": "Récompenses",
-    "calendar": "Calendrier"
+    "calendar": "Calendrier",
+    "history": "Historique"
   },
   "layout": {
     "backToSelection": "Retour à la sélection",
@@ -81,6 +82,14 @@
     "parentLogin": "Connexion parent",
     "directLoginError": "Impossible d'ouvrir le kiosque de cet enfant. Vérifie le lien ou le compte.",
     "backToPicker": "Retour au choix des enfants"
+  },
+  "pointsHistory": {
+    "title": "Historique des étoiles",
+    "allKids": "Tous les enfants",
+    "loadError": "Impossible de charger l'historique",
+    "empty": "Aucun historique pour le moment.",
+    "weekOf": "Semaine du {{date}}",
+    "quarterLabel": "T{{quarter}} {{year}}"
   },
   "settings": {
     "profile": "Profil",

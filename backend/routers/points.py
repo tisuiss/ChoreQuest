@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.database import get_db
 from backend.models import (
@@ -65,6 +66,46 @@ async def get_user_points(
             PointTransactionResponse.model_validate(tx) for tx in transactions
         ],
     }
+
+
+@router.get("/family/history", response_model=list[dict])
+async def get_family_points_history(
+    user_id: int | None = Query(None, description="Filter to a single kid"),
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    _parent: User = Depends(require_parent),
+):
+    """All kids' point transaction history, optionally filtered to one kid.
+
+    Parent+ only -- used by the family-wide Points History page.
+    """
+    stmt = (
+        select(PointTransaction)
+        .join(User, PointTransaction.user_id == User.id)
+        .where(User.role == UserRole.kid)
+        .options(selectinload(PointTransaction.user))
+        .order_by(PointTransaction.created_at.desc())
+    )
+    if user_id is not None:
+        stmt = stmt.where(PointTransaction.user_id == user_id)
+    stmt = stmt.offset(offset).limit(limit)
+
+    result = await db.execute(stmt)
+    transactions = result.scalars().all()
+
+    return [
+        {
+            "id": tx.id,
+            "user_id": tx.user_id,
+            "user_display_name": tx.user.display_name if tx.user else None,
+            "amount": tx.amount,
+            "type": tx.type.value,
+            "description": tx.description,
+            "created_at": tx.created_at.isoformat(),
+        }
+        for tx in transactions
+    ]
 
 
 @router.post("/{user_id}/bonus", response_model=PointTransactionResponse)

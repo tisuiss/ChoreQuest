@@ -58,7 +58,8 @@
     "party": "Party",
     "leaderboard": "Leaderboard",
     "rewards": "Rewards",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "history": "History"
   },
   "layout": {
     "backToSelection": "Back to selection",
@@ -81,6 +82,14 @@
     "parentLogin": "Parent login",
     "directLoginError": "Could not open this kid's kiosk. Check the link or the kid's account.",
     "backToPicker": "Back to kid selection"
+  },
+  "pointsHistory": {
+    "title": "Stars History",
+    "allKids": "All kids",
+    "loadError": "Failed to load history",
+    "empty": "No history yet.",
+    "weekOf": "Week of {{date}}",
+    "quarterLabel": "Q{{quarter}} {{year}}"
   },
   "settings": {
     "profile": "Profile",
