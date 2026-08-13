@@ -12,9 +12,12 @@ import {
   ArrowLeft,
   Globe,
   Clock,
+  RotateCcw,
 } from 'lucide-react';
 import VacationSettings from '../components/VacationSettings';
 import { SUPPORTED_LANGUAGES } from '../hooks/useLanguage';
+
+const DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
 
 const TIMEZONE_OPTIONS = [
   'Europe/Paris',
@@ -329,6 +332,73 @@ export default function Settings() {
             </div>
           </div>
 
+          {/* Periodic stars reset */}
+          <div className="game-panel p-4">
+            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+              <RotateCcw size={16} className="text-muted" />
+              {t('settings.pointsReset')}
+            </h2>
+            <p className="text-muted text-xs mb-3">
+              {t('settings.pointsResetHint')}
+            </p>
+            <ToggleSwitch
+              enabled={settings.points_reset_enabled ?? false}
+              onChange={(v) => updateSetting('points_reset_enabled', v)}
+              label={t('settings.pointsResetEnable')}
+            />
+            {settings.points_reset_enabled && (
+              <div className="pt-3 space-y-3">
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-sm">
+                  {[
+                    { id: 'weekly', label: t('settings.pointsResetWeekly') },
+                    { id: 'monthly', label: t('settings.pointsResetMonthly') },
+                    { id: 'quarterly', label: t('settings.pointsResetQuarterly') },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => updateSetting('points_reset_cadence', opt.id)}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        (settings.points_reset_cadence ?? 'monthly') === opt.id
+                          ? 'bg-surface-raised text-cream'
+                          : 'text-muted hover:text-cream'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {(settings.points_reset_cadence ?? 'monthly') === 'weekly' ? (
+                  <div>
+                    <p className="text-muted text-xs mb-1.5">{t('settings.pointsResetWeekdayLabel')}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DAY_KEYS.map((key, i) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => updateSetting('points_reset_weekday', i)}
+                          className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                            (settings.points_reset_weekday ?? 0) === i
+                              ? 'border-accent bg-accent/10 text-accent'
+                              : 'border-border text-muted hover:border-border-light'
+                          }`}
+                        >
+                          {t(key)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted text-xs">
+                    {(settings.points_reset_cadence ?? 'monthly') === 'quarterly'
+                      ? t('settings.pointsResetQuarterlyHint')
+                      : t('settings.pointsResetMonthlyHint')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Save button */}
           <button
             onClick={saveSettings}
@@ -347,6 +417,9 @@ export default function Settings() {
               {saveMsg}
             </p>
           )}
+
+          {/* Vacation Mode */}
+          <VacationSettings />
 
           {/* Achievement point values */}
           <div className="game-panel p-4">
@@ -427,9 +500,6 @@ export default function Settings() {
               </div>
             )}
           </div>
-
-          {/* Vacation Mode */}
-          <VacationSettings />
 
           {/* Admin link */}
           {user?.role === 'admin' && (

@@ -49,6 +49,7 @@ class PointType(str, enum.Enum):
     bonus = "bonus"
     adjustment = "adjustment"
     achievement = "achievement"
+    reset = "reset"
 
 
 class NotificationType(str, enum.Enum):

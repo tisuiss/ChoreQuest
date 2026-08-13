@@ -55,6 +55,9 @@ DEFAULT_SETTINGS = {
     "auto_approve_chores": "false",
     "timezone": "Europe/Paris",
     "chore_window_enforcement": "indicative",
+    "points_reset_enabled": "false",
+    "points_reset_cadence": "monthly",
+    "points_reset_weekday": "0",
 }
 
 # Template quests with RPG-flavoured descriptions

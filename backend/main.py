@@ -16,7 +16,7 @@ from backend.database import init_db, async_session
 from backend.seed import seed_database
 from backend.auth import decode_access_token
 from backend.websocket_manager import ws_manager
-from backend.models import RefreshToken, User, UserRole
+from backend.models import RefreshToken, User, UserRole, AppSetting, PointTransaction, PointType
 from backend.services.assignment_generator import generate_daily_assignments
 from backend.services.family_timezone import apply_family_timezone
 from backend.services.push_hook import install_push_hooks
@@ -75,6 +75,94 @@ async def reset_stale_streaks(db, today: date):
             kid.current_streak = 0
 
 
+def _most_recent_points_reset_boundary(cadence: str, weekday: int, today: date) -> date:
+    """Most recent calendar date (<= today) on which this cadence is due.
+
+    weekly: the most recent occurrence of the chosen weekday (0=Mon..6=Sun).
+    monthly: the 1st of the current month.
+    quarterly: the 1st day of the current quarter (Jan/Apr/Jul/Oct 1st).
+    """
+    if cadence == "weekly":
+        delta = (today.weekday() - weekday) % 7
+        return today - timedelta(days=delta)
+    if cadence == "quarterly":
+        quarter_start_month = ((today.month - 1) // 3) * 3 + 1
+        return date(today.year, quarter_start_month, 1)
+    return date(today.year, today.month, 1)  # monthly
+
+
+async def maybe_reset_points(db, today: date):
+    """Periodically zero out kids' star balances if the family has enabled it.
+
+    Lifetime `total_points_earned` is left untouched -- only the spendable
+    `points_balance` resets, like a recurring allowance. Each reset is
+    logged as a PointTransaction so it shows up in the points history.
+    """
+    result = await db.execute(
+        select(AppSetting).where(
+            AppSetting.key.in_([
+                "points_reset_enabled",
+                "points_reset_cadence",
+                "points_reset_weekday",
+                "points_reset_last_run",
+            ])
+        )
+    )
+    settings_map = {s.key: s for s in result.scalars().all()}
+
+    enabled = settings_map.get("points_reset_enabled")
+    if enabled is None or enabled.value != "true":
+        return
+
+    cadence_setting = settings_map.get("points_reset_cadence")
+    cadence = cadence_setting.value if cadence_setting else "monthly"
+    if cadence not in ("weekly", "monthly", "quarterly"):
+        cadence = "monthly"
+
+    try:
+        weekday = int(settings_map["points_reset_weekday"].value)
+    except (KeyError, ValueError):
+        weekday = 0
+    weekday = max(0, min(6, weekday))
+
+    last_run_setting = settings_map.get("points_reset_last_run")
+    if last_run_setting is None:
+        # Feature just got turned on -- start counting from today instead
+        # of resetting immediately, even if today is already past this
+        # period's boundary.
+        db.add(AppSetting(key="points_reset_last_run", value=today.isoformat()))
+        return
+
+    try:
+        last_run = date.fromisoformat(last_run_setting.value)
+    except ValueError:
+        last_run = today
+
+    boundary = _most_recent_points_reset_boundary(cadence, weekday, today)
+    if last_run >= boundary:
+        return
+
+    result = await db.execute(
+        select(User).where(
+            User.role == UserRole.kid,
+            User.is_active == True,
+            User.points_balance != 0,
+        )
+    )
+    kids = result.scalars().all()
+    for kid in kids:
+        db.add(PointTransaction(
+            user_id=kid.id,
+            amount=-kid.points_balance,
+            type=PointType.reset,
+            description="Periodic stars reset",
+        ))
+        kid.points_balance = 0
+
+    last_run_setting.value = today.isoformat()
+    logger.info("Periodic points reset applied to %d kid(s)", len(kids))
+
+
 async def daily_reset_task():
     """Background task that runs once per day at the configured hour.
 
@@ -104,6 +192,9 @@ async def daily_reset_task():
 
                 # Reset streaks for kids who missed yesterday
                 await reset_stale_streaks(db, today)
+
+                # Periodic stars reset, if enabled in family settings
+                await maybe_reset_points(db, today)
 
                 # Clean up expired refresh tokens
                 await db.execute(
