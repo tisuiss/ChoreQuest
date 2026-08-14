@@ -106,6 +106,7 @@
     "choreTrading": "Échange de corvées",
     "achievements": "Succès",
     "autoApproveChores": "Validation automatique des corvées (sans approbation parent)",
+    "keepValidatedVisible": "Garder les corvées validées visibles chez l'enfant (sinon elles disparaissent une fois faites)",
     "defaultLanguage": "Langue par défaut de la famille",
     "defaultLanguageHint": "Langue affichée sur l'écran kiosque avant qu'un enfant ne soit sélectionné.",
     "timezone": "Fuseau horaire familial",

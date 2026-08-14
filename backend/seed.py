@@ -58,6 +58,7 @@ DEFAULT_SETTINGS = {
     "points_reset_enabled": "false",
     "points_reset_cadence": "monthly",
     "points_reset_weekday": "0",
+    "keep_validated_visible": "true",
 }
 
 # Template quests with RPG-flavoured descriptions

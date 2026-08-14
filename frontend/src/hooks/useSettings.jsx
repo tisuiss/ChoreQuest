@@ -6,6 +6,7 @@ const SettingsContext = createContext({
   chore_trading_enabled: true,
   achievements_enabled: true,
   chore_window_enforcement: 'indicative',
+  keep_validated_visible: true,
 });
 
 export function SettingsProvider({ children }) {
@@ -14,6 +15,7 @@ export function SettingsProvider({ children }) {
     chore_trading_enabled: true,
     achievements_enabled: true,
     chore_window_enforcement: 'indicative',
+    keep_validated_visible: true,
   });
 
   const fetchFeatures = useCallback(async () => {
@@ -24,6 +26,7 @@ export function SettingsProvider({ children }) {
         chore_trading_enabled: data.chore_trading_enabled !== 'false',
         achievements_enabled: data.achievements_enabled !== 'false',
         chore_window_enforcement: data.chore_window_enforcement === 'strict' ? 'strict' : 'indicative',
+        keep_validated_visible: data.keep_validated_visible !== 'false',
       });
     } catch {
       // If fetch fails, keep defaults (all enabled)

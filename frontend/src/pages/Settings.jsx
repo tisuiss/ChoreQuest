@@ -233,6 +233,11 @@ export default function Settings() {
                 onChange={(v) => updateSetting('auto_approve_chores', v)}
                 label={t('settings.autoApproveChores')}
               />
+              <ToggleSwitch
+                enabled={settings.keep_validated_visible ?? true}
+                onChange={(v) => updateSetting('keep_validated_visible', v)}
+                label={t('settings.keepValidatedVisible')}
+              />
             </div>
           </div>
 

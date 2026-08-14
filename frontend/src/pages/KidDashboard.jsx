@@ -185,7 +185,7 @@ export default function KidDashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
-  const { chore_window_enforcement } = useSettings();
+  const { chore_window_enforcement, keep_validated_visible } = useSettings();
 
   // data state
   const [assignments, setAssignments] = useState([]);
@@ -336,11 +336,14 @@ export default function KidDashboard() {
         </div>
       )}
 
-      {/* ── Today's quest cards, grouped by category (pending + validated; skipped stay hidden) ── */}
+      {/* ── Today's quest cards, grouped by category (pending always shown; validated shown
+          only if the family keeps them visible; skipped always stay hidden) ── */}
       {(() => {
-        const todaysAssignments = assignments.filter(
-          (a) => a.status === 'pending' || a.status === 'assigned' || a.status === 'completed' || a.status === 'verified'
-        );
+        const todaysAssignments = assignments.filter((a) => {
+          if (a.status === 'pending' || a.status === 'assigned') return true;
+          if (a.status === 'completed' || a.status === 'verified') return keep_validated_visible;
+          return false;
+        });
 
         if (todaysAssignments.length === 0 && !loading) {
           return (

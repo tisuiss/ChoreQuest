@@ -106,6 +106,7 @@
     "choreTrading": "Chore Trading",
     "achievements": "Achievements",
     "autoApproveChores": "Auto-approve quests (skip parent approval)",
+    "keepValidatedVisible": "Keep validated quests visible for the kid (otherwise they disappear once done)",
     "defaultLanguage": "Family Default Language",
     "defaultLanguageHint": "Language shown on the kiosk screen before a kid is selected.",
     "timezone": "Family Timezone",
