@@ -642,6 +642,10 @@
       "sat": "Sam"
     },
     "allKids": "Tous les enfants",
+    "viewDay": "Jour",
+    "viewWeek": "Semaine",
+    "viewMonth": "Mois",
+    "more": "+{{count}} de plus",
     "loadError": "Impossible de charger le calendrier",
     "selectHero": "Choisis un héros avec qui échanger",
     "tradeFailed": "Échec de l'échange",

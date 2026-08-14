@@ -19,6 +19,9 @@ import {
   Loader2,
   X,
   Trash2,
+  CheckCircle2,
+  SkipForward,
+  XCircle,
 } from 'lucide-react';
 
 // Format using local date components — toISOString() would shift the date
@@ -36,7 +39,47 @@ function addDays(dateStr, n) {
   return toISO(d);
 }
 
+function addMonths(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setMonth(d.getMonth() + n);
+  return toISO(d);
+}
+
+function mondayOf(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayOfWeek = d.getDay(); // 0=Sun..6=Sat
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  return addDays(dateStr, mondayOffset);
+}
+
+// Date range covered by each view mode, anchored on `startDate`.
+// day: just that date. week: 7 days from startDate (unchanged behaviour).
+// month: the full calendar-grid range -- Monday of the week containing the
+// 1st of the month through Sunday of the week containing the last day.
+function getViewRange(viewMode, startDate) {
+  if (viewMode === 'day') {
+    return { days: [startDate] };
+  }
+  if (viewMode === 'month') {
+    const d = new Date(startDate + 'T00:00:00');
+    const firstOfMonth = toISO(new Date(d.getFullYear(), d.getMonth(), 1));
+    const lastOfMonth = toISO(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    const gridStart = mondayOf(firstOfMonth);
+    const gridEnd = addDays(mondayOf(lastOfMonth), 6);
+    const days = [];
+    let cursor = gridStart;
+    while (cursor <= gridEnd) {
+      days.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+    return { days };
+  }
+  // week
+  return { days: Array.from({ length: 7 }, (_, i) => addDays(startDate, i)) };
+}
+
 const SHORT_DAY_KEYS = ['calendar.days.sun', 'calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat'];
+const MONDAY_FIRST_DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
 
 function statusStyle(assignment, dayStr) {
   const today = toISO(new Date());
@@ -121,6 +164,7 @@ export default function Calendar() {
   const isKid = user?.role === 'kid';
 
   const [startDate, setStartDate] = useState(() => toISO(new Date()));
+  const [viewMode, setViewMode] = useState('week'); // 'day' | 'week' | 'month'
   const [assignments, setAssignments] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -136,6 +180,7 @@ export default function Calendar() {
   const [tradeError, setTradeError] = useState('');
   const [removingId, setRemovingId] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null); // `${assignmentId}:${action}`
   const [cleaning, setCleaning] = useState(false);
   const [cleanMsg, setCleanMsg] = useState('');
 
@@ -143,34 +188,34 @@ export default function Calendar() {
     setLoading(true);
     setError('');
     try {
-      // The backend requires week_start to be a Monday. Our 7-day window
-      // may span two Mon-Sun weeks, so fetch both if needed.
-      const d = new Date(startDate + 'T00:00:00');
-      const dayOfWeek = d.getDay(); // 0=Sun..6=Sat
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const monday1 = addDays(startDate, mondayOffset);
-
-      const data = await api(`/api/calendar?week_start=${monday1}`);
+      // The backend requires week_start to be a Monday. The displayed range
+      // (a single day, 7 days, or a full month grid) can span several
+      // Mon-Sun weeks, so fetch each covered week and merge the results.
+      const { days } = getViewRange(viewMode, startDate);
       const byDay = {};
-      for (let i = 0; i < 7; i++) {
-        const dayKey = addDays(startDate, i);
-        byDay[dayKey] = data.days?.[dayKey] || [];
+      for (const day of days) byDay[day] = [];
+
+      const mondays = [];
+      let cursor = mondayOf(days[0]);
+      const lastMonday = mondayOf(days[days.length - 1]);
+      while (cursor <= lastMonday) {
+        mondays.push(cursor);
+        cursor = addDays(cursor, 7);
       }
 
-      // If our window extends past Sunday of that week, fetch next week too
-      const monday2 = addDays(monday1, 7);
-      const lastDay = addDays(startDate, 6);
-      const sunday1 = addDays(monday1, 6);
-      if (lastDay > sunday1) {
+      let firstError = null;
+      for (const monday of mondays) {
         try {
-          const data2 = await api(`/api/calendar?week_start=${monday2}`);
-          for (let i = 0; i < 7; i++) {
-            const dayKey = addDays(startDate, i);
-            if (!byDay[dayKey]?.length && data2.days?.[dayKey]) {
-              byDay[dayKey] = data2.days[dayKey];
-            }
+          const data = await api(`/api/calendar?week_start=${monday}`);
+          for (const day of days) {
+            if (data.days?.[day]) byDay[day] = data.days[day];
           }
-        } catch { /* second fetch is best-effort */ }
+        } catch (err) {
+          firstError = firstError || err;
+        }
+      }
+      if (firstError && Object.values(byDay).every((arr) => arr.length === 0)) {
+        throw firstError;
       }
       setAssignments(byDay);
     } catch (err) {
@@ -178,7 +223,7 @@ export default function Calendar() {
     } finally {
       setLoading(false);
     }
-  }, [startDate, t]);
+  }, [startDate, viewMode, t]);
 
   useEffect(() => {
     fetchCalendar();
@@ -198,8 +243,16 @@ export default function Calendar() {
     return () => window.removeEventListener('ws:message', handler);
   }, [fetchCalendar]);
 
-  const prevWeek = () => setStartDate(addDays(startDate, -7));
-  const nextWeek = () => setStartDate(addDays(startDate, 7));
+  const goPrev = () => {
+    if (viewMode === 'day') setStartDate(addDays(startDate, -1));
+    else if (viewMode === 'month') setStartDate(addMonths(startDate, -1));
+    else setStartDate(addDays(startDate, -7));
+  };
+  const goNext = () => {
+    if (viewMode === 'day') setStartDate(addDays(startDate, 1));
+    else if (viewMode === 'month') setStartDate(addMonths(startDate, 1));
+    else setStartDate(addDays(startDate, 7));
+  };
   const goToday = () => setStartDate(toISO(new Date()));
 
   const openTrade = async (assignment) => {
@@ -254,6 +307,42 @@ export default function Calendar() {
     }
   };
 
+  const handleVerify = async (assignmentId) => {
+    setActionLoading(`${assignmentId}:verify`);
+    try {
+      await api(`/api/chores/assignments/${assignmentId}/verify`, { method: 'POST' });
+      fetchCalendar();
+    } catch (err) {
+      setError(err.message || t('choreDetail.verifyError'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUncomplete = async (assignmentId) => {
+    setActionLoading(`${assignmentId}:uncomplete`);
+    try {
+      await api(`/api/chores/assignments/${assignmentId}/uncomplete`, { method: 'POST' });
+      fetchCalendar();
+    } catch (err) {
+      setError(err.message || t('choreDetail.uncompleteError'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSkip = async (assignmentId) => {
+    setActionLoading(`${assignmentId}:skip`);
+    try {
+      await api(`/api/chores/assignments/${assignmentId}/skip`, { method: 'POST' });
+      fetchCalendar();
+    } catch (err) {
+      setError(err.message || t('choreDetail.skipError'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const cleanupStale = async () => {
     setCleaning(true);
     setCleanMsg('');
@@ -275,6 +364,269 @@ export default function Calendar() {
     const d = new Date(str + 'T00:00:00');
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
+  const periodLabel = () => {
+    if (viewMode === 'day') {
+      return new Date(startDate + 'T00:00:00').toLocaleDateString(undefined, {
+        weekday: 'short', day: 'numeric', month: 'short',
+      });
+    }
+    if (viewMode === 'month') {
+      return new Date(startDate + 'T00:00:00').toLocaleDateString(undefined, {
+        month: 'long', year: 'numeric',
+      });
+    }
+    return `${formatShortDate(startDate)} – ${formatShortDate(endDate)}`;
+  };
+
+  const renderDayColumn = (dayStr) => {
+    const d = new Date(dayStr + 'T00:00:00');
+    const label = t(SHORT_DAY_KEYS[d.getDay()]);
+    const isToday = dayStr === today;
+    const allDayAssignments = assignments[dayStr] || [];
+    const dayAssignments = isKid
+      ? allDayAssignments.filter((a) => a.user_id === user?.id)
+      : allDayAssignments.filter(
+          (a) => !selectedKidFilter || a.user_id === Number(selectedKidFilter)
+        );
+    const dayGroups = groupByCategory(dayAssignments, t);
+
+    return (
+      <div key={dayStr} className="min-w-0">
+        {/* Day header */}
+        <div
+          className={`text-center py-2 px-1 rounded-t-md border-b ${
+            isToday
+              ? 'bg-accent/10 border-accent text-accent'
+              : 'bg-surface-raised/30 border-border text-muted'
+          }`}
+        >
+          <div className="text-xs font-medium">
+            {label}
+          </div>
+          <div className="text-sm mt-1">
+            {new Date(dayStr + 'T00:00:00').getDate()}
+          </div>
+        </div>
+
+        {/* Assignments, grouped by category and sorted by display order */}
+        <div className="space-y-3 mt-2 min-h-[80px]">
+          {dayAssignments.length === 0 && (
+            <p className="text-muted text-xs text-center py-4">
+              {t('calendar.noQuests')}
+            </p>
+          )}
+          {dayGroups.map((group) => (
+            <div key={group.key} className="space-y-2">
+              <div className="flex items-center gap-1 px-0.5">
+                <div
+                  className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: `${group.colour}26`, color: group.colour }}
+                >
+                  <ChoreIcon name={group.icon} size={10} />
+                </div>
+                <span className="text-muted text-[10px] font-semibold uppercase truncate">
+                  {group.name}
+                </span>
+              </div>
+              {group.items.map((a) => {
+                const style = statusStyle(a, dayStr);
+                return (
+                  <div
+                    key={a.id}
+                    className={`game-panel !border ${style.border} ${style.bg} p-2 cursor-pointer hover:border-accent/40 transition-colors`}
+                    onClick={() =>
+                      navigate(`/chores/${a.chore_id || a.id}`)
+                    }
+                  >
+                    <div className="flex items-start gap-1.5">
+                      {style.icon}
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`text-sm leading-tight truncate ${
+                            style.textClass || 'text-cream'
+                          }`}
+                        >
+                          {themedTitle(a.chore?.title || a.chore_title || t('parentDashboard.chore'), colorTheme)}
+                        </p>
+                        {/* Show assigned kid for parents */}
+                        {!isKid && (a.user?.display_name || a.assigned_to_name) && (
+                          <p className="text-xs text-purple font-medium mt-0.5 truncate">
+                            {a.user?.display_name || a.assigned_to_name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Trade button for kids */}
+                    {isKid && chore_trading_enabled && a.status === 'pending' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTrade(a);
+                        }}
+                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80 transition-colors"
+                      >
+                        <ArrowRightLeft size={12} />
+                        {t('calendar.trade')}
+                      </button>
+                    )}
+
+                    {/* Parent actions */}
+                    {!isKid && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {(a.status === 'pending' || a.status === 'completed') && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVerify(a.id);
+                            }}
+                            disabled={actionLoading === `${a.id}:verify`}
+                            className="flex items-center gap-1 text-xs font-medium text-emerald hover:text-emerald/80 transition-colors"
+                          >
+                            {actionLoading === `${a.id}:verify` ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={12} />
+                            )}
+                            {a.status === 'pending' ? t('choreDetail.validateForKid') : t('choreDetail.verify')}
+                          </button>
+                        )}
+                        {a.status === 'pending' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSkip(a.id);
+                            }}
+                            disabled={actionLoading === `${a.id}:skip`}
+                            className="flex items-center gap-1 text-xs font-medium text-muted hover:text-cream transition-colors"
+                          >
+                            {actionLoading === `${a.id}:skip` ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <SkipForward size={12} />
+                            )}
+                            {t('choreDetail.skipToday')}
+                          </button>
+                        )}
+                        {(a.status === 'completed' || a.status === 'verified') && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUncomplete(a.id);
+                            }}
+                            disabled={actionLoading === `${a.id}:uncomplete`}
+                            className="flex items-center gap-1 text-xs font-medium text-gold hover:text-gold/80 transition-colors"
+                          >
+                            {actionLoading === `${a.id}:uncomplete` ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <XCircle size={12} />
+                            )}
+                            {t('choreDetail.uncomplete')}
+                          </button>
+                        )}
+                        {a.status === 'pending' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const isRecurring = a.chore?.recurrence && a.chore.recurrence !== 'once';
+                              if (isRecurring) {
+                                setRemoveTarget(a);
+                              } else {
+                                removeAssignment(a.id);
+                              }
+                            }}
+                            disabled={removingId === a.id}
+                            className="flex items-center gap-1 text-xs font-medium text-crimson hover:text-crimson/80 transition-colors"
+                          >
+                            {removingId === a.id ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <X size={12} />
+                            )}
+                            {t('common.delete')}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderMonthCell = (dayStr) => {
+    const d = new Date(dayStr + 'T00:00:00');
+    const isToday = dayStr === today;
+    const inCurrentMonth = new Date(startDate + 'T00:00:00').getMonth() === d.getMonth();
+    const allDayAssignments = assignments[dayStr] || [];
+    const dayAssignments = isKid
+      ? allDayAssignments.filter((a) => a.user_id === user?.id)
+      : allDayAssignments.filter(
+          (a) => !selectedKidFilter || a.user_id === Number(selectedKidFilter)
+        );
+    const total = dayAssignments.length;
+    const doneCount = dayAssignments.filter(
+      (a) => a.status === 'verified' || a.status === 'completed'
+    ).length;
+    const visible = dayAssignments.slice(0, 3);
+    const overflow = dayAssignments.length - visible.length;
+
+    return (
+      <div
+        key={dayStr}
+        onClick={() => {
+          setViewMode('day');
+          setStartDate(dayStr);
+        }}
+        className={`min-h-[90px] p-1.5 rounded-md border cursor-pointer transition-colors ${
+          isToday ? 'border-accent bg-accent/5' : 'border-border/50 bg-surface-raised/10 hover:border-border'
+        } ${!inCurrentMonth ? 'opacity-40' : ''}`}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className={`text-xs font-medium ${isToday ? 'text-accent' : 'text-cream'}`}>
+            {d.getDate()}
+          </span>
+          {total > 0 && (
+            <span className="text-[9px] text-muted">{doneCount}/{total}</span>
+          )}
+        </div>
+        <div className="space-y-0.5">
+          {visible.map((a) => {
+            const isDone = a.status === 'verified' || a.status === 'completed';
+            const isSkipped = a.status === 'skipped';
+            return (
+              <p
+                key={a.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/chores/${a.chore_id || a.id}`);
+                }}
+                className={`text-[10px] leading-tight truncate rounded px-1 py-0.5 ${
+                  isDone
+                    ? 'bg-emerald/10 text-emerald'
+                    : isSkipped
+                      ? 'bg-cream/5 text-muted line-through'
+                      : 'bg-gold/10 text-gold'
+                }`}
+              >
+                {themedTitle(a.chore?.title || a.chore_title || t('parentDashboard.chore'), colorTheme)}
+              </p>
+            );
+          })}
+          {overflow > 0 && (
+            <p className="text-[9px] text-muted px-1">
+              {t('calendar.more', { count: overflow })}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -284,23 +636,43 @@ export default function Calendar() {
           {t('calendar.title')}
         </h1>
 
-        {/* Week navigation */}
+        {/* Navigation */}
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5">
+            {[
+              { id: 'day', label: t('calendar.viewDay') },
+              { id: 'week', label: t('calendar.viewWeek') },
+              { id: 'month', label: t('calendar.viewMonth') },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => setViewMode(opt.id)}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  viewMode === opt.id
+                    ? 'bg-surface-raised text-cream'
+                    : 'text-muted hover:text-cream'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center gap-1">
             <button
-              onClick={prevWeek}
+              onClick={goPrev}
               className="p-2 rounded hover:bg-surface-raised transition-colors text-muted hover:text-cream"
               aria-label={t('calendar.previousWeek')}
             >
               <ChevronLeft size={20} />
             </button>
 
-            <span className="text-cream text-sm min-w-[140px] sm:min-w-[180px] text-center">
-              {formatShortDate(startDate)} &ndash; {formatShortDate(endDate)}
+            <span className="text-cream text-sm min-w-[140px] sm:min-w-[180px] text-center capitalize">
+              {periodLabel()}
             </span>
 
             <button
-              onClick={nextWeek}
+              onClick={goNext}
               className="p-2 rounded hover:bg-surface-raised transition-colors text-muted hover:text-cream"
               aria-label={t('calendar.next7Days')}
             >
@@ -366,135 +738,27 @@ export default function Calendar() {
         </div>
       )}
 
-      {/* Calendar Grid — 7 days starting from startDate */}
-      {!loading && (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-          {Array.from({ length: 7 }, (_, i) => {
-            const dayStr = addDays(startDate, i);
-            const d = new Date(dayStr + 'T00:00:00');
-            const label = t(SHORT_DAY_KEYS[d.getDay()]);
-            const isToday = dayStr === today;
-            const allDayAssignments = assignments[dayStr] || [];
-            const dayAssignments = isKid
-              ? allDayAssignments.filter((a) => a.user_id === user?.id)
-              : allDayAssignments.filter(
-                  (a) => !selectedKidFilter || a.user_id === Number(selectedKidFilter)
-                );
-            const dayGroups = groupByCategory(dayAssignments, t);
+      {/* Calendar Grid — day/week columns, or month grid */}
+      {!loading && viewMode !== 'month' && (
+        <div className={viewMode === 'day' ? 'max-w-md mx-auto' : 'grid grid-cols-1 md:grid-cols-7 gap-3'}>
+          {viewMode === 'day'
+            ? renderDayColumn(startDate)
+            : Array.from({ length: 7 }, (_, i) => renderDayColumn(addDays(startDate, i)))}
+        </div>
+      )}
 
-            return (
-              <div key={dayStr} className="min-w-0">
-                {/* Day header */}
-                <div
-                  className={`text-center py-2 px-1 rounded-t-md border-b ${
-                    isToday
-                      ? 'bg-accent/10 border-accent text-accent'
-                      : 'bg-surface-raised/30 border-border text-muted'
-                  }`}
-                >
-                  <div className="text-xs font-medium">
-                    {label}
-                  </div>
-                  <div className="text-sm mt-1">
-                    {new Date(dayStr + 'T00:00:00').getDate()}
-                  </div>
-                </div>
-
-                {/* Assignments, grouped by category and sorted by display order */}
-                <div className="space-y-3 mt-2 min-h-[80px]">
-                  {dayAssignments.length === 0 && (
-                    <p className="text-muted text-xs text-center py-4">
-                      {t('calendar.noQuests')}
-                    </p>
-                  )}
-                  {dayGroups.map((group) => (
-                    <div key={group.key} className="space-y-2">
-                      <div className="flex items-center gap-1 px-0.5">
-                        <div
-                          className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: `${group.colour}26`, color: group.colour }}
-                        >
-                          <ChoreIcon name={group.icon} size={10} />
-                        </div>
-                        <span className="text-muted text-[10px] font-semibold uppercase truncate">
-                          {group.name}
-                        </span>
-                      </div>
-                  {group.items.map((a) => {
-                    const style = statusStyle(a, dayStr);
-                    return (
-                      <div
-                        key={a.id}
-                        className={`game-panel !border ${style.border} ${style.bg} p-2 cursor-pointer hover:border-accent/40 transition-colors`}
-                        onClick={() =>
-                          navigate(`/chores/${a.chore_id || a.id}`)
-                        }
-                      >
-                        <div className="flex items-start gap-1.5">
-                          {style.icon}
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className={`text-sm leading-tight truncate ${
-                                style.textClass || 'text-cream'
-                              }`}
-                            >
-                              {themedTitle(a.chore?.title || a.chore_title || t('parentDashboard.chore'), colorTheme)}
-                            </p>
-                            {/* Show assigned kid for parents */}
-                            {!isKid && (a.user?.display_name || a.assigned_to_name) && (
-                              <p className="text-xs text-purple font-medium mt-0.5 truncate">
-                                {a.user?.display_name || a.assigned_to_name}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Trade button for kids */}
-                        {isKid && chore_trading_enabled && a.status === 'pending' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openTrade(a);
-                            }}
-                            className="mt-1.5 flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80 transition-colors"
-                          >
-                            <ArrowRightLeft size={12} />
-                            {t('calendar.trade')}
-                          </button>
-                        )}
-
-                        {/* Remove button for parents on pending assignments */}
-                        {!isKid && a.status === 'pending' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const isRecurring = a.chore?.recurrence && a.chore.recurrence !== 'once';
-                              if (isRecurring) {
-                                setRemoveTarget(a);
-                              } else {
-                                removeAssignment(a.id);
-                              }
-                            }}
-                            disabled={removingId === a.id}
-                            className="mt-1.5 flex items-center gap-1 text-xs font-medium text-crimson hover:text-crimson/80 transition-colors"
-                          >
-                            {removingId === a.id ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <X size={12} />
-                            )}
-                            {t('common.delete')}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                    </div>
-                  ))}
-                </div>
+      {!loading && viewMode === 'month' && (
+        <div>
+          <div className="grid grid-cols-7 gap-1 mb-1">
+            {MONDAY_FIRST_DAY_KEYS.map((k) => (
+              <div key={k} className="text-center text-muted text-[10px] font-semibold uppercase py-1">
+                {t(k)}
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {getViewRange('month', startDate).days.map((dayStr) => renderMonthCell(dayStr))}
+          </div>
         </div>
       )}
 
