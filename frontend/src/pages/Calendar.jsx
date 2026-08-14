@@ -7,6 +7,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { themedTitle } from '../utils/questThemeText';
 import Modal from '../components/Modal';
+import ChoreIcon from '../components/ChoreIcon';
 import {
   ChevronLeft,
   ChevronRight,
@@ -76,6 +77,39 @@ function statusStyle(assignment, dayStr) {
     bg: '',
     icon: <Clock size={16} className="text-muted" />,
   };
+}
+
+// Group a day's assignments by category (sorted by parent-defined display
+// order within each category), preserving first-appearance order for the
+// groups themselves -- same pattern as KidDashboard.jsx/Chores.jsx.
+function groupByCategory(dayAssignments, t) {
+  const sorted = [...dayAssignments].sort((a, b) => {
+    const catA = a.chore?.category?.id ?? 0;
+    const catB = b.chore?.category?.id ?? 0;
+    if (catA !== catB) return catA - catB;
+    return (a.chore?.sort_order ?? 0) - (b.chore?.sort_order ?? 0);
+  });
+
+  const groups = [];
+  const groupByKey = new Map();
+  sorted.forEach((assignment) => {
+    const cat = assignment.chore?.category;
+    const key = cat?.id ?? 'none';
+    let group = groupByKey.get(key);
+    if (!group) {
+      group = {
+        key,
+        name: cat?.name || t('choreDetail.generalCategory'),
+        icon: cat?.icon,
+        colour: cat?.colour || '#14b8a6',
+        items: [],
+      };
+      groupByKey.set(key, group);
+      groups.push(group);
+    }
+    group.items.push(assignment);
+  });
+  return groups;
 }
 
 export default function Calendar() {
@@ -346,6 +380,7 @@ export default function Calendar() {
               : allDayAssignments.filter(
                   (a) => !selectedKidFilter || a.user_id === Number(selectedKidFilter)
                 );
+            const dayGroups = groupByCategory(dayAssignments, t);
 
             return (
               <div key={dayStr} className="min-w-0">
@@ -365,14 +400,27 @@ export default function Calendar() {
                   </div>
                 </div>
 
-                {/* Assignments */}
-                <div className="space-y-2 mt-2 min-h-[80px]">
+                {/* Assignments, grouped by category and sorted by display order */}
+                <div className="space-y-3 mt-2 min-h-[80px]">
                   {dayAssignments.length === 0 && (
                     <p className="text-muted text-xs text-center py-4">
                       {t('calendar.noQuests')}
                     </p>
                   )}
-                  {dayAssignments.map((a) => {
+                  {dayGroups.map((group) => (
+                    <div key={group.key} className="space-y-2">
+                      <div className="flex items-center gap-1 px-0.5">
+                        <div
+                          className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: `${group.colour}26`, color: group.colour }}
+                        >
+                          <ChoreIcon name={group.icon} size={10} />
+                        </div>
+                        <span className="text-muted text-[10px] font-semibold uppercase truncate">
+                          {group.name}
+                        </span>
+                      </div>
+                  {group.items.map((a) => {
                     const style = statusStyle(a, dayStr);
                     return (
                       <div
@@ -441,6 +489,8 @@ export default function Calendar() {
                       </div>
                     );
                   })}
+                    </div>
+                  ))}
                 </div>
               </div>
             );
