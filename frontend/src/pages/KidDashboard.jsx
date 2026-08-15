@@ -334,14 +334,14 @@ export default function KidDashboard() {
           </div>
 
           <div className="flex flex-col items-center justify-center gap-1">
-            <span className="text-muted text-xs font-medium">{t('common.stars')}</span>
+            <span className="text-muted text-sm font-medium">{t('common.stars')}</span>
             <PointCounter value={user?.points_balance ?? 0} prefix="" />
           </div>
 
           <div className="flex flex-col items-center justify-center gap-1">
-            <span className="text-muted text-xs font-medium">{t('kidDashboard.malusToday')}</span>
-            <span className="inline-flex items-center gap-1.5 font-heading text-crimson text-sm font-bold tabular-nums">
-              <TrendingDown size={16} />
+            <span className="text-muted text-sm font-medium">{t('kidDashboard.malusToday')}</span>
+            <span className="inline-flex items-center gap-1.5 font-heading text-crimson text-xl font-bold tabular-nums">
+              <TrendingDown size={20} />
               {myStats?.malus_today ?? 0}
             </span>
           </div>
