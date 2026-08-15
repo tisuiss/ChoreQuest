@@ -29,6 +29,7 @@ import {
   ScrollText,
   Zap,
   Tag,
+  ListOrdered,
 } from 'lucide-react';
 
 const DIFFICULTY_OPTIONS = [
@@ -506,6 +507,12 @@ export default function Chores() {
                     recurrence={chore.recurrence}
                     customDays={chore.custom_days}
                   />
+                  {isParent && (
+                    <span className="flex items-center gap-1 text-muted text-xs" title={t('questCreate.sortOrderHint')}>
+                      <ListOrdered size={11} />
+                      {t('chores.sortOrderBadge', { order: chore.sort_order ?? 0 })}
+                    </span>
+                  )}
                   {chore.requires_photo && (
                     <span className="flex items-center gap-1 text-muted text-xs">
                       <Camera size={11} />

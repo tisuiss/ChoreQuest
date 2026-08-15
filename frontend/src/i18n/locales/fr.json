@@ -450,6 +450,7 @@
     "assignedCount_one": "{{count}} assignée",
     "assignedCount_other": "{{count}} assignées",
     "unassigned": "Non assignée",
+    "sortOrderBadge": "Ordre : {{order}}",
     "assign": "Assigner",
     "manage": "Gérer",
     "attachPhoto": "Joindre une photo justificative",

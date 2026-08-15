@@ -450,6 +450,7 @@
     "assignedCount_one": "{{count}} assigned",
     "assignedCount_other": "{{count}} assigned",
     "unassigned": "Unassigned",
+    "sortOrderBadge": "Order: {{order}}",
     "assign": "Assign",
     "manage": "Manage",
     "attachPhoto": "Attach proof photo",
