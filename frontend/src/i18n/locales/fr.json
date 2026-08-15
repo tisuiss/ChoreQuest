@@ -987,6 +987,11 @@
     "colour": "Couleur",
     "nameRequired": "Donne un nom à la catégorie.",
     "saveError": "Échec de la création de la catégorie.",
-    "deleteError": "Échec de la suppression de la catégorie."
+    "deleteError": "Échec de la suppression de la catégorie.",
+    "editSchedule": "Créneau d'affichage",
+    "scheduleWindow": "Les corvées de cette catégorie ne s'affichent sur le dashboard de l'enfant que pendant ce créneau. Laisse vide pour un affichage à toute heure.",
+    "windowStart": "Début",
+    "windowEnd": "Fin",
+    "windowBothRequired": "Remplis les deux heures du créneau, ou aucune."
   }
 }

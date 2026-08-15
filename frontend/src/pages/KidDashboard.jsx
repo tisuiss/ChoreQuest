@@ -58,6 +58,16 @@ function nowTimeString() {
   return `${h}:${m}:${s}`;
 }
 
+// A category with no window set is always visible. One with a window is
+// only visible while "now" falls inside it -- outside, chores in that
+// category are fully hidden from the kid's dashboard (no badge/greying,
+// unlike the per-chore window which only affects the "Oui" button).
+function isWithinCategoryWindow(category) {
+  if (!category?.window_start || !category?.window_end) return true;
+  const now = nowTimeString();
+  return now >= category.window_start && now <= category.window_end;
+}
+
 // ---------- card animation variants ----------
 
 const cardVariants = {
@@ -340,6 +350,7 @@ export default function KidDashboard() {
           only if the family keeps them visible; skipped always stay hidden) ── */}
       {(() => {
         const todaysAssignments = assignments.filter((a) => {
+          if (!isWithinCategoryWindow(a.chore?.category)) return false;
           if (a.status === 'pending' || a.status === 'assigned') return true;
           if (a.status === 'completed' || a.status === 'verified') return keep_validated_visible;
           return false;

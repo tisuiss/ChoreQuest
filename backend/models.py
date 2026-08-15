@@ -122,6 +122,8 @@ class ChoreCategory(Base):
     icon: Mapped[str] = mapped_column(String(50), nullable=False)
     colour: Mapped[str] = mapped_column(String(7), nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    window_start: Mapped[time | None] = mapped_column(Time, nullable=True)
+    window_end: Mapped[time | None] = mapped_column(Time, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

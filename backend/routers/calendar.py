@@ -171,6 +171,8 @@ def _build_assignment_entry(
                 "icon": a.chore.category.icon,
                 "colour": a.chore.category.colour,
                 "is_default": a.chore.category.is_default,
+                "window_start": a.chore.category.window_start.isoformat() if a.chore.category.window_start else None,
+                "window_end": a.chore.category.window_end.isoformat() if a.chore.category.window_end else None,
             } if a.chore.category else None,
             "recurrence": a.chore.recurrence.value if a.chore.recurrence else None,
             "custom_days": a.chore.custom_days,

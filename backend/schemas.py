@@ -82,6 +82,8 @@ class CategoryCreate(BaseModel):
     name: str = Field(max_length=50)
     icon: str = Field(max_length=50)
     colour: str = Field(max_length=7)
+    window_start: time | None = None
+    window_end: time | None = None
 
 
 class CategoryResponse(BaseModel):
@@ -90,6 +92,8 @@ class CategoryResponse(BaseModel):
     icon: str
     colour: str
     is_default: bool
+    window_start: time | None = None
+    window_end: time | None = None
 
     model_config = {"from_attributes": True}
 

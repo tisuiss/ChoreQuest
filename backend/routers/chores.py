@@ -142,6 +142,7 @@ async def create_category(
 ):
     category = ChoreCategory(
         name=body.name, icon=body.icon, colour=body.colour, is_default=False,
+        window_start=body.window_start, window_end=body.window_end,
     )
     db.add(category)
     await db.commit()
@@ -167,6 +168,8 @@ async def update_category(
     category.name = body.name
     category.icon = body.icon
     category.colour = body.colour
+    category.window_start = body.window_start
+    category.window_end = body.window_end
     await db.commit()
     await db.refresh(category)
     await ws_manager.broadcast(_CATEGORY_CHANGED, exclude_user=user.id)
