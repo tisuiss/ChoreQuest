@@ -32,6 +32,8 @@ import {
   ListOrdered,
   LayoutGrid,
   List,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 
 const DIFFICULTY_OPTIONS = [
@@ -119,6 +121,16 @@ export default function Chores() {
 
   const [activeTab, setActiveTab] = useState('library');
   const [viewMode, setViewMode] = useState('list'); // 'grid' | 'list' (parent only)
+  const [expandedCategories, setExpandedCategories] = useState(new Set()); // closed by default
+
+  const toggleCategory = (key) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const [filterCategory, setFilterCategory] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('');
@@ -447,9 +459,19 @@ export default function Chores() {
         </div>
       ) : (
         <div className="space-y-5">
-          {groupedChores.map((group) => (
+          {groupedChores.map((group) => {
+            const isExpanded = expandedCategories.has(group.key);
+            return (
             <div key={group.key} className="space-y-2">
-              <div className="flex items-center gap-2 px-1">
+              <button
+                onClick={() => toggleCategory(group.key)}
+                className="flex items-center gap-2 px-1 w-full text-left hover:opacity-80 transition-opacity"
+              >
+                {isExpanded ? (
+                  <ChevronDown size={14} className="text-muted flex-shrink-0" />
+                ) : (
+                  <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                )}
                 <div
                   className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: `${group.colour}26`, color: group.colour }}
@@ -457,7 +479,9 @@ export default function Chores() {
                   <ChoreIcon name={group.icon} size={13} />
                 </div>
                 <h2 className="text-cream text-sm font-semibold">{group.name}</h2>
-              </div>
+                <span className="text-muted text-xs">({group.items.length})</span>
+              </button>
+              {isExpanded && (
               <div className={isParent && viewMode === 'list' ? 'space-y-1.5' : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3'}>
                 {group.items.map((chore) => {
             const kidStatus = isKid ? assignmentStatusMap[chore.id] : null;
@@ -709,8 +733,10 @@ export default function Chores() {
             );
                 })}
               </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
