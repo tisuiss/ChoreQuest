@@ -532,6 +532,16 @@ export default function Chores() {
                   </span>
                   <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                     <button
+                      onClick={() => setAssigningChore(chore)}
+                      className={`p-1 rounded-md hover:bg-surface-raised transition-colors text-muted ${
+                        assignCount > 0 ? 'hover:text-purple' : 'hover:text-gold'
+                      }`}
+                      aria-label={assignCount > 0 ? t('chores.manage') : t('chores.assign')}
+                      title={assignCount > 0 ? t('chores.manage') : t('chores.assign')}
+                    >
+                      <Users size={13} />
+                    </button>
+                    <button
                       onClick={() => { setEditingChore(chore); setShowCreateModal(true); }}
                       className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-accent"
                       aria-label={t('chores.editQuest')}
