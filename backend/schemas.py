@@ -102,7 +102,7 @@ class CategoryResponse(BaseModel):
 class ChoreCreate(BaseModel):
     title: str = Field(max_length=200)
     description: str | None = None
-    points: int = Field(gt=0)
+    points: int = Field(ge=0)
     difficulty: Difficulty
     icon: str | None = None
     photo_url: str | None = None

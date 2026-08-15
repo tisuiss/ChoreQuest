@@ -346,33 +346,41 @@ export default function Settings() {
             <p className="text-muted text-xs mb-3">
               {t('settings.pointsResetHint')}
             </p>
-            <ToggleSwitch
-              enabled={settings.points_reset_enabled ?? false}
-              onChange={(v) => updateSetting('points_reset_enabled', v)}
-              label={t('settings.pointsResetEnable')}
-            />
-            {settings.points_reset_enabled && (
-              <div className="pt-3 space-y-3">
-                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-sm">
-                  {[
-                    { id: 'weekly', label: t('settings.pointsResetWeekly') },
-                    { id: 'monthly', label: t('settings.pointsResetMonthly') },
-                    { id: 'quarterly', label: t('settings.pointsResetQuarterly') },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() => updateSetting('points_reset_cadence', opt.id)}
-                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                        (settings.points_reset_cadence ?? 'monthly') === opt.id
-                          ? 'bg-surface-raised text-cream'
-                          : 'text-muted hover:text-cream'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 flex-wrap">
+              {[
+                { id: 'never', label: t('settings.pointsResetNever') },
+                { id: 'weekly', label: t('settings.pointsResetWeekly') },
+                { id: 'monthly', label: t('settings.pointsResetMonthly') },
+                { id: 'quarterly', label: t('settings.pointsResetQuarterly') },
+              ].map((opt) => {
+                const current = settings.points_reset_enabled
+                  ? (settings.points_reset_cadence ?? 'monthly')
+                  : 'never';
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      if (opt.id === 'never') {
+                        updateSetting('points_reset_enabled', false);
+                      } else {
+                        updateSetting('points_reset_enabled', true);
+                        updateSetting('points_reset_cadence', opt.id);
+                      }
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
+                      current === opt.id
+                        ? 'bg-surface-raised text-cream'
+                        : 'text-muted hover:text-cream'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
 
+            {settings.points_reset_enabled && (
+              <div className="pt-3">
                 {(settings.points_reset_cadence ?? 'monthly') === 'weekly' ? (
                   <div>
                     <p className="text-muted text-xs mb-1.5">{t('settings.pointsResetWeekdayLabel')}</p>

@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   X,
   Clock,
-  TrendingDown,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -340,7 +339,7 @@ export default function KidDashboard() {
           <div className="flex flex-col items-center justify-center gap-1">
             <span className="text-muted text-sm font-medium">{t('kidDashboard.malusToday')}</span>
             <span className="inline-flex items-center gap-1.5 font-heading text-crimson text-xl font-bold tabular-nums">
-              <TrendingDown size={20} />
+              <Star size={20} className="fill-crimson" />
               {myStats?.malus_today ?? 0}
             </span>
           </div>

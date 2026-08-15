@@ -119,7 +119,7 @@
     "enforcementStrict": "Strict",
     "pointsReset": "Réinitialisation périodique des étoiles",
     "pointsResetHint": "Remet à zéro le solde d'étoiles de chaque enfant à intervalle régulier (les étoiles déjà gagnées au total et les succès ne sont pas affectés).",
-    "pointsResetEnable": "Activer la réinitialisation périodique",
+    "pointsResetNever": "Jamais",
     "pointsResetWeekly": "Chaque semaine",
     "pointsResetMonthly": "Chaque mois",
     "pointsResetQuarterly": "Chaque trimestre",
@@ -483,7 +483,7 @@
   },
   "questCreate": {
     "nameRequired": "Chaque corvée a besoin d'un nom !",
-    "rewardMin": "La récompense doit être d'au moins 1 étoile.",
+    "rewardMin": "Le nombre d'étoiles ne peut pas être négatif.",
     "categoryRequired": "Choisis une catégorie pour cette corvée.",
     "saveError": "La corvée n'a pas pu être enregistrée.",
     "otherCategory": "Autre",

@@ -161,7 +161,7 @@ export default function QuestCreateModal({
       setFormError(t('questCreate.nameRequired'));
       return;
     }
-    if (form.points < 1) {
+    if (form.points < 0) {
       setFormError(t('questCreate.rewardMin'));
       return;
     }
@@ -352,7 +352,7 @@ export default function QuestCreateModal({
             </label>
             <input
               type="number"
-              min={1}
+              min={0}
               value={form.points}
               onChange={(e) => updateForm('points', e.target.value)}
               className="field-input"
