@@ -469,6 +469,7 @@
     "loadError": "Impossible de charger les corvées",
     "title": "Corvées du jour",
     "todaysProgress": "Progression du jour",
+    "malusToday": "Malus du jour",
     "noneToday": "Aucune corvée aujourd'hui. Profite d'une pause !",
     "allComplete": "Toutes les corvées sont faites ! Bravo !",
     "validated": "Validée !",

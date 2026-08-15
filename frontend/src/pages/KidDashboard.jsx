@@ -13,6 +13,7 @@ import {
   ShieldOff,
   X,
   Clock,
+  TrendingDown,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -314,14 +315,11 @@ export default function KidDashboard() {
         <div className="relative z-10">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
           <h1 className="text-cream text-lg font-semibold">{t('kidDashboard.title')}</h1>
-          <div className="flex items-center gap-3">
-            <PointCounter value={user?.points_balance ?? 0} prefix={t('common.stars')} />
-            <StreakDisplay streak={user?.current_streak ?? 0} />
-          </div>
+          <StreakDisplay streak={user?.current_streak ?? 0} />
         </div>
 
-        {/* Progress bar */}
-        {totalCount > 0 && (
+        {/* Today's progress / stars / malus, split evenly across the same banner height */}
+        <div className="grid grid-cols-3 gap-3 items-center">
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-muted text-xs font-medium">{t('kidDashboard.todaysProgress')}</span>
@@ -334,7 +332,20 @@ export default function KidDashboard() {
               />
             </div>
           </div>
-        )}
+
+          <div className="flex flex-col items-center justify-center gap-1">
+            <span className="text-muted text-xs font-medium">{t('common.stars')}</span>
+            <PointCounter value={user?.points_balance ?? 0} prefix="" />
+          </div>
+
+          <div className="flex flex-col items-center justify-center gap-1">
+            <span className="text-muted text-xs font-medium">{t('kidDashboard.malusToday')}</span>
+            <span className="inline-flex items-center gap-1.5 font-heading text-crimson text-sm font-bold tabular-nums">
+              <TrendingDown size={16} />
+              {myStats?.malus_today ?? 0}
+            </span>
+          </div>
+        </div>
         </div>{/* close z-10 */}
       </div>
 

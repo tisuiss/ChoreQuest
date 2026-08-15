@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
@@ -80,6 +80,27 @@ async def get_my_stats(
 
     effective = await _effective_streak(db, current_user)
 
+    # PointTransaction.created_at is stored in true UTC (datetime.utcnow),
+    # while "today" is a family-local calendar day -- convert the local
+    # midnight boundary to UTC before filtering, rather than comparing
+    # naive local bounds directly against naive UTC timestamps.
+    now_local = datetime.now().astimezone()
+    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start_local = today_start_local + timedelta(days=1)
+    today_start_utc = today_start_local.astimezone(timezone.utc).replace(tzinfo=None)
+    tomorrow_start_utc = tomorrow_start_local.astimezone(timezone.utc).replace(tzinfo=None)
+
+    malus_result = await db.execute(
+        select(func.coalesce(func.sum(PointTransaction.amount), 0)).where(
+            PointTransaction.user_id == current_user.id,
+            PointTransaction.type == PointType.bonus,
+            PointTransaction.amount < 0,
+            PointTransaction.created_at >= today_start_utc,
+            PointTransaction.created_at < tomorrow_start_utc,
+        )
+    )
+    malus_today = -(malus_result.scalar() or 0)
+
     return {
         "points_balance": current_user.points_balance,
         "total_points_earned": current_user.total_points_earned,
@@ -88,6 +109,7 @@ async def get_my_stats(
         "achievements_count": achievements_count,
         "completion_rate": rate_30d,
         "streak_freeze_available": streak_freeze_available,
+        "malus_today": malus_today,
     }
 
 
