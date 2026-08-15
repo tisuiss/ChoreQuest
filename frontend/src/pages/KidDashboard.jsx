@@ -10,7 +10,6 @@ import {
   Camera,
   Loader2,
   AlertTriangle,
-  ShieldOff,
   X,
   Clock,
   TrendingDown,
@@ -460,17 +459,6 @@ export default function KidDashboard() {
           </div>
         );
       })()}
-
-      {/* ── Streak Freeze Indicator ── */}
-      {myStats?.streak_freeze_available && (
-        <div className="game-panel p-3 flex items-center gap-3">
-          <ShieldOff size={16} className="text-accent flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-cream text-xs font-medium">{t('kidDashboard.streakFreezeAvailable')}</p>
-            <p className="text-muted text-[10px]">{t('kidDashboard.streakFreezeHint')}</p>
-          </div>
-        </div>
-      )}
 
       {/* ── Enlarged chore photo ── */}
       <AnimatePresence>
