@@ -118,7 +118,7 @@ export default function Chores() {
   const [error, setError] = useState('');
 
   const [activeTab, setActiveTab] = useState('library');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list' (parent only)
+  const [viewMode, setViewMode] = useState('list'); // 'grid' | 'list' (parent only)
 
   const [filterCategory, setFilterCategory] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('');
