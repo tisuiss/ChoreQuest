@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import Modal from './Modal';
 import ChoreIcon from './ChoreIcon';
-import { Plus, Trash2, Loader2, Clock } from 'lucide-react';
+import { Plus, Trash2, Loader2, Clock, Pencil } from 'lucide-react';
 
 const ICON_OPTIONS = [
   'cooking-pot', 'bed', 'bath', 'flower-2', 'paw-print', 'book-open',
   'shirt', 'home', 'trees', 'trash-2', 'car', 'dog', 'cat', 'gamepad-2',
   'backpack', 'shopping-cart', 'wrench', 'palette', 'music', 'dumbbell',
   'sparkles', 'heart', 'star', 'gift',
+  'sunrise', 'sun', 'cloud-sun', 'sunset',
 ];
 
 const COLOUR_OPTIONS = [
@@ -25,10 +26,10 @@ export default function CategoryManageModal({ isOpen, onClose, categories, onCha
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [scheduleEditingId, setScheduleEditingId] = useState(null);
-  const [scheduleForm, setScheduleForm] = useState({ windowStart: '', windowEnd: '' });
-  const [scheduleSaving, setScheduleSaving] = useState(false);
-  const [scheduleError, setScheduleError] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', icon: '', colour: '', windowStart: '', windowEnd: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -68,43 +69,54 @@ export default function CategoryManageModal({ isOpen, onClose, categories, onCha
     }
   };
 
-  const toggleScheduleEditor = (category) => {
-    if (scheduleEditingId === category.id) {
-      setScheduleEditingId(null);
+  const toggleEditor = (category) => {
+    if (editingId === category.id) {
+      setEditingId(null);
       return;
     }
-    setScheduleEditingId(category.id);
-    setScheduleError('');
-    setScheduleForm({
+    setEditingId(category.id);
+    setEditError('');
+    setEditForm({
+      name: category.name,
+      icon: category.icon,
+      colour: category.colour,
       windowStart: category.window_start ? category.window_start.slice(0, 5) : '',
       windowEnd: category.window_end ? category.window_end.slice(0, 5) : '',
     });
   };
 
-  const handleSaveSchedule = async (category) => {
-    if (Boolean(scheduleForm.windowStart) !== Boolean(scheduleForm.windowEnd)) {
-      setScheduleError(t('categories.windowBothRequired'));
+  const updateEditForm = (field, value) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveCategory = async (category) => {
+    if (!editForm.name.trim()) {
+      setEditError(t('categories.nameRequired'));
       return;
     }
-    setScheduleSaving(true);
-    setScheduleError('');
+    if (Boolean(editForm.windowStart) !== Boolean(editForm.windowEnd)) {
+      setEditError(t('categories.windowBothRequired'));
+      return;
+    }
+    setEditSaving(true);
+    setEditError('');
     try {
       await api(`/api/chores/categories/${category.id}`, {
         method: 'PUT',
         body: {
-          name: category.name,
-          icon: category.icon,
-          colour: category.colour,
-          window_start: scheduleForm.windowStart || null,
-          window_end: scheduleForm.windowEnd || null,
+          name: editForm.name.trim(),
+          icon: editForm.icon,
+          colour: editForm.colour,
+          window_start: editForm.windowStart || null,
+          window_end: editForm.windowEnd || null,
         },
       });
-      setScheduleEditingId(null);
+      setEditingId(null);
       onChanged();
     } catch (err) {
-      setScheduleError(err.message || t('categories.saveError'));
+      setEditError(err.message || t('categories.saveError'));
     } finally {
-      setScheduleSaving(false);
+      setEditSaving(false);
     }
   };
 
@@ -146,15 +158,15 @@ export default function CategoryManageModal({ isOpen, onClose, categories, onCha
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button
-                    onClick={() => toggleScheduleEditor(cat)}
+                    onClick={() => toggleEditor(cat)}
                     className={`p-1.5 rounded transition-colors ${
-                      scheduleEditingId === cat.id
+                      editingId === cat.id
                         ? 'bg-accent/10 text-accent'
                         : 'hover:bg-surface-raised text-muted hover:text-cream'
                     }`}
-                    title={t('categories.editSchedule')}
+                    title={t('categories.editCategory')}
                   >
-                    <Clock size={14} />
+                    <Pencil size={14} />
                   </button>
                   {cat.is_default ? (
                     <span className="text-muted text-[11px] flex-shrink-0">{t('categories.builtIn')}</span>
@@ -175,36 +187,85 @@ export default function CategoryManageModal({ isOpen, onClose, categories, onCha
                 </div>
               </div>
 
-              {scheduleEditingId === cat.id && (
-                <div className="ml-3 p-3 rounded-md bg-surface-raised/30 border border-border/50 space-y-2">
-                  <p className="text-muted text-xs">{t('categories.scheduleWindow')}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-muted text-[10px] font-semibold uppercase">{t('categories.windowStart')}</label>
-                      <input
-                        type="time"
-                        value={scheduleForm.windowStart}
-                        onChange={(e) => setScheduleForm((prev) => ({ ...prev, windowStart: e.target.value }))}
-                        className="field-input text-sm mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-muted text-[10px] font-semibold uppercase">{t('categories.windowEnd')}</label>
-                      <input
-                        type="time"
-                        value={scheduleForm.windowEnd}
-                        onChange={(e) => setScheduleForm((prev) => ({ ...prev, windowEnd: e.target.value }))}
-                        className="field-input text-sm mt-1"
-                      />
+              {editingId === cat.id && (
+                <div className="ml-3 p-3 rounded-md bg-surface-raised/30 border border-border/50 space-y-3">
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => updateEditForm('name', e.target.value)}
+                    placeholder={t('categories.namePlaceholder')}
+                    className="field-input text-sm"
+                  />
+
+                  <div>
+                    <p className="text-muted text-xs font-medium mb-1.5">{t('categories.icon')}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ICON_OPTIONS.map((icon) => (
+                        <button
+                          key={icon}
+                          type="button"
+                          onClick={() => updateEditForm('icon', icon)}
+                          className={`w-8 h-8 rounded-md border flex items-center justify-center transition-colors ${
+                            editForm.icon === icon
+                              ? 'border-accent bg-accent/10 text-accent'
+                              : 'border-border text-muted hover:border-border-light'
+                          }`}
+                        >
+                          <ChoreIcon name={icon} size={14} />
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  {scheduleError && <p className="text-crimson text-xs">{scheduleError}</p>}
+
+                  <div>
+                    <p className="text-muted text-xs font-medium mb-1.5">{t('categories.colour')}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {COLOUR_OPTIONS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => updateEditForm('colour', c)}
+                          className={`w-7 h-7 rounded-full border-2 transition-all ${
+                            editForm.colour === c ? 'border-accent' : 'border-transparent hover:border-border-light'
+                          }`}
+                          style={{ backgroundColor: c }}
+                          aria-label={c}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-muted text-xs">{t('categories.scheduleWindow')}</p>
+                    <div className="grid grid-cols-2 gap-2 mt-1.5">
+                      <div>
+                        <label className="text-muted text-[10px] font-semibold uppercase">{t('categories.windowStart')}</label>
+                        <input
+                          type="time"
+                          value={editForm.windowStart}
+                          onChange={(e) => updateEditForm('windowStart', e.target.value)}
+                          className="field-input text-sm mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-muted text-[10px] font-semibold uppercase">{t('categories.windowEnd')}</label>
+                        <input
+                          type="time"
+                          value={editForm.windowEnd}
+                          onChange={(e) => updateEditForm('windowEnd', e.target.value)}
+                          className="field-input text-sm mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {editError && <p className="text-crimson text-xs">{editError}</p>}
                   <button
-                    onClick={() => handleSaveSchedule(cat)}
-                    disabled={scheduleSaving}
+                    onClick={() => handleSaveCategory(cat)}
+                    disabled={editSaving}
                     className="game-btn game-btn-blue w-full flex items-center justify-center gap-1.5 !py-1.5 !text-xs"
                   >
-                    {scheduleSaving ? <Loader2 size={12} className="animate-spin" /> : <Clock size={12} />}
+                    {editSaving ? <Loader2 size={12} className="animate-spin" /> : <Pencil size={12} />}
                     {t('common.save')}
                   </button>
                 </div>

@@ -992,8 +992,8 @@
     "nameRequired": "Give the category a name.",
     "saveError": "Failed to create category.",
     "deleteError": "Failed to delete category.",
-    "editSchedule": "Display window",
-    "scheduleWindow": "Chores in this category only show on the kid's dashboard during this window. Leave empty to show at any time.",
+    "editCategory": "Edit category",
+    "scheduleWindow": "Display window — chores in this category only show on the kid's dashboard during this window. Leave empty to show at any time.",
     "windowStart": "Start",
     "windowEnd": "End",
     "windowBothRequired": "Fill in both times for the window, or leave both empty."
