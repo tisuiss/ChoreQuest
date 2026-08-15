@@ -509,6 +509,7 @@
     "assignTo": "Assign to",
     "sortOrder": "Display order",
     "sortOrderHint": "Lower numbers show first — use this to build a routine sequence for the kid (e.g. wake up = 1, breakfast = 2, get dressed = 3).",
+    "recurrenceEditHint": "To change the frequency, days, or assigned kids, use the \"Manage\" button on the chore's card.",
     "windowStart": "Time window — start (optional)",
     "windowEnd": "Time window — end (optional)",
     "windowBothRequired": "Fill in both times for the window, or leave both empty.",

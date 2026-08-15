@@ -509,6 +509,7 @@
     "assignTo": "Assigner à",
     "sortOrder": "Ordre d'affichage",
     "sortOrderHint": "Les nombres les plus petits s'affichent en premier — utile pour construire une routine pour l'enfant (ex: se réveiller = 1, petit-déjeuner = 2, s'habiller = 3).",
+    "recurrenceEditHint": "Pour changer la fréquence, les jours ou les enfants assignés, utilise le bouton « Gérer » sur la carte de la corvée.",
     "windowStart": "Créneau — début (optionnel)",
     "windowEnd": "Créneau — fin (optionnel)",
     "windowBothRequired": "Remplis les deux heures du créneau, ou aucune.",

@@ -449,6 +449,11 @@ export default function QuestCreateModal({
         )}
 
         {/* Recurrence + assignment (creation only — edits stay scoped to basic fields, see Gérer for changing this later) */}
+        {editingChore && (
+          <p className="text-muted text-xs -mt-1">
+            {t('questCreate.recurrenceEditHint')}
+          </p>
+        )}
         {!editingChore && (
           <>
             <div>
