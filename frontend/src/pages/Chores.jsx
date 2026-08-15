@@ -30,6 +30,8 @@ import {
   Zap,
   Tag,
   ListOrdered,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 
 const DIFFICULTY_OPTIONS = [
@@ -116,6 +118,7 @@ export default function Chores() {
   const [error, setError] = useState('');
 
   const [activeTab, setActiveTab] = useState('library');
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list' (parent only)
 
   const [filterCategory, setFilterCategory] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('');
@@ -383,13 +386,41 @@ export default function Chores() {
             ))}
           </select>
           {isParent && (
-            <button
-              onClick={() => setShowCategoryModal(true)}
-              className="flex items-center gap-1.5 text-muted hover:text-cream text-sm transition-colors sm:ml-auto"
-            >
-              <Tag size={14} />
-              {t('categories.manage')}
-            </button>
+            <div className="flex items-center gap-1 sm:ml-auto">
+              <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    viewMode === 'grid'
+                      ? 'bg-surface-raised text-cream'
+                      : 'text-muted hover:text-cream'
+                  }`}
+                  title={t('chores.viewGrid')}
+                  aria-label={t('chores.viewGrid')}
+                >
+                  <LayoutGrid size={14} />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    viewMode === 'list'
+                      ? 'bg-surface-raised text-cream'
+                      : 'text-muted hover:text-cream'
+                  }`}
+                  title={t('chores.viewList')}
+                  aria-label={t('chores.viewList')}
+                >
+                  <List size={14} />
+                </button>
+              </div>
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="flex items-center gap-1.5 text-muted hover:text-cream text-sm transition-colors"
+              >
+                <Tag size={14} />
+                {t('categories.manage')}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -427,13 +458,73 @@ export default function Chores() {
                 </div>
                 <h2 className="text-cream text-sm font-semibold">{group.name}</h2>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className={isParent && viewMode === 'list' ? 'space-y-1.5' : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3'}>
                 {group.items.map((chore) => {
             const kidStatus = isKid ? assignmentStatusMap[chore.id] : null;
             const isDone = kidStatus === 'completed' || kidStatus === 'verified';
             const isPending = isKid && (kidStatus === 'pending' || kidStatus === 'assigned');
             const isCompleting = completingId === chore.id;
             const assignCount = chore.assignment_count || 0;
+
+            if (isParent && viewMode === 'list') {
+              return (
+                <div
+                  key={chore.id}
+                  className="flex items-center gap-3 px-3 py-2 rounded-md border border-border bg-surface-raised/20 hover:border-accent/40 transition-colors cursor-pointer"
+                  onClick={() => {
+                    if (activeTab === 'library' && assignCount === 0) {
+                      setAssigningChore(chore);
+                    } else {
+                      navigate(`/chores/${chore.id}`);
+                    }
+                  }}
+                >
+                  <ChoreIcon name={chore.icon || chore.category?.icon} size={16} className="flex-shrink-0 text-muted" />
+                  <span className="text-cream text-sm font-medium truncate flex-1 min-w-0">
+                    {themedTitle(chore.title, colorTheme)}
+                  </span>
+                  <span className="hidden sm:flex items-center gap-1 text-gold text-xs font-medium flex-shrink-0">
+                    <Star size={11} fill="currentColor" />
+                    {chore.points}
+                  </span>
+                  <div className="hidden sm:block flex-shrink-0">
+                    <DifficultyStars level={chore.difficulty || 1} />
+                  </div>
+                  <div className="hidden md:block flex-shrink-0">
+                    <CategoryBadge category={chore.category} />
+                  </div>
+                  <span className="hidden lg:flex items-center gap-1 text-muted text-xs flex-shrink-0" title={t('questCreate.sortOrderHint')}>
+                    <ListOrdered size={11} />
+                    {chore.sort_order ?? 0}
+                  </span>
+                  <span
+                    className={`hidden sm:inline text-xs flex-shrink-0 ${
+                      assignCount > 0 ? 'text-emerald font-medium' : 'text-muted/60'
+                    }`}
+                  >
+                    {assignCount > 0
+                      ? t('chores.assignedCount', { count: assignCount })
+                      : t('chores.unassigned')}
+                  </span>
+                  <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => { setEditingChore(chore); setShowCreateModal(true); }}
+                      className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-accent"
+                      aria-label={t('chores.editQuest')}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(chore)}
+                      className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-crimson"
+                      aria-label={t('chores.deleteQuest')}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div

@@ -451,6 +451,8 @@
     "assignedCount_other": "{{count}} assigned",
     "unassigned": "Unassigned",
     "sortOrderBadge": "Order: {{order}}",
+    "viewGrid": "Grid view",
+    "viewList": "List view",
     "assign": "Assign",
     "manage": "Manage",
     "attachPhoto": "Attach proof photo",

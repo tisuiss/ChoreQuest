@@ -451,6 +451,8 @@
     "assignedCount_other": "{{count}} assignées",
     "unassigned": "Non assignée",
     "sortOrderBadge": "Ordre : {{order}}",
+    "viewGrid": "Vue cadre",
+    "viewList": "Vue liste",
     "assign": "Assigner",
     "manage": "Gérer",
     "attachPhoto": "Joindre une photo justificative",
