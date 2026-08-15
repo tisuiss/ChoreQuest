@@ -714,6 +714,14 @@
     "startsWith": "Commence avec",
     "startsWithHint": "Ce héros reçoit la corvée en premier, puis elle tourne."
   },
+  "choreManage": {
+    "title": "Gérer la corvée",
+    "tabInfo": "Infos",
+    "tabAssign": "Assignation",
+    "tabHistory": "Historique",
+    "tabVacation": "Vacances",
+    "saved": "Enregistré !"
+  },
   "choreDetail": {
     "backToBoard": "Retour au tableau des quêtes",
     "notFound": "Introuvable",

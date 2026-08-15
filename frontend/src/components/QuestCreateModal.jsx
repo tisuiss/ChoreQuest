@@ -7,7 +7,6 @@ import Modal from './Modal';
 import {
   BookTemplate,
   Star,
-  Scroll,
   Image,
   X,
   Loader2,
@@ -55,7 +54,6 @@ export default function QuestCreateModal({
   onClose,
   onCreated,
   categories,
-  editingChore,
   kids = [],
 }) {
   const { t } = useTranslation();
@@ -70,38 +68,19 @@ export default function QuestCreateModal({
 
   useEffect(() => {
     if (isOpen) {
-      if (editingChore) {
-        setForm({
-          ...emptyForm,
-          title: editingChore.title || '',
-          description: editingChore.description || '',
-          points: editingChore.points || 10,
-          difficulty: editingChore.difficulty || 'easy',
-          category_id: editingChore.category_id ? String(editingChore.category_id) : '',
-          photo_url: editingChore.photo_url || null,
-          sort_order: editingChore.sort_order ?? 0,
-          // Not editable here (see "Gérer") but needed to gate the vacation
-          // checkbox's visibility the same way as when creating.
-          recurrence: editingChore.recurrence || 'once',
-          pausesDuringVacation: editingChore.pauses_during_vacation ?? true,
-          windowStart: editingChore.window_start ? editingChore.window_start.slice(0, 5) : '',
-          windowEnd: editingChore.window_end ? editingChore.window_end.slice(0, 5) : '',
-        });
-      } else {
-        setForm({ ...emptyForm });
-      }
+      setForm({ ...emptyForm });
       setFormError('');
       setShowTemplates(false);
     }
-  }, [isOpen, editingChore]);
+  }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && !editingChore) {
+    if (isOpen) {
       api('/api/chores/templates')
         .then((data) => setTemplates(Array.isArray(data) ? data : []))
         .catch(() => setTemplates([]));
     }
-  }, [isOpen, editingChore]);
+  }, [isOpen]);
 
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -191,36 +170,29 @@ export default function QuestCreateModal({
     };
 
     try {
-      if (editingChore) {
-        // Editing only ever touches these basic fields — recurrence and
-        // assignment stay under "Gérer" so an unrelated edit here can't
-        // silently reset or wipe out an existing assignment setup.
-        await api(`/api/chores/${editingChore.id}`, { method: 'PUT', body: baseBody });
-      } else {
-        const customDays = form.recurrence === 'custom' ? form.customDays : null;
-        const created = await api('/api/chores', {
+      const customDays = form.recurrence === 'custom' ? form.customDays : null;
+      const created = await api('/api/chores', {
+        method: 'POST',
+        body: {
+          ...baseBody,
+          recurrence: form.recurrence,
+          custom_days: customDays,
+          requires_photo: false,
+          assigned_user_ids: [],
+        },
+      });
+      if (form.assignedUserIds.length > 0) {
+        await api(`/api/chores/${created.id}/assign`, {
           method: 'POST',
           body: {
-            ...baseBody,
-            recurrence: form.recurrence,
-            custom_days: customDays,
-            requires_photo: false,
-            assigned_user_ids: [],
+            assignments: form.assignedUserIds.map((uid) => ({
+              user_id: uid,
+              recurrence: form.recurrence,
+              custom_days: customDays,
+              requires_photo: false,
+            })),
           },
         });
-        if (form.assignedUserIds.length > 0) {
-          await api(`/api/chores/${created.id}/assign`, {
-            method: 'POST',
-            body: {
-              assignments: form.assignedUserIds.map((uid) => ({
-                user_id: uid,
-                recurrence: form.recurrence,
-                custom_days: customDays,
-                requires_photo: false,
-              })),
-            },
-          });
-        }
       }
       onCreated();
       onClose();
@@ -243,11 +215,11 @@ export default function QuestCreateModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingChore ? t('questCreate.editTitle') : t('questCreate.newTitle')}
+      title={t('questCreate.newTitle')}
       actions={[
         { label: t('common.cancel'), onClick: onClose, className: 'game-btn game-btn-blue' },
         {
-          label: submitting ? t('common.saving') : editingChore ? t('questCreate.updateQuest') : t('questCreate.createQuest'),
+          label: submitting ? t('common.saving') : t('questCreate.createQuest'),
           onClick: handleSubmit,
           className: 'game-btn game-btn-gold',
           disabled: submitting,
@@ -261,60 +233,58 @@ export default function QuestCreateModal({
           </div>
         )}
 
-        {/* Template picker (only when creating) */}
-        {!editingChore && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowTemplates(!showTemplates)}
-              className="flex items-center gap-2 text-accent text-sm hover:text-accent/80 transition-colors"
-            >
-              <BookTemplate size={14} />
-              {showTemplates ? t('questCreate.hideTemplates') : t('questCreate.chooseTemplate')}
-            </button>
+        {/* Template picker */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowTemplates(!showTemplates)}
+            className="flex items-center gap-2 text-accent text-sm hover:text-accent/80 transition-colors"
+          >
+            <BookTemplate size={14} />
+            {showTemplates ? t('questCreate.hideTemplates') : t('questCreate.chooseTemplate')}
+          </button>
 
-            {showTemplates && (
-              <div className="mt-3 max-h-60 overflow-y-auto space-y-3 border border-border rounded-lg p-3 bg-surface-raised/30">
-                {Object.entries(templatesByCategory).map(([cat, tpls]) => (
-                  <div key={cat}>
-                    <p className="text-muted text-xs font-bold mb-1">
-                      {cat}
-                    </p>
-                    <div className="space-y-1">
-                      {tpls.map((tpl) => (
-                        <button
-                          key={tpl.id}
-                          onClick={() => applyTemplate(tpl)}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-raised transition-colors border border-transparent hover:border-accent/30"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-cream text-sm font-medium">
-                              {themedTitle(tpl.title, colorTheme)}
-                            </span>
-                            <span className="flex items-center gap-1 text-gold text-xs">
-                              <Star size={10} className="fill-gold" />
-                              {t('chores.starsCount', { count: tpl.suggested_points })}
-                            </span>
-                          </div>
-                          {tpl.description && (
-                            <p className="text-muted text-xs line-clamp-1 mt-0.5">
-                              {themedDescription(tpl.title, tpl.description, colorTheme)}
-                            </p>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {templates.length === 0 && (
-                  <p className="text-muted text-xs text-center py-3">
-                    {t('questCreate.noTemplates')}
+          {showTemplates && (
+            <div className="mt-3 max-h-60 overflow-y-auto space-y-3 border border-border rounded-lg p-3 bg-surface-raised/30">
+              {Object.entries(templatesByCategory).map(([cat, tpls]) => (
+                <div key={cat}>
+                  <p className="text-muted text-xs font-bold mb-1">
+                    {cat}
                   </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                  <div className="space-y-1">
+                    {tpls.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        onClick={() => applyTemplate(tpl)}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-raised transition-colors border border-transparent hover:border-accent/30"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-cream text-sm font-medium">
+                            {themedTitle(tpl.title, colorTheme)}
+                          </span>
+                          <span className="flex items-center gap-1 text-gold text-xs">
+                            <Star size={10} className="fill-gold" />
+                            {t('chores.starsCount', { count: tpl.suggested_points })}
+                          </span>
+                        </div>
+                        {tpl.description && (
+                          <p className="text-muted text-xs line-clamp-1 mt-0.5">
+                            {themedDescription(tpl.title, tpl.description, colorTheme)}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {templates.length === 0 && (
+                <p className="text-muted text-xs text-center py-3">
+                  {t('questCreate.noTemplates')}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Title */}
         <div>
@@ -448,79 +418,70 @@ export default function QuestCreateModal({
           </label>
         )}
 
-        {/* Recurrence + assignment (creation only — edits stay scoped to basic fields, see Gérer for changing this later) */}
-        {editingChore && (
-          <p className="text-muted text-xs -mt-1">
-            {t('questCreate.recurrenceEditHint')}
-          </p>
-        )}
-        {!editingChore && (
-          <>
-            <div>
-              <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
-                {t('questCreate.recurrence')}
-              </label>
-              <select
-                value={form.recurrence}
-                onChange={(e) => updateForm('recurrence', e.target.value)}
-                className={`${selectClass} w-full p-3`}
-              >
-                {FREQUENCY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {t(opt.labelKey)}
-                  </option>
-                ))}
-              </select>
+        {/* Recurrence */}
+        <div>
+          <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+            {t('questCreate.recurrence')}
+          </label>
+          <select
+            value={form.recurrence}
+            onChange={(e) => updateForm('recurrence', e.target.value)}
+            className={`${selectClass} w-full p-3`}
+          >
+            {FREQUENCY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {form.recurrence === 'custom' && (
+          <div>
+            <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+              {t('questAssign.questDays')}
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {DAY_KEYS.map((key, i) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleCustomDay(i)}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                    form.customDays.includes(i)
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border text-muted hover:border-border-light'
+                  }`}
+                >
+                  {DAY_NAMES[i]}
+                </button>
+              ))}
             </div>
+          </div>
+        )}
 
-            {form.recurrence === 'custom' && (
-              <div>
-                <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
-                  {t('questAssign.questDays')}
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {DAY_KEYS.map((key, i) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => toggleCustomDay(i)}
-                      className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
-                        form.customDays.includes(i)
-                          ? 'border-accent bg-accent/10 text-accent'
-                          : 'border-border text-muted hover:border-border-light'
-                      }`}
-                    >
-                      {DAY_NAMES[i]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {kids.length > 0 && (
-              <div>
-                <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
-                  {t('questCreate.assignTo')}
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {kids.map((kid) => (
-                    <button
-                      key={kid.id}
-                      type="button"
-                      onClick={() => toggleAssignedKid(kid.id)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
-                        form.assignedUserIds.includes(kid.id)
-                          ? 'border-accent bg-accent/10 text-accent'
-                          : 'border-border text-muted hover:border-border-light'
-                      }`}
-                    >
-                      {kid.display_name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+        {kids.length > 0 && (
+          <div>
+            <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+              {t('questCreate.assignTo')}
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {kids.map((kid) => (
+                <button
+                  key={kid.id}
+                  type="button"
+                  onClick={() => toggleAssignedKid(kid.id)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                    form.assignedUserIds.includes(kid.id)
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border text-muted hover:border-border-light'
+                  }`}
+                >
+                  {kid.display_name}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Photo */}

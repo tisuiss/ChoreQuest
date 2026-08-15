@@ -714,6 +714,14 @@
     "startsWith": "Starts With",
     "startsWithHint": "This hero gets the quest first, then it rotates."
   },
+  "choreManage": {
+    "title": "Manage Chore",
+    "tabInfo": "Info",
+    "tabAssign": "Assignment",
+    "tabHistory": "History",
+    "tabVacation": "Vacations",
+    "saved": "Saved!"
+  },
   "choreDetail": {
     "backToBoard": "Back to Quest Board",
     "notFound": "Not Found",

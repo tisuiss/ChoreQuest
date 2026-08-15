@@ -7,14 +7,13 @@ import { useTheme } from '../hooks/useTheme';
 import { themedTitle, themedDescription } from '../utils/questThemeText';
 import Modal from '../components/Modal';
 import QuestCreateModal from '../components/QuestCreateModal';
-import QuestAssignModal from '../components/QuestAssignModal';
+import ChoreManageModal from '../components/ChoreManageModal';
 import CategoryManageModal from '../components/CategoryManageModal';
 import AvatarDisplay from '../components/AvatarDisplay';
 import ChoreIcon from '../components/ChoreIcon';
 import {
   Swords,
   Plus,
-  Pencil,
   Trash2,
   Star,
   RefreshCw,
@@ -137,8 +136,7 @@ export default function Chores() {
   const [showCompleted, setShowCompleted] = useState(false);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingChore, setEditingChore] = useState(null);
-  const [assigningChore, setAssigningChore] = useState(null);
+  const [managingChore, setManagingChore] = useState(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -323,7 +321,7 @@ export default function Chores() {
           )}
           {isParent && (
             <button
-              onClick={() => { setEditingChore(null); setShowCreateModal(true); }}
+              onClick={() => setShowCreateModal(true)}
               className="game-btn game-btn-blue flex items-center gap-1.5"
             >
               <Plus size={14} />
@@ -449,7 +447,7 @@ export default function Chores() {
           </p>
           {isParent && chores.length === 0 && (
             <button
-              onClick={() => { setEditingChore(null); setShowCreateModal(true); }}
+              onClick={() => setShowCreateModal(true)}
               className="game-btn game-btn-blue mt-3 inline-flex items-center gap-1.5"
             >
               <Plus size={14} />
@@ -495,13 +493,7 @@ export default function Chores() {
                 <div
                   key={chore.id}
                   className="flex items-center gap-3 px-3 py-2 rounded-md border border-border bg-surface-raised/20 hover:border-accent/40 transition-colors cursor-pointer"
-                  onClick={() => {
-                    if (activeTab === 'library' && assignCount === 0) {
-                      setAssigningChore(chore);
-                    } else {
-                      navigate(`/chores/${chore.id}`);
-                    }
-                  }}
+                  onClick={() => setManagingChore(chore)}
                 >
                   <ChoreIcon name={chore.icon || chore.category?.icon} size={16} className="flex-shrink-0 text-muted" />
                   <span className="text-cream text-sm font-medium truncate flex-1 min-w-0">
@@ -532,7 +524,7 @@ export default function Chores() {
                   </span>
                   <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                     <button
-                      onClick={() => setAssigningChore(chore)}
+                      onClick={() => setManagingChore(chore)}
                       className={`p-1 rounded-md hover:bg-surface-raised transition-colors text-muted ${
                         assignCount > 0 ? 'hover:text-purple' : 'hover:text-gold'
                       }`}
@@ -540,13 +532,6 @@ export default function Chores() {
                       title={assignCount > 0 ? t('chores.manage') : t('chores.assign')}
                     >
                       <Users size={13} />
-                    </button>
-                    <button
-                      onClick={() => { setEditingChore(chore); setShowCreateModal(true); }}
-                      className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-accent"
-                      aria-label={t('chores.editQuest')}
-                    >
-                      <Pencil size={13} />
                     </button>
                     <button
                       onClick={() => setDeleteTarget(chore)}
@@ -567,8 +552,8 @@ export default function Chores() {
                   isDone ? 'opacity-50' : ''
                 }`}
                 onClick={() => {
-                  if (isParent && activeTab === 'library' && assignCount === 0) {
-                    setAssigningChore(chore);
+                  if (isParent) {
+                    setManagingChore(chore);
                   } else {
                     navigate(`/chores/${chore.id}`);
                   }
@@ -580,29 +565,16 @@ export default function Chores() {
                     {themedTitle(chore.title, colorTheme)}
                   </h3>
                   {isParent && (
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingChore(chore);
-                          setShowCreateModal(true);
-                        }}
-                        className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-accent"
-                        aria-label={t('chores.editQuest')}
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(chore);
-                        }}
-                        className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-crimson"
-                        aria-label={t('chores.deleteQuest')}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(chore);
+                      }}
+                      className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-crimson flex-shrink-0"
+                      aria-label={t('chores.deleteQuest')}
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   )}
                   {isDone && (
                     <CheckCircle2 size={16} className="text-emerald flex-shrink-0" />
@@ -657,30 +629,19 @@ export default function Chores() {
                   )}
                 </div>
 
-                {/* Parent: assign button */}
-                {isParent && activeTab === 'library' && assignCount === 0 && (
+                {/* Parent: manage button */}
+                {isParent && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setAssigningChore(chore);
+                      setManagingChore(chore);
                     }}
-                    className="game-btn game-btn-gold w-full flex items-center justify-center gap-1.5 !text-xs !py-1.5"
+                    className={`game-btn w-full flex items-center justify-center gap-1.5 !text-xs !py-1.5 ${
+                      assignCount > 0 ? 'game-btn-purple' : 'game-btn-gold'
+                    }`}
                   >
                     <Users size={12} />
-                    {t('chores.assign')}
-                  </button>
-                )}
-
-                {isParent && assignCount > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setAssigningChore(chore);
-                    }}
-                    className="game-btn game-btn-purple w-full flex items-center justify-center gap-1.5 !text-xs !py-1.5"
-                  >
-                    <Users size={12} />
-                    {t('chores.manage')}
+                    {assignCount > 0 ? t('chores.manage') : t('chores.assign')}
                   </button>
                 )}
 
@@ -752,19 +713,19 @@ export default function Chores() {
 
       <QuestCreateModal
         isOpen={showCreateModal}
-        onClose={() => { setShowCreateModal(false); setEditingChore(null); }}
+        onClose={() => setShowCreateModal(false)}
         onCreated={fetchChores}
         categories={categories}
-        editingChore={editingChore}
         kids={kids}
       />
 
-      <QuestAssignModal
-        isOpen={!!assigningChore}
-        onClose={() => setAssigningChore(null)}
-        onAssigned={() => { fetchChores(); }}
-        chore={assigningChore}
+      <ChoreManageModal
+        isOpen={!!managingChore}
+        onClose={() => setManagingChore(null)}
+        onChanged={fetchChores}
+        chore={managingChore}
         kids={kids}
+        categories={categories}
       />
 
       <CategoryManageModal
