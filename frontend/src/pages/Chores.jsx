@@ -25,6 +25,7 @@ import {
   EyeOff,
   Loader2,
   Users,
+  Pencil,
   ScrollText,
   Zap,
   Tag,
@@ -531,7 +532,7 @@ export default function Chores() {
                       aria-label={assignCount > 0 ? t('chores.manage') : t('chores.assign')}
                       title={assignCount > 0 ? t('chores.manage') : t('chores.assign')}
                     >
-                      <Users size={13} />
+                      <Pencil size={13} />
                     </button>
                     <button
                       onClick={() => setDeleteTarget(chore)}
@@ -640,7 +641,7 @@ export default function Chores() {
                       assignCount > 0 ? 'game-btn-purple' : 'game-btn-gold'
                     }`}
                   >
-                    <Users size={12} />
+                    <Pencil size={12} />
                     {assignCount > 0 ? t('chores.manage') : t('chores.assign')}
                   </button>
                 )}
