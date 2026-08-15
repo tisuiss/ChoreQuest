@@ -14,6 +14,7 @@ import {
   X,
   Clock,
   Gift,
+  RefreshCw,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -207,6 +208,7 @@ export default function KidDashboard() {
 
   // ui state
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [zoomedPhoto, setZoomedPhoto] = useState(null);
@@ -256,6 +258,12 @@ export default function KidDashboard() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
 
   // ---- WebSocket listener ----
 
@@ -326,7 +334,18 @@ export default function KidDashboard() {
         <div className="relative z-10">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
           <h1 className="text-cream text-lg font-semibold">{t('kidDashboard.title')}</h1>
-          <StreakDisplay streak={user?.current_streak ?? 0} />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-1.5 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-cream"
+              aria-label={t('kidDashboard.refresh')}
+              title={t('kidDashboard.refresh')}
+            >
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+            <StreakDisplay streak={user?.current_streak ?? 0} />
+          </div>
         </div>
 
         {/* Today's progress / stars / malus, split evenly across the same banner height */}

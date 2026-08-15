@@ -480,6 +480,7 @@
     "availableFrom": "Disponible à {{time}}",
     "canAffordReward": "Tu as assez d'étoiles pour « {{title}} » !",
     "viewRewards": "Voir les récompenses",
+    "refresh": "Actualiser",
     "streakFreezeAvailable": "Protection de série disponible",
     "streakFreezeHint": "Ta série sera préservée une fois si tu rates un jour ce mois-ci"
   },
