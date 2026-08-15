@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Star,
@@ -12,6 +13,7 @@ import {
   AlertTriangle,
   X,
   Clock,
+  Gift,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -192,6 +194,7 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
 
 export default function KidDashboard() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
   const { chore_window_enforcement, keep_validated_visible } = useSettings();
@@ -200,6 +203,7 @@ export default function KidDashboard() {
   const [assignments, setAssignments] = useState([]);
   const [chores, setChores] = useState([]);
   const [myStats, setMyStats] = useState(null);
+  const [rewards, setRewards] = useState([]);
 
   // ui state
   const [loading, setLoading] = useState(true);
@@ -223,17 +227,20 @@ export default function KidDashboard() {
         api('/api/chores'),
         api(`/api/calendar?week_start=${monday}`),
         api('/api/stats/me'),
+        api('/api/rewards').catch(() => []),
       ];
 
       const results = await Promise.all(promises);
       const choresRes = results[0];
       const calendarRes = results[1];
       const statsRes = results[2];
+      const rewardsRes = results[3];
       if (statsRes) {
         setMyStats(statsRes);
       }
 
       setChores(choresRes);
+      setRewards(Array.isArray(rewardsRes) ? rewardsRes : []);
 
       // Filter calendar assignments to today and this user only
       const allToday = (calendarRes.days && calendarRes.days[today]) || [];
@@ -298,6 +305,12 @@ export default function KidDashboard() {
   const completedCount = assignments.filter(a => a.status === 'verified' || a.status === 'completed').length;
   const totalCount = assignments.length;
   const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  // Rewards are already sorted cheapest-first by the backend, so the first
+  // match here is the cheapest reward the kid can currently afford.
+  const affordableReward = rewards.find(
+    (r) => (r.point_cost ?? 0) <= (user?.points_balance ?? 0) && !(r.stock != null && r.stock <= 0)
+  );
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
@@ -458,6 +471,28 @@ export default function KidDashboard() {
           </div>
         );
       })()}
+
+      {/* ── Reward affordability banner ── */}
+      {affordableReward && (
+        <motion.div
+          className="game-panel p-3 flex items-center gap-3 border-emerald/30 bg-emerald/5"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Gift size={18} className="text-emerald flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-cream text-xs font-medium">
+              {t('kidDashboard.canAffordReward', { title: themedTitle(affordableReward.title, colorTheme) })}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/rewards')}
+            className="game-btn game-btn-blue !text-xs !py-1.5 flex-shrink-0"
+          >
+            {t('kidDashboard.viewRewards')}
+          </button>
+        </motion.div>
+      )}
 
       {/* ── Enlarged chore photo ── */}
       <AnimatePresence>

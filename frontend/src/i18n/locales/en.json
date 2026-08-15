@@ -478,6 +478,8 @@
     "validated": "Validated!",
     "windowMissed": "Time window missed",
     "availableFrom": "Available at {{time}}",
+    "canAffordReward": "You have enough stars for \"{{title}}\"!",
+    "viewRewards": "View rewards",
     "streakFreezeAvailable": "Streak Freeze Available",
     "streakFreezeHint": "Your streak will be saved once if you miss a day this month"
   },
