@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -194,7 +194,7 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
 // ---------- component ----------
 
 export default function KidDashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
@@ -219,7 +219,15 @@ export default function KidDashboard() {
 
   // ---- data fetching ----
 
+  // Guards against stale responses landing after a newer fetch was already
+  // kicked off — e.g. on the kiosk, switching from one kid to another mid-
+  // request must not let the previous kid's slower response overwrite the
+  // new kid's freshly-loaded data.
+  const requestIdRef = useRef(0);
+
   const fetchData = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    const forUserId = user?.id;
     try {
       setError(null);
       const monday = getMondayOfThisWeek();
@@ -233,6 +241,8 @@ export default function KidDashboard() {
       ];
 
       const results = await Promise.all(promises);
+      if (requestIdRef.current !== requestId) return;
+
       const choresRes = results[0];
       const calendarRes = results[1];
       const statsRes = results[2];
@@ -246,12 +256,13 @@ export default function KidDashboard() {
 
       // Filter calendar assignments to today and this user only
       const allToday = (calendarRes.days && calendarRes.days[today]) || [];
-      const todayAssignments = allToday.filter((a) => a.user_id === user?.id);
+      const todayAssignments = allToday.filter((a) => a.user_id === forUserId);
       setAssignments(todayAssignments);
     } catch (err) {
+      if (requestIdRef.current !== requestId) return;
       setError(err.message || t('kidDashboard.loadError'));
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) setLoading(false);
     }
   }, [user?.id, t]);
 
@@ -320,6 +331,13 @@ export default function KidDashboard() {
     (r) => (r.point_cost ?? 0) <= (user?.points_balance ?? 0) && !(r.stock != null && r.stock <= 0)
   );
 
+  const locale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
+  const todayLabel = new Date().toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
   return (
     <div className="max-w-6xl mx-auto space-y-5">
       {/* ── Confetti overlay ── */}
@@ -333,7 +351,10 @@ export default function KidDashboard() {
       <div className="game-panel p-5 relative overflow-hidden">
         <div className="relative z-10">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-          <h1 className="text-cream text-lg font-semibold">{t('kidDashboard.title')}</h1>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <h1 className="text-cream text-lg font-semibold">{t('kidDashboard.title')}</h1>
+            <span className="text-muted text-xs capitalize">{todayLabel}</span>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
