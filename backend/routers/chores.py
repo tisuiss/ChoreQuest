@@ -43,6 +43,7 @@ from backend.schemas import (
     QuestFeedbackRequest,
     ChoreVacationCreate,
     ChoreVacationResponse,
+    AssignmentStatusUpdate,
 )
 from backend.config import settings
 from backend.dependencies import get_current_user, require_parent
@@ -1524,6 +1525,94 @@ async def skip_assignment(
         )
 
     assignment.status = AssignmentStatus.skipped
+    assignment.updated_at = now
+    await db.commit()
+
+    await ws_manager.broadcast(_CHORE_CHANGED, exclude_user=user.id)
+
+    assignment = await _reload_assignment_with_relations(db, assignment.id)
+    return AssignmentResponse.model_validate(assignment)
+
+
+async def _reverse_assignment_transactions(db: AsyncSession, assignment: ChoreAssignment) -> None:
+    """Undo any points already earned/deducted for this assignment (both a
+    chore_complete award and a decline malus are tied to it via
+    reference_id), refunding/reclaiming the balance accordingly.
+
+    Used before re-applying a different status so switching between any of
+    the four states always leaves a consistent balance, no matter which
+    state it's coming from.
+    """
+    tx_result = await db.execute(
+        select(PointTransaction).where(
+            PointTransaction.reference_id == assignment.id,
+            PointTransaction.type.in_([PointType.chore_complete, PointType.bonus]),
+        )
+    )
+    transactions = tx_result.scalars().all()
+    if not transactions:
+        return
+
+    total = sum(tx.amount for tx in transactions)
+    user_result = await db.execute(select(User).where(User.id == assignment.user_id))
+    kid = user_result.scalar_one()
+    kid.points_balance = max(0, kid.points_balance - total)
+
+    for tx in transactions:
+        await db.delete(tx)
+
+
+@router.post("/assignments/{assignment_id}/set-status", response_model=AssignmentResponse)
+async def set_assignment_status(
+    assignment_id: int,
+    body: AssignmentStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    """Directly set an assignment's status — a parent correction tool for
+    the history view (to do / done / not done / skip), usable regardless of
+    the assignment's current status or date.
+    """
+    result = await db.execute(
+        select(ChoreAssignment)
+        .where(ChoreAssignment.id == assignment_id)
+        .options(selectinload(ChoreAssignment.chore))
+    )
+    assignment = result.scalar_one_or_none()
+    if assignment is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    chore = assignment.chore
+    now = datetime.now(timezone.utc)
+
+    await _reverse_assignment_transactions(db, assignment)
+    assignment.completed_at = None
+    assignment.verified_at = None
+    assignment.verified_by = None
+
+    if body.status == AssignmentStatus.pending:
+        assignment.status = AssignmentStatus.pending
+    elif body.status == AssignmentStatus.completed:
+        assignment.status = AssignmentStatus.completed
+        assignment.completed_at = now
+    elif body.status == AssignmentStatus.skipped:
+        assignment.status = AssignmentStatus.skipped
+        if body.malus and chore.points > 0:
+            kid_result = await db.execute(select(User).where(User.id == assignment.user_id))
+            kid = kid_result.scalar_one()
+            malus_amount = min(chore.points, kid.points_balance)
+            if malus_amount > 0:
+                kid.points_balance -= malus_amount
+                db.add(PointTransaction(
+                    user_id=assignment.user_id,
+                    amount=-malus_amount,
+                    type=PointType.bonus,
+                    description=f"Not done: {chore.title}",
+                    reference_id=assignment.id,
+                ))
+    else:  # verified
+        await _finalize_verification(db, assignment, chore, verified_by=user.id)
+
     assignment.updated_at = now
     await db.commit()
 

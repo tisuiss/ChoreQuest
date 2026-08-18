@@ -236,6 +236,11 @@ class BonusRequest(BaseModel):
     description: str
 
 
+class AssignmentStatusUpdate(BaseModel):
+    status: AssignmentStatus
+    malus: bool = False
+
+
 class AdjustRequest(BaseModel):
     amount: int
     description: str

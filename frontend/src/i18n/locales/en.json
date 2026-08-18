@@ -92,7 +92,17 @@
     "quarterLabel": "Q{{quarter}} {{year}}",
     "deleteEntry": "Delete this entry",
     "deleteConfirm": "Delete \"{{description}}\" ({{amount}} stars)? The kid's balance will be adjusted accordingly.",
-    "deleteError": "Failed to delete this entry"
+    "deleteError": "Failed to delete this entry",
+    "tabTasks": "Chores",
+    "tabTransactions": "Stars",
+    "previousDay": "Previous day",
+    "nextDay": "Next day",
+    "noTasksThisDay": "No chores scheduled this day.",
+    "statusToDo": "To do",
+    "statusDone": "Done",
+    "statusNotDone": "Not done",
+    "statusSkip": "Skip",
+    "statusError": "Failed to change this chore's status"
   },
   "settings": {
     "profile": "Profile",

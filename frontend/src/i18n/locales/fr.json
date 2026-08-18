@@ -92,7 +92,17 @@
     "quarterLabel": "T{{quarter}} {{year}}",
     "deleteEntry": "Supprimer cette entrée",
     "deleteConfirm": "Supprimer « {{description}} » ({{amount}} étoiles) ? Le solde de l'enfant sera ajusté en conséquence.",
-    "deleteError": "Impossible de supprimer cette entrée"
+    "deleteError": "Impossible de supprimer cette entrée",
+    "tabTasks": "Corvées",
+    "tabTransactions": "Étoiles",
+    "previousDay": "Jour précédent",
+    "nextDay": "Jour suivant",
+    "noTasksThisDay": "Aucune corvée prévue ce jour-là.",
+    "statusToDo": "À faire",
+    "statusDone": "Fait",
+    "statusNotDone": "Pas fait",
+    "statusSkip": "Passer",
+    "statusError": "Impossible de changer le statut de cette corvée"
   },
   "settings": {
     "profile": "Profil",
