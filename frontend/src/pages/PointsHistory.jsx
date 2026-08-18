@@ -13,6 +13,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Clock,
   CheckCircle2,
   XCircle,
@@ -221,6 +222,16 @@ export default function PointsHistory() {
   const [tasksLoading, setTasksLoading] = useState(true);
   const [tasksError, setTasksError] = useState('');
   const [statusLoading, setStatusLoading] = useState(null);
+  const [expandedCategories, setExpandedCategories] = useState(new Set()); // closed by default
+
+  const toggleCategory = (key) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // ---- transactions tab ----
   const [transactions, setTransactions] = useState([]);
@@ -445,9 +456,19 @@ export default function PointsHistory() {
             </div>
           ) : (
             <div className="space-y-5">
-              {taskGroups.map((group) => (
+              {taskGroups.map((group) => {
+                const isExpanded = expandedCategories.has(group.key);
+                return (
                 <div key={group.key} className="space-y-2">
-                  <div className="flex items-center gap-2 px-1">
+                  <button
+                    onClick={() => toggleCategory(group.key)}
+                    className="flex items-center gap-2 px-1 w-full text-left hover:opacity-80 transition-opacity"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown size={14} className="text-muted flex-shrink-0" />
+                    ) : (
+                      <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                    )}
                     <div
                       className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
                       style={{ backgroundColor: `${group.colour}26`, color: group.colour }}
@@ -455,7 +476,9 @@ export default function PointsHistory() {
                       <ChoreIcon name={group.icon} size={13} />
                     </div>
                     <h2 className="text-cream text-sm font-semibold">{group.name}</h2>
-                  </div>
+                    <span className="text-muted text-xs">({group.items.length})</span>
+                  </button>
+                  {isExpanded && (
                   <div className="space-y-1.5">
                     {group.items.map((assignment) => (
                       <TaskStatusRow
@@ -469,8 +492,10 @@ export default function PointsHistory() {
                       />
                     ))}
                   </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
