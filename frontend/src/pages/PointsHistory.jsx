@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   XCircle,
   SkipForward,
+  Pencil,
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import ChoreIcon from '../components/ChoreIcon';
@@ -268,12 +269,7 @@ const STATUS_BUTTONS = [
 function TaskStatusRow({ assignment, showKidName, statusLoading, onSetStatus, onManage, colorTheme, t }) {
   const chore = assignment.chore;
   return (
-    <div
-      onClick={() => chore && onManage(chore)}
-      className={`p-2.5 rounded-md border border-border/50 bg-surface-raised/20 ${
-        chore ? 'cursor-pointer hover:border-accent/40 transition-colors' : ''
-      }`}
-    >
+    <div className="p-2.5 rounded-md border border-border/50 bg-surface-raised/20">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
           <p className="text-cream text-sm truncate">
@@ -283,12 +279,24 @@ function TaskStatusRow({ assignment, showKidName, statusLoading, onSetStatus, on
             <p className="text-purple text-xs font-medium truncate">{assignment.user?.display_name}</p>
           )}
         </div>
-        <span className="flex items-center gap-1 text-gold text-xs font-medium flex-shrink-0">
-          <Star size={10} fill="currentColor" />
-          {chore?.points ?? 0}
-        </span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="flex items-center gap-1 text-gold text-xs font-medium">
+            <Star size={10} fill="currentColor" />
+            {chore?.points ?? 0}
+          </span>
+          {chore && (
+            <button
+              onClick={() => onManage(chore)}
+              className="p-1 rounded-md text-muted hover:text-cream hover:bg-surface-raised transition-colors"
+              aria-label={t('chores.manage')}
+              title={t('chores.manage')}
+            >
+              <Pencil size={13} />
+            </button>
+          )}
+        </div>
       </div>
-      <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <div className="flex flex-wrap gap-1.5">
         {STATUS_BUTTONS.map((btn) => {
           const key = `${assignment.id}:${btn.status}:${btn.malus ? 1 : 0}`;
           const isActive = btn.status === 'skipped'
