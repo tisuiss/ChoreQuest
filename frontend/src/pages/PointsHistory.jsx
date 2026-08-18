@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import ChoreIcon from '../components/ChoreIcon';
+import ChoreManageModal from '../components/ChoreManageModal';
 
 // Format using local date components — toISOString() would shift the date
 // by the UTC offset (e.g. back a day for UTC+1/+2 timezones like France).
@@ -42,6 +43,111 @@ function mondayOf(dateStr) {
   const dayOfWeek = d.getDay(); // 0=Sun..6=Sat
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   return addDays(dateStr, mondayOffset);
+}
+
+const MINI_CAL_DAY_KEYS = [
+  'calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed',
+  'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun',
+];
+
+// Compact popover calendar — click the day label in the day navigator to
+// jump straight to any date, instead of stepping one day at a time.
+function DayPickerPopover({ value, onChange, label, locale, t }) {
+  const [open, setOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => new Date(value + 'T00:00:00'));
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (open) setViewDate(new Date(value + 'T00:00:00'));
+  }, [open, value]);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthLabel = viewDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+  const firstOfMonth = new Date(year, month, 1);
+  const firstWeekday = (firstOfMonth.getDay() + 6) % 7; // 0 = Monday
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const todayIso = toISO(new Date());
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-cream text-sm min-w-[180px] text-center capitalize hover:text-accent transition-colors"
+      >
+        {label}
+      </button>
+
+      {open && (
+        <div className="absolute z-20 top-full mt-1 left-1/2 -translate-x-1/2 p-3 rounded-lg border border-border bg-surface shadow-lg w-64">
+          <div className="flex items-center justify-between mb-2">
+            <button
+              type="button"
+              onClick={() => setViewDate(new Date(year, month - 1, 1))}
+              className="p-1 text-muted hover:text-cream transition-colors"
+              aria-label={t('common.previousMonth')}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-cream text-xs font-semibold capitalize">{monthLabel}</span>
+            <button
+              type="button"
+              onClick={() => setViewDate(new Date(year, month + 1, 1))}
+              className="p-1 text-muted hover:text-cream transition-colors"
+              aria-label={t('common.nextMonth')}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 mb-1">
+            {MINI_CAL_DAY_KEYS.map((k) => (
+              <span key={k} className="text-muted text-[9px] font-semibold uppercase text-center">
+                {t(k)}
+              </span>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map((d, i) => {
+              if (!d) return <span key={i} />;
+              const iso = toISO(d);
+              const isSelected = value === iso;
+              const isToday = iso === todayIso;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => { onChange(iso); setOpen(false); }}
+                  className={`w-8 h-8 rounded-md text-xs flex items-center justify-center transition-colors ${
+                    isSelected
+                      ? 'bg-accent text-navy font-semibold'
+                      : isToday
+                        ? 'border border-accent/50 text-cream hover:bg-surface-raised'
+                        : 'text-cream hover:bg-surface-raised'
+                  }`}
+                >
+                  {d.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Group a day's assignments by category (sorted by parent-defined display
@@ -159,10 +265,15 @@ const STATUS_BUTTONS = [
   { status: 'skipped', malus: false, labelKey: 'pointsHistory.statusSkip', icon: SkipForward, activeClass: 'border-border bg-surface-raised text-cream' },
 ];
 
-function TaskStatusRow({ assignment, showKidName, statusLoading, onSetStatus, colorTheme, t }) {
+function TaskStatusRow({ assignment, showKidName, statusLoading, onSetStatus, onManage, colorTheme, t }) {
   const chore = assignment.chore;
   return (
-    <div className="p-2.5 rounded-md border border-border/50 bg-surface-raised/20">
+    <div
+      onClick={() => chore && onManage(chore)}
+      className={`p-2.5 rounded-md border border-border/50 bg-surface-raised/20 ${
+        chore ? 'cursor-pointer hover:border-accent/40 transition-colors' : ''
+      }`}
+    >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
           <p className="text-cream text-sm truncate">
@@ -177,7 +288,7 @@ function TaskStatusRow({ assignment, showKidName, statusLoading, onSetStatus, co
           {chore?.points ?? 0}
         </span>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
         {STATUS_BUTTONS.map((btn) => {
           const key = `${assignment.id}:${btn.status}:${btn.malus ? 1 : 0}`;
           const isActive = btn.status === 'skipped'
@@ -214,6 +325,7 @@ export default function PointsHistory() {
 
   const [tab, setTab] = useState('tasks'); // 'tasks' | 'transactions'
   const [kids, setKids] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [selectedKidFilter, setSelectedKidFilter] = useState('');
 
   // ---- tasks tab ----
@@ -223,6 +335,7 @@ export default function PointsHistory() {
   const [tasksError, setTasksError] = useState('');
   const [statusLoading, setStatusLoading] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState(new Set()); // closed by default
+  const [managingChore, setManagingChore] = useState(null);
 
   const toggleCategory = (key) => {
     setExpandedCategories((prev) => {
@@ -243,7 +356,10 @@ export default function PointsHistory() {
 
   useEffect(() => {
     if (!isParent) return;
-    api('/api/stats/kids').then((data) => setKids(data || [])).catch(() => setKids([]));
+    api('/api/stats/family').then((data) => setKids(Array.isArray(data) ? data : [])).catch(() => setKids([]));
+    api('/api/chores/categories')
+      .then((data) => setCategories(Array.isArray(data) ? data : data.categories || []))
+      .catch(() => setCategories([]));
     api('/api/admin/settings')
       .then((data) => {
         setResetSettings({
@@ -419,9 +535,7 @@ export default function PointsHistory() {
             >
               <ChevronLeft size={20} />
             </button>
-            <span className="text-cream text-sm min-w-[180px] text-center capitalize">
-              {dayLabel}
-            </span>
+            <DayPickerPopover value={taskDate} onChange={setTaskDate} label={dayLabel} locale={locale} t={t} />
             <button
               onClick={() => setTaskDate((d) => addDays(d, 1))}
               className="p-2 rounded hover:bg-surface-raised transition-colors text-muted hover:text-cream"
@@ -487,6 +601,7 @@ export default function PointsHistory() {
                         showKidName={!selectedKidFilter}
                         statusLoading={statusLoading}
                         onSetStatus={handleSetStatus}
+                        onManage={setManagingChore}
                         colorTheme={colorTheme}
                         t={t}
                       />
@@ -581,6 +696,16 @@ export default function PointsHistory() {
           })}
         </p>
       </Modal>
+
+      {/* Chore management */}
+      <ChoreManageModal
+        isOpen={!!managingChore}
+        onClose={() => setManagingChore(null)}
+        onChanged={fetchDayAssignments}
+        chore={managingChore}
+        kids={kids}
+        categories={categories}
+      />
     </div>
   );
 }
