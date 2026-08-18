@@ -12,6 +12,9 @@ import {
   Loader2,
   AlertTriangle,
   X,
+  XCircle,
+  ThumbsUp,
+  ThumbsDown,
   Clock,
   Gift,
   RefreshCw,
@@ -82,11 +85,12 @@ const cardVariants = {
 
 // ---------- chore card ----------
 
-function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoChange, onComplete, onZoomPhoto, colorTheme, enforcement, t }) {
+function ChoreActionCard({ chore, status, idx, completing, declining, photoFile, onPhotoChange, onComplete, onDecline, onZoomPhoto, colorTheme, enforcement, thumbsMode, malusMode, t }) {
   const categoryColor = chore.category?.colour || '#14b8a6';
   const iconName = chore.icon || chore.category?.icon;
   const needsPhoto = chore.requires_photo && !photoFile;
   const isValidated = status === 'completed' || status === 'verified';
+  const isDeclined = status === 'skipped';
 
   const hasWindow = Boolean(chore.window_start && chore.window_end);
   const windowLabel = hasWindow
@@ -96,8 +100,8 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
   const nowStr = hasWindow && strict ? nowTimeString() : null;
   const beforeWindow = strict && hasWindow && nowStr < chore.window_start;
   const afterWindow = strict && hasWindow && nowStr > chore.window_end;
-  const isGrayed = beforeWindow && !isValidated;
-  const isMissedWindow = afterWindow && !isValidated;
+  const isGrayed = beforeWindow && !isValidated && !isDeclined;
+  const isMissedWindow = afterWindow && !isValidated && !isDeclined;
 
   return (
     <motion.div
@@ -150,7 +154,7 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
         </span>
       )}
 
-      {!isValidated && !isGrayed && !isMissedWindow && chore.requires_photo && (
+      {!isValidated && !isDeclined && !isGrayed && !isMissedWindow && chore.requires_photo && (
         <label className="inline-flex items-center gap-1.5 text-[11px] text-muted cursor-pointer hover:text-cream transition-colors bg-surface-raised px-2 py-1 rounded-md border border-border w-full justify-center">
           <Camera size={11} />
           <span className="truncate">{photoFile ? photoFile.name : t('chores.attachPhoto')}</span>
@@ -164,6 +168,11 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
             <CheckCircle2 size={14} />
             {t('kidDashboard.validated')}
           </div>
+        ) : isDeclined ? (
+          <div className="rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 bg-surface-raised text-muted border border-border">
+            <XCircle size={14} />
+            {t('kidDashboard.declined')}
+          </div>
         ) : isMissedWindow ? (
           <div className="rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 bg-crimson/15 text-crimson border border-crimson/40">
             <Clock size={14} />
@@ -175,16 +184,59 @@ function ChoreActionCard({ chore, status, idx, completing, photoFile, onPhotoCha
             {t('kidDashboard.availableFrom', { time: chore.window_start.slice(0, 5) })}
           </div>
         ) : (
-          <button
-            onClick={onComplete}
-            disabled={completing || needsPhoto}
-            className={`w-full rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 transition-opacity bg-emerald text-navy ${
-              completing || needsPhoto ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90'
-            }`}
-          >
-            {completing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-            {t('common.yes')}
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              onClick={onComplete}
+              disabled={completing || declining || needsPhoto}
+              aria-label={t('common.yes')}
+              title={t('common.yes')}
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 transition-opacity bg-emerald text-navy ${
+                completing || declining || needsPhoto ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90'
+              }`}
+            >
+              {completing ? (
+                <Loader2 size={thumbsMode ? 20 : 14} className="animate-spin" />
+              ) : thumbsMode ? (
+                <ThumbsUp size={20} fill="currentColor" />
+              ) : (
+                <>
+                  <CheckCircle2 size={14} />
+                  {t('common.yes')}
+                </>
+              )}
+            </button>
+            <button
+              onClick={onDecline}
+              disabled={completing || declining}
+              aria-label={t('common.no')}
+              title={
+                malusMode === 'malus' && chore.points > 0
+                  ? t('kidDashboard.declineMalusHint', { points: chore.points })
+                  : t('common.no')
+              }
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold flex flex-col items-center justify-center gap-0.5 transition-opacity bg-surface-raised text-muted border border-border ${
+                completing || declining ? 'opacity-40 cursor-not-allowed' : 'hover:text-crimson hover:border-crimson/40'
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                {declining ? (
+                  <Loader2 size={thumbsMode ? 20 : 14} className="animate-spin" />
+                ) : thumbsMode ? (
+                  <ThumbsDown size={20} fill="currentColor" />
+                ) : (
+                  <>
+                    <XCircle size={14} />
+                    {t('common.no')}
+                  </>
+                )}
+              </span>
+              {malusMode === 'malus' && chore.points > 0 && (
+                <span className="text-[10px] font-medium text-crimson/80">
+                  -{chore.points}
+                </span>
+              )}
+            </button>
+          </div>
         )}
       </div>
     </motion.div>
@@ -198,7 +250,7 @@ export default function KidDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
-  const { chore_window_enforcement, keep_validated_visible } = useSettings();
+  const { chore_window_enforcement, keep_validated_visible, kid_thumbs_buttons, decline_malus_mode } = useSettings();
 
   // data state
   const [assignments, setAssignments] = useState([]);
@@ -215,6 +267,7 @@ export default function KidDashboard() {
 
   // completion state
   const [completingId, setCompletingId] = useState(null);
+  const [decliningId, setDecliningId] = useState(null);
   const [photoFiles, setPhotoFiles] = useState({});
 
   // ---- data fetching ----
@@ -308,6 +361,20 @@ export default function KidDashboard() {
       setError(err.message || t('chores.completeError'));
     } finally {
       setCompletingId(null);
+    }
+  };
+
+  const handleDecline = async (chore) => {
+    const choreId = chore.id;
+    setDecliningId(choreId);
+    try {
+      await api(`/api/chores/${choreId}/decline`, { method: 'POST' });
+      setPhotoFiles((prev) => { const next = { ...prev }; delete next[choreId]; return next; });
+      await fetchData();
+    } catch (err) {
+      setError(err.message || t('chores.completeError'));
+    } finally {
+      setDecliningId(null);
     }
   };
 
@@ -408,13 +475,13 @@ export default function KidDashboard() {
         </div>
       )}
 
-      {/* ── Today's quest cards, grouped by category (pending always shown; validated shown
-          only if the family keeps them visible; skipped always stay hidden) ── */}
+      {/* ── Today's quest cards, grouped by category (pending always shown; resolved
+          ones — validated or declined — shown only if the family keeps them visible) ── */}
       {(() => {
         const todaysAssignments = assignments.filter((a) => {
           if (!isWithinCategoryWindow(a.chore?.category)) return false;
           if (a.status === 'pending' || a.status === 'assigned') return true;
-          if (a.status === 'completed' || a.status === 'verified') return keep_validated_visible;
+          if (a.status === 'completed' || a.status === 'verified' || a.status === 'skipped') return keep_validated_visible;
           return false;
         });
 
@@ -490,6 +557,7 @@ export default function KidDashboard() {
                         status={assignment.status}
                         idx={idx}
                         completing={completingId === chore.id}
+                        declining={decliningId === chore.id}
                         photoFile={photoFiles[chore.id]}
                         onPhotoChange={(e) =>
                           setPhotoFiles((prev) => ({
@@ -498,9 +566,12 @@ export default function KidDashboard() {
                           }))
                         }
                         onComplete={() => handleComplete(chore)}
+                        onDecline={() => handleDecline(chore)}
                         onZoomPhoto={(url, title) => setZoomedPhoto({ url, title })}
                         colorTheme={colorTheme}
                         enforcement={chore_window_enforcement}
+                        thumbsMode={kid_thumbs_buttons}
+                        malusMode={decline_malus_mode}
                         t={t}
                       />
                     );

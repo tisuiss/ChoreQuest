@@ -303,6 +303,7 @@ async def get_feature_settings(
     feature_keys = [
         "leaderboard_enabled", "chore_trading_enabled", "achievements_enabled",
         "chore_window_enforcement", "keep_validated_visible",
+        "kid_thumbs_buttons", "decline_malus_mode",
     ]
     result = await db.execute(
         select(AppSetting).where(AppSetting.key.in_(feature_keys))
@@ -311,6 +312,8 @@ async def get_feature_settings(
     # Return with defaults for any missing keys
     features = {k: "true" for k in feature_keys}
     features["chore_window_enforcement"] = "indicative"
+    features["kid_thumbs_buttons"] = "false"
+    features["decline_malus_mode"] = "none"
     for s in settings_list:
         features[s.key] = s.value
     return features

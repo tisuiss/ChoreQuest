@@ -7,6 +7,8 @@ const SettingsContext = createContext({
   achievements_enabled: true,
   chore_window_enforcement: 'indicative',
   keep_validated_visible: true,
+  kid_thumbs_buttons: false,
+  decline_malus_mode: 'none',
 });
 
 export function SettingsProvider({ children }) {
@@ -16,6 +18,8 @@ export function SettingsProvider({ children }) {
     achievements_enabled: true,
     chore_window_enforcement: 'indicative',
     keep_validated_visible: true,
+    kid_thumbs_buttons: false,
+    decline_malus_mode: 'none',
   });
 
   const fetchFeatures = useCallback(async () => {
@@ -27,6 +31,8 @@ export function SettingsProvider({ children }) {
         achievements_enabled: data.achievements_enabled !== 'false',
         chore_window_enforcement: data.chore_window_enforcement === 'strict' ? 'strict' : 'indicative',
         keep_validated_visible: data.keep_validated_visible !== 'false',
+        kid_thumbs_buttons: data.kid_thumbs_buttons === 'true',
+        decline_malus_mode: data.decline_malus_mode === 'malus' ? 'malus' : 'none',
       });
     } catch {
       // If fetch fails, keep defaults (all enabled)

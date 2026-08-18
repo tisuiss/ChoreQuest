@@ -13,6 +13,7 @@ import {
   Globe,
   Clock,
   RotateCcw,
+  XCircle,
 } from 'lucide-react';
 import VacationSettings from '../components/VacationSettings';
 import { SUPPORTED_LANGUAGES } from '../hooks/useLanguage';
@@ -238,7 +239,15 @@ export default function Settings() {
                 onChange={(v) => updateSetting('keep_validated_visible', v)}
                 label={t('settings.keepValidatedVisible')}
               />
+              <ToggleSwitch
+                enabled={settings.kid_thumbs_buttons ?? false}
+                onChange={(v) => updateSetting('kid_thumbs_buttons', v)}
+                label={t('settings.kidThumbsButtons')}
+              />
             </div>
+            <p className="text-muted text-xs mt-2">
+              {t('settings.kidThumbsButtonsHint')}
+            </p>
           </div>
 
           {/* Family default language */}
@@ -327,6 +336,35 @@ export default function Settings() {
                   onClick={() => updateSetting('chore_window_enforcement', opt.id)}
                   className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     (settings.chore_window_enforcement ?? 'indicative') === opt.id
+                      ? 'bg-surface-raised text-cream'
+                      : 'text-muted hover:text-cream'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Task not done handling */}
+          <div className="game-panel p-4">
+            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+              <XCircle size={16} className="text-muted" />
+              {t('settings.declineHandling')}
+            </h2>
+            <p className="text-muted text-xs mb-3">
+              {t('settings.declineHandlingHint')}
+            </p>
+            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+              {[
+                { id: 'none', label: t('settings.declineModeNone') },
+                { id: 'malus', label: t('settings.declineModeMalus') },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => updateSetting('decline_malus_mode', opt.id)}
+                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
+                    (settings.decline_malus_mode ?? 'none') === opt.id
                       ? 'bg-surface-raised text-cream'
                       : 'text-muted hover:text-cream'
                   }`}

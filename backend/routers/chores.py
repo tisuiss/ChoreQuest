@@ -1094,6 +1094,67 @@ async def complete_chore(
     return AssignmentResponse.model_validate(assignment)
 
 
+@router.post("/{chore_id}/decline", response_model=AssignmentResponse)
+async def decline_chore(
+    chore_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Kid-facing 'No' — marks today's own assignment as not done.
+
+    Never awards points. If the family's "decline_malus_mode" setting is
+    "malus", also deducts stars equal to what completing the chore would
+    have earned — clamped to the kid's current balance so it never goes
+    negative, since this is a system action the kid can't be blocked from.
+    """
+    today = date.today()
+    now = datetime.now(timezone.utc)
+
+    result = await db.execute(
+        select(ChoreAssignment)
+        .where(
+            ChoreAssignment.chore_id == chore_id,
+            ChoreAssignment.user_id == user.id,
+            ChoreAssignment.date == today,
+            ChoreAssignment.status == AssignmentStatus.pending,
+        )
+        .options(selectinload(ChoreAssignment.chore))
+    )
+    assignment = result.scalar_one_or_none()
+    if assignment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No pending assignment found for this chore today",
+        )
+
+    chore = assignment.chore
+    assignment.status = AssignmentStatus.skipped
+    assignment.updated_at = now
+
+    malus_setting_result = await db.execute(
+        select(AppSetting).where(AppSetting.key == "decline_malus_mode")
+    )
+    malus_setting = malus_setting_result.scalar_one_or_none()
+    if malus_setting is not None and malus_setting.value == "malus" and chore.points > 0:
+        malus_amount = min(chore.points, user.points_balance)
+        if malus_amount > 0:
+            user.points_balance -= malus_amount
+            db.add(PointTransaction(
+                user_id=user.id,
+                amount=-malus_amount,
+                type=PointType.bonus,
+                description=f"Not done: {chore.title}",
+                reference_id=assignment.id,
+            ))
+
+    await db.commit()
+
+    await ws_manager.broadcast(_CHORE_CHANGED, exclude_user=user.id)
+
+    assignment = await _reload_assignment_with_relations(db, assignment.id)
+    return AssignmentResponse.model_validate(assignment)
+
+
 async def _finalize_verification(
     db: AsyncSession,
     assignment: ChoreAssignment,
