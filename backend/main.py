@@ -16,7 +16,17 @@ from backend.database import init_db, async_session
 from backend.seed import seed_database
 from backend.auth import decode_access_token
 from backend.websocket_manager import ws_manager
-from backend.models import RefreshToken, User, UserRole, AppSetting, PointTransaction, PointType
+from backend.models import (
+    RefreshToken,
+    User,
+    UserRole,
+    AppSetting,
+    PointTransaction,
+    PointType,
+    ChoreAssignment,
+    AssignmentStatus,
+)
+from sqlalchemy.orm import selectinload
 from backend.services.assignment_generator import generate_daily_assignments
 from backend.services.family_timezone import apply_family_timezone
 from backend.services.push_hook import install_push_hooks
@@ -163,6 +173,59 @@ async def maybe_reset_points(db, today: date):
     logger.info("Periodic points reset applied to %d kid(s)", len(kids))
 
 
+async def mark_yesterdays_leftovers_as_not_done(db, today: date):
+    """Auto-close out any quest still pending from yesterday as "not done".
+
+    Only looks at yesterday (not an unbounded backlog) so a pre-existing
+    pile of old stale assignments never gets swept up and mass-penalized
+    the first time this runs -- it only ever catches the one day that just
+    ended. Applies the family's decline-malus setting the same way the
+    kid's own "No" button and a parent's manual status change do.
+    """
+    yesterday = today - timedelta(days=1)
+
+    malus_setting_result = await db.execute(
+        select(AppSetting).where(AppSetting.key == "decline_malus_mode")
+    )
+    malus_setting = malus_setting_result.scalar_one_or_none()
+    apply_malus = malus_setting is not None and malus_setting.value == "malus"
+
+    result = await db.execute(
+        select(ChoreAssignment)
+        .where(
+            ChoreAssignment.status == AssignmentStatus.pending,
+            ChoreAssignment.date == yesterday,
+        )
+        .options(selectinload(ChoreAssignment.chore))
+    )
+    assignments = result.scalars().all()
+    if not assignments:
+        return
+
+    now = datetime.now(timezone.utc)
+    for assignment in assignments:
+        assignment.status = AssignmentStatus.skipped
+        assignment.updated_at = now
+
+        chore = assignment.chore
+        if apply_malus and chore is not None and chore.points > 0:
+            kid_result = await db.execute(select(User).where(User.id == assignment.user_id))
+            kid = kid_result.scalar_one_or_none()
+            if kid is not None:
+                malus_amount = min(chore.points, kid.points_balance)
+                if malus_amount > 0:
+                    kid.points_balance -= malus_amount
+                    db.add(PointTransaction(
+                        user_id=assignment.user_id,
+                        amount=-malus_amount,
+                        type=PointType.bonus,
+                        description=f"Not done: {chore.title}",
+                        reference_id=assignment.id,
+                    ))
+
+    logger.info("Marked %d leftover assignment(s) from %s as not done", len(assignments), yesterday)
+
+
 async def daily_reset_task():
     """Background task that runs once per day at the configured hour.
 
@@ -196,6 +259,9 @@ async def daily_reset_task():
         try:
             async with async_session() as db:
                 today = date.today()
+
+                # Auto-close out yesterday's still-pending quests as "not done"
+                await mark_yesterdays_leftovers_as_not_done(db, today)
 
                 await generate_daily_assignments(db, today)
 
