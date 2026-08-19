@@ -30,6 +30,7 @@ from sqlalchemy.orm import selectinload
 from backend.services.assignment_generator import generate_daily_assignments
 from backend.services.family_timezone import apply_family_timezone
 from backend.services.push_hook import install_push_hooks
+from backend.services.malus import should_apply_malus
 
 logger = logging.getLogger(__name__)
 
@@ -179,8 +180,9 @@ async def mark_yesterdays_leftovers_as_not_done(db, today: date):
     Only looks at yesterday (not an unbounded backlog) so a pre-existing
     pile of old stale assignments never gets swept up and mass-penalized
     the first time this runs -- it only ever catches the one day that just
-    ended. Applies the family's decline-malus setting the same way the
-    kid's own "No" button and a parent's manual status change do.
+    ended. Applies each chore's effective malus policy (its own override, or
+    else the family's decline-malus setting), the same way the kid's own
+    "No" button and a parent's manual status change do.
     """
     yesterday = today - timedelta(days=1)
 
@@ -188,7 +190,7 @@ async def mark_yesterdays_leftovers_as_not_done(db, today: date):
         select(AppSetting).where(AppSetting.key == "decline_malus_mode")
     )
     malus_setting = malus_setting_result.scalar_one_or_none()
-    apply_malus = malus_setting is not None and malus_setting.value == "malus"
+    family_malus_enabled = malus_setting is not None and malus_setting.value == "malus"
 
     result = await db.execute(
         select(ChoreAssignment)
@@ -208,7 +210,7 @@ async def mark_yesterdays_leftovers_as_not_done(db, today: date):
         assignment.updated_at = now
 
         chore = assignment.chore
-        if apply_malus and chore is not None and chore.points > 0:
+        if chore is not None and should_apply_malus(chore, family_malus_enabled) and chore.points > 0:
             kid_result = await db.execute(select(User).where(User.id == assignment.user_id))
             kid = kid_result.scalar_one_or_none()
             if kid is not None:

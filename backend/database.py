@@ -54,6 +54,7 @@ async def init_db():
             ("chores", "window_end", "TIME"),
             ("chore_categories", "window_start", "TIME"),
             ("chore_categories", "window_end", "TIME"),
+            ("chores", "malus_override", "VARCHAR(10)"),
         ]
         for table, col, typedef in _migrations:
             try:

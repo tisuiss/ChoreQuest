@@ -114,6 +114,7 @@ class ChoreCreate(BaseModel):
     pauses_during_vacation: bool = True
     window_start: time | None = None
     window_end: time | None = None
+    malus_override: str | None = None
     assigned_user_ids: list[int] = []
 
 
@@ -132,6 +133,7 @@ class ChoreUpdate(BaseModel):
     pauses_during_vacation: bool | None = None
     window_start: time | None = None
     window_end: time | None = None
+    malus_override: str | None = None
     assigned_user_ids: list[int] | None = None
 
 
@@ -152,6 +154,7 @@ class ChoreResponse(BaseModel):
     pauses_during_vacation: bool = True
     window_start: time | None = None
     window_end: time | None = None
+    malus_override: str | None = None
     is_active: bool
     created_by: int
     created_at: datetime

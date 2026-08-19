@@ -51,6 +51,7 @@ from backend.achievements import check_achievements
 from backend.websocket_manager import ws_manager
 from backend.services.recurrence import should_create_on_day
 from backend.services.rotation import get_rotation_kid_for_day
+from backend.services.malus import should_apply_malus
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +326,7 @@ async def create_chore(
         pauses_during_vacation=body.pauses_during_vacation,
         window_start=body.window_start,
         window_end=body.window_end,
+        malus_override=body.malus_override,
         created_by=user.id,
     )
     db.add(chore)
@@ -1103,10 +1105,11 @@ async def decline_chore(
 ):
     """Kid-facing 'No' — marks today's own assignment as not done.
 
-    Never awards points. If the family's "decline_malus_mode" setting is
-    "malus", also deducts stars equal to what completing the chore would
-    have earned — clamped to the kid's current balance so it never goes
-    negative, since this is a system action the kid can't be blocked from.
+    Never awards points. If the effective malus policy for this chore (its
+    own override, or the family's "decline_malus_mode" setting) is "malus",
+    also deducts stars equal to what completing the chore would have earned
+    — clamped to the kid's current balance so it never goes negative, since
+    this is a system action the kid can't be blocked from.
     """
     today = date.today()
     now = datetime.now(timezone.utc)
@@ -1136,7 +1139,8 @@ async def decline_chore(
         select(AppSetting).where(AppSetting.key == "decline_malus_mode")
     )
     malus_setting = malus_setting_result.scalar_one_or_none()
-    if malus_setting is not None and malus_setting.value == "malus" and chore.points > 0:
+    family_malus_enabled = malus_setting is not None and malus_setting.value == "malus"
+    if should_apply_malus(chore, family_malus_enabled) and chore.points > 0:
         malus_amount = min(chore.points, user.points_balance)
         if malus_amount > 0:
             user.points_balance -= malus_amount
@@ -1597,7 +1601,12 @@ async def set_assignment_status(
         assignment.completed_at = now
     elif body.status == AssignmentStatus.skipped:
         assignment.status = AssignmentStatus.skipped
-        if body.malus and chore.points > 0:
+        malus_setting_result = await db.execute(
+            select(AppSetting).where(AppSetting.key == "decline_malus_mode")
+        )
+        malus_setting = malus_setting_result.scalar_one_or_none()
+        family_malus_enabled = malus_setting is not None and malus_setting.value == "malus"
+        if body.malus and should_apply_malus(chore, family_malus_enabled) and chore.points > 0:
             kid_result = await db.execute(select(User).where(User.id == assignment.user_id))
             kid = kid_result.scalar_one()
             malus_amount = min(chore.points, kid.points_balance)

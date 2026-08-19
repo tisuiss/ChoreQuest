@@ -74,6 +74,7 @@ function buildInfoForm(chore) {
     pausesDuringVacation: chore.pauses_during_vacation ?? true,
     windowStart: chore.window_start ? chore.window_start.slice(0, 5) : '',
     windowEnd: chore.window_end ? chore.window_end.slice(0, 5) : '',
+    malusOverride: chore.malus_override || 'inherit',
   };
 }
 
@@ -146,6 +147,7 @@ function InfoTab({ chore, categories, onChanged }) {
           pauses_during_vacation: !!form.pausesDuringVacation,
           window_start: form.windowStart || null,
           window_end: form.windowEnd || null,
+          malus_override: form.malusOverride === 'inherit' ? null : form.malusOverride,
         },
       });
       setSaved(true);
@@ -277,6 +279,33 @@ function InfoTab({ chore, categories, onChanged }) {
             className="field-input"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+          {t('questCreate.malusOverride')}
+        </label>
+        <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5">
+          {[
+            { id: 'inherit', label: t('questCreate.malusOverrideInherit') },
+            { id: 'none', label: t('settings.declineModeNone') },
+            { id: 'malus', label: t('settings.declineModeMalus') },
+          ].map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => updateForm('malusOverride', opt.id)}
+              className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
+                form.malusOverride === opt.id
+                  ? 'bg-surface-raised text-cream'
+                  : 'text-muted hover:text-cream'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-muted text-xs mt-1">{t('questCreate.malusOverrideHint')}</p>
       </div>
 
       {chore.recurrence && chore.recurrence !== 'once' && (

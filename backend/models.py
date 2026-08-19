@@ -144,6 +144,11 @@ class Chore(Base):
     pauses_during_vacation: Mapped[bool] = mapped_column(Boolean, default=True)
     window_start: Mapped[time | None] = mapped_column(Time, nullable=True)
     window_end: Mapped[time | None] = mapped_column(Time, nullable=True)
+    # Per-chore override of the family's "decline_malus_mode" setting:
+    # None = inherit the family setting, "none" = never a malus for this
+    # chore, "malus" = always a malus for this chore, whatever the family
+    # default is.
+    malus_override: Mapped[str | None] = mapped_column(String(10), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

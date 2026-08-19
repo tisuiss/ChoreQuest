@@ -91,6 +91,9 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
   const needsPhoto = chore.requires_photo && !photoFile;
   const isValidated = status === 'completed' || status === 'verified';
   const isDeclined = status === 'skipped';
+  const effectiveMalus = chore.malus_override === 'malus' ? true
+    : chore.malus_override === 'none' ? false
+    : malusMode === 'malus';
 
   const hasWindow = Boolean(chore.window_start && chore.window_end);
   const windowLabel = hasWindow
@@ -210,7 +213,7 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
               disabled={completing || declining}
               aria-label={t('common.no')}
               title={
-                malusMode === 'malus' && chore.points > 0
+                effectiveMalus && chore.points > 0
                   ? t('kidDashboard.declineMalusHint', { points: chore.points })
                   : t('common.no')
               }
@@ -230,7 +233,7 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
                   </>
                 )}
               </span>
-              {malusMode === 'malus' && chore.points > 0 && (
+              {effectiveMalus && chore.points > 0 && (
                 <span className="text-[10px] font-medium text-crimson/80">
                   -{chore.points}
                 </span>
