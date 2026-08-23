@@ -24,18 +24,30 @@ export default function Kiosk() {
 
   const pinRefs = useRef([]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await api('/api/kiosk/kids');
-        setKids(Array.isArray(data) ? data : []);
-      } catch (err) {
-        setLoadError(err.message || t('kiosk.loadError'));
-      } finally {
-        setLoading(false);
-      }
-    })();
+  // Polls the public roster so the "chores to do" counts stay fresh while
+  // the picker sits idle on the kiosk screen. Uses the functional setState
+  // form so an unchanged fetch (the common case) is a no-op — returning the
+  // same array reference lets React bail out of re-rendering entirely,
+  // instead of blindly replacing state (and flashing avatars/counts) every
+  // poll even when nothing actually changed.
+  const fetchKids = useCallback(async (isInitial) => {
+    try {
+      const data = await api('/api/kiosk/kids');
+      const next = Array.isArray(data) ? data : [];
+      setKids((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+      if (isInitial) setLoadError('');
+    } catch (err) {
+      if (isInitial) setLoadError(err.message || t('kiosk.loadError'));
+    } finally {
+      if (isInitial) setLoading(false);
+    }
   }, [t]);
+
+  useEffect(() => {
+    fetchKids(true);
+    const interval = setInterval(() => fetchKids(false), 20000);
+    return () => clearInterval(interval);
+  }, [fetchKids]);
 
   useEffect(() => {
     (async () => {
