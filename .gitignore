@@ -4,6 +4,7 @@ __pycache__/
 node_modules/
 dist/
 .env
+docker-compose.yml
 data/
 *.db
 .DS_Store
