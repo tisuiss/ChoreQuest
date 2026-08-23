@@ -131,14 +131,17 @@ export default function Layout({ children }) {
   // no top bar, no notifications — just the page content and a small
   // exit button to return to the kid-selection screen.
   if (isKioskSession) {
+    const kioskNavButtonClass = (active) =>
+      `p-2.5 rounded-full backdrop-blur border transition-colors shadow-lg ${
+        active ? 'bg-accent/20 border-accent text-accent' : 'bg-surface/90 border-border text-muted hover:text-cream'
+      }`;
     return (
       <div className="min-h-screen bg-navy">
-        <div className="fixed top-3 left-3 z-40 flex items-center gap-2">
+        {/* Vertical icon rail, out of the way of the chore/date/stars banner */}
+        <div className="fixed top-3 left-3 z-40 flex flex-col items-center gap-2">
           <button
             onClick={() => navigate('/')}
-            className={`p-2.5 rounded-full backdrop-blur border transition-colors shadow-lg ${
-              isHome ? 'bg-accent/20 border-accent text-accent' : 'bg-surface/90 border-border text-muted hover:text-cream'
-            }`}
+            className={kioskNavButtonClass(isHome)}
             title={t('nav.home')}
             aria-label={t('nav.home')}
           >
@@ -146,17 +149,23 @@ export default function Layout({ children }) {
           </button>
           <button
             onClick={() => navigate('/calendar')}
-            className={`p-2.5 rounded-full backdrop-blur border transition-colors shadow-lg ${
-              isActive('/calendar') ? 'bg-accent/20 border-accent text-accent' : 'bg-surface/90 border-border text-muted hover:text-cream'
-            }`}
+            className={kioskNavButtonClass(isActive('/calendar'))}
             title={t('nav.calendar')}
             aria-label={t('nav.calendar')}
           >
             <CalendarDays size={18} />
           </button>
           <button
+            onClick={() => navigate('/rewards')}
+            className={kioskNavButtonClass(isActive('/rewards'))}
+            title={t('nav.rewards')}
+            aria-label={t('nav.rewards')}
+          >
+            <Gift size={18} />
+          </button>
+          <button
             onClick={() => setShowPointsHistory(true)}
-            className="p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
+            className={kioskNavButtonClass(false)}
             title={t('profile.pointsHistory')}
             aria-label={t('profile.pointsHistory')}
           >
@@ -181,7 +190,7 @@ export default function Layout({ children }) {
             <X size={18} />
           </button>
         </div>
-        <main className="p-4 pb-6 max-w-[100vw] overflow-x-clip">{children}</main>
+        <main className="p-4 pl-20 pb-6 max-w-[100vw] overflow-x-clip">{children}</main>
         <PointsHistoryModal isOpen={showPointsHistory} onClose={() => setShowPointsHistory(false)} />
       </div>
     );
