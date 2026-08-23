@@ -375,7 +375,8 @@
     "signingIn": "Connexion...",
     "signIn": "Se connecter",
     "newHere": "Nouveau ici ?",
-    "createAccount": "Créer un compte"
+    "createAccount": "Créer un compte",
+    "kioskMode": "Mode kiosque"
   },
   "register": {
     "usernameRequired": "Le nom d'utilisateur est requis",

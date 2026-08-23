@@ -171,24 +171,25 @@ export default function Layout({ children }) {
           >
             <Star size={18} />
           </button>
-        </div>
-        <div className="fixed top-3 right-3 z-40 flex items-center gap-2">
-          <button
-            onClick={backToSelection}
-            className="p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
-            title={t('layout.backToSelection')}
-            aria-label={t('layout.backToSelection')}
-          >
-            <LogOut size={18} />
-          </button>
-          <button
-            onClick={exitKioskMode}
-            className="p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
-            title={t('layout.exitKiosk')}
-            aria-label={t('layout.exitKiosk')}
-          >
-            <X size={18} />
-          </button>
+
+          <div className="flex flex-col items-center gap-2 mt-4 pt-4 border-t border-border/60">
+            <button
+              onClick={backToSelection}
+              className="p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
+              title={t('layout.backToSelection')}
+              aria-label={t('layout.backToSelection')}
+            >
+              <LogOut size={18} />
+            </button>
+            <button
+              onClick={exitKioskMode}
+              className="p-2.5 rounded-full bg-surface/90 backdrop-blur border border-border text-muted hover:text-cream transition-colors shadow-lg"
+              title={t('layout.exitKiosk')}
+              aria-label={t('layout.exitKiosk')}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
         <main className="p-4 pl-20 pb-6 max-w-[100vw] overflow-x-clip">{children}</main>
         <PointsHistoryModal isOpen={showPointsHistory} onClose={() => setShowPointsHistory(false)} />

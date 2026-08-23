@@ -171,6 +171,13 @@ export default function Login() {
             {t('login.createAccount')}
           </Link>
         </p>
+
+        {/* Kiosk mode link */}
+        <p className="text-center mt-2 text-muted text-sm">
+          <Link to="/kiosk" className="text-accent hover:text-accent-light font-medium transition-colors">
+            {t('login.kioskMode')}
+          </Link>
+        </p>
       </form>
     </div>
   );
