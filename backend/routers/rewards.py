@@ -279,6 +279,7 @@ async def create_reward(
         description=body.description,
         point_cost=body.point_cost,
         icon=body.icon,
+        photo_url=body.photo_url,
         category=body.category,
         stock=body.stock,
         auto_approve_threshold=body.auto_approve_threshold,

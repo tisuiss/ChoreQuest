@@ -18,6 +18,8 @@ import {
   Star,
   Filter,
   Loader2,
+  Image,
+  X,
 } from 'lucide-react';
 
 const emptyForm = {
@@ -25,6 +27,7 @@ const emptyForm = {
   description: '',
   point_cost: 50,
   icon: '',
+  photo_url: null,
   stock: '',
   category: '',
 };
@@ -55,6 +58,7 @@ export default function Rewards() {
   const [form, setForm] = useState({ ...emptyForm });
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -117,6 +121,7 @@ export default function Rewards() {
       description: reward.description || '',
       point_cost: reward.point_cost ?? reward.cost ?? 50,
       icon: reward.icon || '',
+      photo_url: reward.photo_url || null,
       stock: reward.stock != null ? String(reward.stock) : '',
       category: reward.category || '',
     });
@@ -132,6 +137,24 @@ export default function Rewards() {
 
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoUploading(true);
+    setFormError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const uploaded = await api('/api/uploads', { method: 'POST', body: fd });
+      updateForm('photo_url', uploaded.path);
+    } catch (err) {
+      setFormError(err.message || t('questCreate.photoUploadError'));
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -152,6 +175,7 @@ export default function Rewards() {
       description: form.description.trim(),
       point_cost: Number(form.point_cost),
       icon: form.icon || undefined,
+      photo_url: form.photo_url || null,
       category: form.category.trim() || undefined,
     };
 
@@ -351,13 +375,21 @@ export default function Rewards() {
                 className={`game-panel p-4 flex flex-col gap-2 ${outOfStock ? 'opacity-60' : ''}`}
               >
                 <div className="flex items-start gap-2.5">
-                  <div className="w-10 h-10 rounded-md bg-surface-raised border border-border flex items-center justify-center flex-shrink-0">
-                    {reward.icon ? (
-                      <span className="text-xl">{reward.icon}</span>
-                    ) : (
-                      <Sparkles size={18} className="text-accent" />
-                    )}
-                  </div>
+                  {reward.photo_url ? (
+                    <img
+                      src={reward.photo_url}
+                      alt=""
+                      className="w-10 h-10 rounded-md object-cover border border-border flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-md bg-surface-raised border border-border flex items-center justify-center flex-shrink-0">
+                      {reward.icon ? (
+                        <span className="text-xl">{reward.icon}</span>
+                      ) : (
+                        <Sparkles size={18} className="text-accent" />
+                      )}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <h3 className="text-cream text-sm font-medium">{reward.title}</h3>
                     {reward.description && (
@@ -466,6 +498,43 @@ export default function Rewards() {
           <div>
             <label className="block text-cream text-sm font-medium mb-1">{t('rewards.iconEmoji')}</label>
             <input type="text" value={form.icon} onChange={(e) => updateForm('icon', e.target.value)} placeholder={t('rewards.iconPlaceholder')} className="field-input" />
+          </div>
+          <div>
+            <label className="block text-cream text-sm font-medium mb-1">{t('rewards.photo')}</label>
+            {form.photo_url ? (
+              <div className="flex items-center gap-3">
+                <img
+                  src={form.photo_url}
+                  alt=""
+                  className="w-14 h-14 rounded-lg object-cover border border-border"
+                />
+                <button
+                  type="button"
+                  onClick={() => updateForm('photo_url', null)}
+                  className="flex items-center gap-1.5 text-crimson text-xs hover:text-crimson/80 transition-colors"
+                >
+                  <X size={14} />
+                  {t('questCreate.removePhoto')}
+                </button>
+              </div>
+            ) : (
+              <label className="inline-flex items-center gap-1.5 text-xs text-muted cursor-pointer hover:text-cream transition-colors bg-surface-raised px-3 py-2 rounded-md border border-border">
+                {photoUploading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Image size={14} />
+                )}
+                {photoUploading ? t('common.saving') : t('questCreate.choosePhoto')}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={photoUploading}
+                  onChange={handlePhotoChange}
+                />
+              </label>
+            )}
+            <p className="text-muted text-xs mt-1">{t('rewards.photoHint')}</p>
           </div>
           <div>
             <label className="block text-cream text-sm font-medium mb-1">{t('rewards.categoryOptional')}</label>

@@ -652,6 +652,8 @@
     "cost": "Coût (étoiles)",
     "iconEmoji": "Icône (emoji)",
     "iconPlaceholder": "ex. trophée, étoile, cadeau",
+    "photo": "Photo (optionnel)",
+    "photoHint": "Affichée à la place de l'icône/emoji si renseignée.",
     "categoryOptional": "Catégorie (facultatif)",
     "categoryPlaceholder": "ex. Friandises, Expériences",
     "stockOptional": "Stock (facultatif)",

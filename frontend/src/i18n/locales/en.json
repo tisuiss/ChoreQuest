@@ -652,6 +652,8 @@
     "cost": "Cost (Stars)",
     "iconEmoji": "Icon (Emoji)",
     "iconPlaceholder": "e.g. trophy, star, gift",
+    "photo": "Photo (optional)",
+    "photoHint": "Shown instead of the icon/emoji when set.",
     "categoryOptional": "Category (Optional)",
     "categoryPlaceholder": "e.g. Treats, Experiences",
     "stockOptional": "Stock (Optional)",

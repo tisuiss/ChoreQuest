@@ -185,6 +185,7 @@ class RewardCreate(BaseModel):
     description: str | None = None
     point_cost: int = Field(gt=0)
     icon: str | None = None
+    photo_url: str | None = None
     category: str | None = None
     stock: int | None = None
     auto_approve_threshold: int | None = None
@@ -195,6 +196,7 @@ class RewardUpdate(BaseModel):
     description: str | None = None
     point_cost: int | None = None
     icon: str | None = None
+    photo_url: str | None = None
     category: str | None = None
     stock: int | None = None
     auto_approve_threshold: int | None = None
@@ -206,6 +208,7 @@ class RewardResponse(BaseModel):
     description: str | None
     point_cost: int
     icon: str | None
+    photo_url: str | None = None
     category: str | None = None
     stock: int | None
     auto_approve_threshold: int | None

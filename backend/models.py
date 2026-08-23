@@ -243,6 +243,7 @@ class Reward(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     point_cost: Mapped[int] = mapped_column(Integer, nullable=False)
     icon: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     category: Mapped[str | None] = mapped_column(String(50), nullable=True)
     stock: Mapped[int | None] = mapped_column(Integer, nullable=True)
     auto_approve_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
