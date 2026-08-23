@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     PIN_RATE_LIMIT_MAX: int = 5
     REGISTER_RATE_LIMIT_MAX: int = 5
     CORS_ORIGINS: str = ""
-    MAX_UPLOAD_SIZE_MB: int = 5
+    MAX_UPLOAD_SIZE_MB: int = 15
     DAILY_RESET_HOUR: int = 0
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""

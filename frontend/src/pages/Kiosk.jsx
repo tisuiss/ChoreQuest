@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { Swords, ArrowLeft, Loader2 } from 'lucide-react';
+import { Swords, ArrowLeft, Loader2, ListChecks } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
@@ -183,6 +183,10 @@ export default function Kiosk() {
                       <AvatarDisplay config={kid.avatar_config} photoUrl={kid.avatar_photo_url} size="xl" name={kid.display_name} animate />
                     </div>
                     <span className="text-cream text-sm font-medium">{kid.display_name}</span>
+                    <span className="flex items-center gap-1 text-muted text-xs">
+                      <ListChecks size={12} className={kid.pending_chores > 0 ? 'text-accent' : ''} />
+                      {t('kiosk.pendingChores', { count: kid.pending_chores ?? 0 })}
+                    </span>
                   </button>
                 ))}
               </div>

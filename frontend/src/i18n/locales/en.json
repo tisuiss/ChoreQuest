@@ -81,7 +81,9 @@
     "noKids": "No kids set up yet.",
     "parentLogin": "Parent login",
     "directLoginError": "Could not open this kid's kiosk. Check the link or the kid's account.",
-    "backToPicker": "Back to kid selection"
+    "backToPicker": "Back to kid selection",
+    "pendingChores_one": "{{count}} chore to do",
+    "pendingChores_other": "{{count}} chores to do"
   },
   "pointsHistory": {
     "title": "Stars History",

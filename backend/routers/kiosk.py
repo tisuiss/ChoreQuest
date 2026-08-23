@@ -1,9 +1,11 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import User, UserRole, AuditLog, AppSetting
+from backend.models import User, UserRole, AuditLog, AppSetting, Chore, ChoreAssignment, AssignmentStatus
 from backend.schemas import KioskKidResponse, KioskLoginRequest, AuthResponse
 from backend.auth import verify_pin, issue_tokens
 from backend.rate_limit import rate_limiter
@@ -31,12 +33,34 @@ async def list_kiosk_kids(db: AsyncSession = Depends(get_db)):
     """Public roster for the kiosk kid-selection screen — no auth required.
 
     Only exposes what's needed to render tappable tiles: id, display name,
-    avatar, and whether a PIN gate is needed. Never exposes the PIN hash.
+    avatar, whether a PIN gate is needed, and today's pending chore count.
+    Never exposes the PIN hash.
     """
     result = await db.execute(
         select(User).where(User.role == UserRole.kid, User.is_active == True)
     )
     kids = result.scalars().all()
+    kid_ids = [k.id for k in kids]
+
+    pending_counts = {}
+    if kid_ids:
+        today = date.today()
+        count_result = await db.execute(
+            select(
+                ChoreAssignment.user_id,
+                func.count().label("cnt"),
+            )
+            .join(Chore, ChoreAssignment.chore_id == Chore.id)
+            .where(
+                ChoreAssignment.user_id.in_(kid_ids),
+                ChoreAssignment.date == today,
+                ChoreAssignment.status == AssignmentStatus.pending,
+                Chore.is_active == True,
+            )
+            .group_by(ChoreAssignment.user_id)
+        )
+        pending_counts = {row.user_id: row.cnt for row in count_result.all()}
+
     return [
         KioskKidResponse(
             id=k.id,
@@ -44,6 +68,7 @@ async def list_kiosk_kids(db: AsyncSession = Depends(get_db)):
             avatar_config=k.avatar_config,
             avatar_photo_url=k.avatar_photo_url,
             has_pin=k.pin_hash is not None,
+            pending_chores=pending_counts.get(k.id, 0),
         )
         for k in kids
     ]

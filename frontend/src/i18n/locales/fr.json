@@ -81,7 +81,9 @@
     "noKids": "Aucun enfant configuré pour l'instant.",
     "parentLogin": "Connexion parent",
     "directLoginError": "Impossible d'ouvrir le kiosque de cet enfant. Vérifie le lien ou le compte.",
-    "backToPicker": "Retour au choix des enfants"
+    "backToPicker": "Retour au choix des enfants",
+    "pendingChores_one": "{{count}} corvée à faire",
+    "pendingChores_other": "{{count}} corvées à faire"
   },
   "pointsHistory": {
     "title": "Historique des étoiles",

@@ -37,6 +37,7 @@ class KioskKidResponse(BaseModel):
     avatar_config: dict | None
     avatar_photo_url: str | None = None
     has_pin: bool
+    pending_chores: int = 0
 
     model_config = {"from_attributes": True}
 
