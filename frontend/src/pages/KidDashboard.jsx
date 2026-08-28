@@ -343,6 +343,41 @@ export default function KidDashboard() {
     return () => window.removeEventListener('ws:message', handler);
   }, [fetchData]);
 
+  // ---- Auto-refresh right when a category's fixed window opens/closes ----
+  // Categories with a window_start/window_end are shown/hidden purely
+  // based on the current time (see isWithinCategoryWindow above), so a
+  // kiosk sitting idle on this screen would otherwise only pick up the
+  // change on the next WS event or manual refresh -- this schedules a
+  // refetch for the exact moment the soonest boundary is crossed.
+  useEffect(() => {
+    const boundaries = new Set();
+    assignments.forEach((a) => {
+      const cat = a.chore?.category;
+      if (cat?.window_start) boundaries.add(cat.window_start);
+      if (cat?.window_end) boundaries.add(cat.window_end);
+    });
+    if (boundaries.size === 0) return;
+
+    const now = new Date();
+    const nowStr = nowTimeString();
+    let nextDelayMs = null;
+    boundaries.forEach((timeStr) => {
+      if (timeStr <= nowStr) return; // already passed today
+      const [h, m, s] = timeStr.split(':').map(Number);
+      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
+      const delay = target.getTime() - now.getTime();
+      if (delay > 0 && (nextDelayMs === null || delay < nextDelayMs)) {
+        nextDelayMs = delay;
+      }
+    });
+    if (nextDelayMs === null) return;
+
+    // Small buffer past the boundary so the >=/<= comparisons in
+    // isWithinCategoryWindow have already flipped by the time we refetch.
+    const timeout = setTimeout(fetchData, nextDelayMs + 1000);
+    return () => clearTimeout(timeout);
+  }, [assignments, fetchData]);
+
   // ---- chore completion ----
 
   const handleComplete = async (chore) => {
