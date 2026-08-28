@@ -487,7 +487,8 @@
       "hard": "Difficile",
       "expert": "Expert"
     },
-    "photo": "Photo"
+    "photo": "Photo",
+    "malusHint": "Coûte des étoiles si non faite"
   },
   "kidDashboard": {
     "loadError": "Impossible de charger les corvées",

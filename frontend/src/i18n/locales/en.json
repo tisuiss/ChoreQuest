@@ -487,7 +487,8 @@
       "hard": "Hard",
       "expert": "Expert"
     },
-    "photo": "Photo"
+    "photo": "Photo",
+    "malusHint": "Costs stars if left not done"
   },
   "kidDashboard": {
     "loadError": "Failed to load quest data",
