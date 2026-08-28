@@ -125,6 +125,8 @@
     "declineHandlingHint": "Ce qui se passe quand un enfant appuie sur « Non » sur une corvée au lieu de la valider.",
     "declineModeNone": "Sans incidence",
     "declineModeMalus": "Malus (perd les étoiles qu'il aurait gagnées)",
+    "declineMalusExtra": "Malus supplémentaire (étoiles)",
+    "declineMalusExtraHint": "Étoiles retirées en plus de la valeur de la corvée, à chaque fois qu'un malus s'applique. 0 = pas de pénalité supplémentaire.",
     "defaultLanguage": "Langue par défaut de la famille",
     "defaultLanguageHint": "Langue affichée sur l'écran kiosque avant qu'un enfant ne soit sélectionné.",
     "timezone": "Fuseau horaire familial",

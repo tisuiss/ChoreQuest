@@ -30,7 +30,7 @@ from sqlalchemy.orm import selectinload
 from backend.services.assignment_generator import generate_daily_assignments
 from backend.services.family_timezone import apply_family_timezone
 from backend.services.push_hook import install_push_hooks
-from backend.services.malus import should_apply_malus
+from backend.services.malus import should_apply_malus, get_family_malus_settings
 
 logger = logging.getLogger(__name__)
 
@@ -186,11 +186,7 @@ async def mark_yesterdays_leftovers_as_not_done(db, today: date):
     """
     yesterday = today - timedelta(days=1)
 
-    malus_setting_result = await db.execute(
-        select(AppSetting).where(AppSetting.key == "decline_malus_mode")
-    )
-    malus_setting = malus_setting_result.scalar_one_or_none()
-    family_malus_enabled = malus_setting is not None and malus_setting.value == "malus"
+    family_malus_enabled, malus_extra = await get_family_malus_settings(db)
 
     result = await db.execute(
         select(ChoreAssignment)
@@ -210,11 +206,11 @@ async def mark_yesterdays_leftovers_as_not_done(db, today: date):
         assignment.updated_at = now
 
         chore = assignment.chore
-        if chore is not None and should_apply_malus(chore, family_malus_enabled) and chore.points > 0:
+        if chore is not None and should_apply_malus(chore, family_malus_enabled) and (chore.points + malus_extra) > 0:
             kid_result = await db.execute(select(User).where(User.id == assignment.user_id))
             kid = kid_result.scalar_one_or_none()
             if kid is not None:
-                malus_amount = min(chore.points, kid.points_balance)
+                malus_amount = min(chore.points + malus_extra, kid.points_balance)
                 if malus_amount > 0:
                     kid.points_balance -= malus_amount
                     db.add(PointTransaction(

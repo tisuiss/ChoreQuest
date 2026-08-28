@@ -125,6 +125,8 @@
     "declineHandlingHint": "What happens when a kid taps \"No\" on a quest instead of completing it.",
     "declineModeNone": "No incidence",
     "declineModeMalus": "Malus (loses the stars they would have earned)",
+    "declineMalusExtra": "Additional malus (stars)",
+    "declineMalusExtraHint": "Extra stars deducted on top of what the chore was worth, whenever a malus applies. 0 = no extra penalty.",
     "defaultLanguage": "Family Default Language",
     "defaultLanguageHint": "Language shown on the kiosk screen before a kid is selected.",
     "timezone": "Family Timezone",

@@ -85,7 +85,7 @@ const cardVariants = {
 
 // ---------- chore card ----------
 
-function ChoreActionCard({ chore, status, idx, completing, declining, photoFile, onPhotoChange, onComplete, onDecline, onZoomPhoto, colorTheme, enforcement, thumbsMode, malusMode, t }) {
+function ChoreActionCard({ chore, status, idx, completing, declining, photoFile, onPhotoChange, onComplete, onDecline, onZoomPhoto, colorTheme, enforcement, thumbsMode, malusMode, malusExtra, t }) {
   const categoryColor = chore.category?.colour || '#14b8a6';
   const iconName = chore.icon || chore.category?.icon;
   const needsPhoto = chore.requires_photo && !photoFile;
@@ -94,6 +94,7 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
   const effectiveMalus = chore.malus_override === 'malus' ? true
     : chore.malus_override === 'none' ? false
     : malusMode === 'malus';
+  const malusAmount = chore.points + (malusExtra || 0);
 
   const hasWindow = Boolean(chore.window_start && chore.window_end);
   const windowLabel = hasWindow
@@ -213,8 +214,8 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
               disabled={completing || declining}
               aria-label={t('common.no')}
               title={
-                effectiveMalus && chore.points > 0
-                  ? t('kidDashboard.declineMalusHint', { points: chore.points })
+                effectiveMalus && malusAmount > 0
+                  ? t('kidDashboard.declineMalusHint', { points: malusAmount })
                   : t('common.no')
               }
               className={`flex-1 rounded-lg py-2.5 text-sm font-semibold flex flex-col items-center justify-center gap-0.5 transition-opacity bg-surface-raised text-muted border border-border ${
@@ -233,9 +234,9 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
                   </>
                 )}
               </span>
-              {effectiveMalus && chore.points > 0 && (
+              {effectiveMalus && malusAmount > 0 && (
                 <span className="text-[10px] font-medium text-crimson/80">
-                  -{chore.points}
+                  -{malusAmount}
                 </span>
               )}
             </button>
@@ -253,7 +254,7 @@ export default function KidDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
-  const { chore_window_enforcement, keep_validated_visible, kid_thumbs_buttons, decline_malus_mode } = useSettings();
+  const { chore_window_enforcement, keep_validated_visible, kid_thumbs_buttons, decline_malus_mode, decline_malus_extra } = useSettings();
 
   // data state
   const [assignments, setAssignments] = useState([]);
@@ -575,6 +576,7 @@ export default function KidDashboard() {
                         enforcement={chore_window_enforcement}
                         thumbsMode={kid_thumbs_buttons}
                         malusMode={decline_malus_mode}
+                        malusExtra={decline_malus_extra}
                         t={t}
                       />
                     );
