@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
+import { useAuth, KIOSK_PINNED_USERNAME_KEY } from './hooks/useAuth';
 import { useWebSocket } from './hooks/useWebSocket';
 import Layout from './components/Layout';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -63,6 +63,12 @@ export default function App() {
   }
 
   if (!user) {
+    // A device pinned to one kid (/kiosk/<username>) self-heals here: if the
+    // session was ever lost mid-use (token/cookie expiry after a reload),
+    // silently re-open that kid's kiosk instead of stopping on /login.
+    let pinnedUsername = null;
+    try { pinnedUsername = localStorage.getItem(KIOSK_PINNED_USERNAME_KEY); } catch { /* ignore */ }
+
     return (
       <Suspense fallback={<Loading />}>
         <UpdatePrompt />
@@ -70,7 +76,10 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/kiosk" element={<Kiosk />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route
+            path="*"
+            element={<Navigate to={pinnedUsername ? `/kiosk/${pinnedUsername}` : '/login'} replace />}
+          />
         </Routes>
       </Suspense>
     );
