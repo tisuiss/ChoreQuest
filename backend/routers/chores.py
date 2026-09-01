@@ -759,6 +759,28 @@ async def assign_chore(
             )
             db.add(rule)
 
+        # Non-rotation: remove any already-generated pending assignment that
+        # no longer matches this kid's (possibly just-changed) schedule --
+        # e.g. switching from daily to Saturday/Sunday-only must clear out
+        # whatever weekday assignments were created under the old schedule,
+        # today included, so the kid stops seeing them. Rotation has its
+        # own equivalent cleanup above (it depends on whose turn it is, not
+        # just this one kid's recurrence).
+        if not rotation_active:
+            stale_result = await db.execute(
+                select(ChoreAssignment).where(
+                    ChoreAssignment.chore_id == chore_id,
+                    ChoreAssignment.user_id == item.user_id,
+                    ChoreAssignment.date >= today,
+                    ChoreAssignment.status == AssignmentStatus.pending,
+                )
+            )
+            for stale in stale_result.scalars().all():
+                if not should_create_on_day(
+                    item.recurrence, stale.date, chore.created_at.weekday(), item.custom_days,
+                ):
+                    await db.delete(stale)
+
         # Create today's assignment if schedule matches
         create_today = should_create_on_day(
             item.recurrence, today, chore.created_at.weekday(), item.custom_days,
