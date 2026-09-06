@@ -24,13 +24,18 @@ async def get_kiosk_settings(db: AsyncSession = Depends(get_db)):
     """
     result = await db.execute(
         select(AppSetting).where(
-            AppSetting.key.in_(["default_language", "family_zone_default_view"])
+            AppSetting.key.in_([
+                "default_language",
+                "family_zone_default_view",
+                "family_zone_layout",
+            ])
         )
     )
     settings_map = {s.key: s.value for s in result.scalars().all()}
     return {
         "default_language": settings_map.get("default_language", "fr"),
         "family_zone_default_view": settings_map.get("family_zone_default_view", "week"),
+        "family_zone_layout": settings_map.get("family_zone_layout", "grid"),
     }
 
 

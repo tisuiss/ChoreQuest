@@ -647,6 +647,35 @@ export default function Settings() {
 
           {activeTab === 'familyzone' && (
             <>
+              {/* Screen layout */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <SlidersHorizontal size={16} className="text-muted" />
+                  {t('settings.familyZoneLayout')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.familyZoneLayoutHint')}
+                </p>
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+                  {[
+                    { id: 'grid', label: t('settings.familyZoneLayoutGrid') },
+                    { id: 'tabs', label: t('settings.familyZoneLayoutTabs') },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => updateSetting('family_zone_layout', opt.id)}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        (settings.family_zone_layout ?? 'grid') === opt.id
+                          ? 'bg-surface-raised text-cream'
+                          : 'text-muted hover:text-cream'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Default calendar view */}
               <div className="game-panel p-4">
                 <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
