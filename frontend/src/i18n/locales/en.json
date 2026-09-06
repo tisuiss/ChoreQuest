@@ -102,6 +102,8 @@
     "timeLabel": "Time",
     "memberLabel": "For",
     "wholeFamily": "Whole family",
+    "parentsGroup": "Parents",
+    "kidsGroup": "Kids",
     "cancel": "Cancel",
     "add": "Add",
     "loadEventsError": "Could not load the calendar",

@@ -93,6 +93,14 @@ class FamilyStarsResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FamilyMemberResponse(BaseModel):
+    id: int
+    display_name: str
+    role: UserRole
+
+    model_config = {"from_attributes": True}
+
+
 class FamilyPhotoCreate(BaseModel):
     url: str = Field(max_length=500)
 

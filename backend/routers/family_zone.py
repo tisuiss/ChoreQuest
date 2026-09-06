@@ -15,6 +15,7 @@ from backend.schemas import (
     FamilyStarsResponse,
     FamilyPhotoCreate,
     FamilyPhotoResponse,
+    FamilyMemberResponse,
 )
 from backend.rate_limit import rate_limiter
 from backend.dependencies import require_parent
@@ -79,6 +80,18 @@ async def create_family_event(
     await db.commit()
     await db.refresh(event)
     return event
+
+
+# ---------- GET /members ----------
+@router.get("/members", response_model=list[FamilyMemberResponse])
+async def list_family_members(db: AsyncSession = Depends(get_db)):
+    """Public: every active family member (kid, parent, admin) -- just id,
+    display name and role -- so the Family Zone calendar can assign an
+    event to a parent as well as a kid."""
+    result = await db.execute(
+        select(User).where(User.is_active == True).order_by(User.display_name)
+    )
+    return result.scalars().all()
 
 
 # ---------- GET /menu ----------

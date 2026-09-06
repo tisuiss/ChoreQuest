@@ -102,6 +102,8 @@
     "timeLabel": "Heure",
     "memberLabel": "Concerne",
     "wholeFamily": "Toute la famille",
+    "parentsGroup": "Parents",
+    "kidsGroup": "Enfants",
     "cancel": "Annuler",
     "add": "Ajouter",
     "loadEventsError": "Impossible de charger le calendrier",

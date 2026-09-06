@@ -146,6 +146,19 @@ export default function FamilyZone() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventForm, setEventForm] = useState({ title: '', date: '', time: '', member_id: '' });
   const [savingEvent, setSavingEvent] = useState(false);
+  const [members, setMembers] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api('/api/family-zone/members');
+        setMembers(Array.isArray(data) ? data : []);
+      } catch { /* the "for" dropdown just falls back to empty */ }
+    })();
+  }, []);
+
+  const parentMembers = members.filter((m) => m.role === 'parent' || m.role === 'admin');
+  const kidMembers = members.filter((m) => m.role === 'kid');
 
   const rangeStart = viewMode === 'week' ? weekStart : startOfWeek(monthCursor);
   const rangeEnd = viewMode === 'week' ? addDays(weekStart, 6) : addDays(startOfWeek(monthCursor), 41);
@@ -706,9 +719,20 @@ export default function FamilyZone() {
                   onChange={(e) => setEventForm((f) => ({ ...f, member_id: e.target.value }))}
                 >
                   <option value="">{t('familyZone.wholeFamily')}</option>
-                  {kids.map((kid) => (
-                    <option key={kid.id} value={kid.id}>{kid.display_name}</option>
-                  ))}
+                  {parentMembers.length > 0 && (
+                    <optgroup label={t('familyZone.parentsGroup')}>
+                      {parentMembers.map((m) => (
+                        <option key={m.id} value={m.id}>{m.display_name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {kidMembers.length > 0 && (
+                    <optgroup label={t('familyZone.kidsGroup')}>
+                      {kidMembers.map((m) => (
+                        <option key={m.id} value={m.id}>{m.display_name}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
               <div className="flex justify-end gap-2">
