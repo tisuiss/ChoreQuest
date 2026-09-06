@@ -483,6 +483,8 @@
     "createFirst": "Créer la première corvée",
     "editQuest": "Modifier la corvée",
     "deleteQuest": "Supprimer la corvée",
+    "duplicateQuest": "Dupliquer la corvée",
+    "duplicateError": "Échec de la duplication de la corvée.",
     "assignedCount_one": "{{count}} assignée",
     "assignedCount_other": "{{count}} assignées",
     "unassigned": "Non assignée",

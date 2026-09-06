@@ -483,6 +483,8 @@
     "createFirst": "Create first quest",
     "editQuest": "Edit quest",
     "deleteQuest": "Delete quest",
+    "duplicateQuest": "Duplicate quest",
+    "duplicateError": "Failed to duplicate the quest.",
     "assignedCount_one": "{{count}} assigned",
     "assignedCount_other": "{{count}} assigned",
     "unassigned": "Unassigned",

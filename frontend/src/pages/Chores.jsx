@@ -26,6 +26,7 @@ import {
   Loader2,
   Users,
   Pencil,
+  Copy,
   ScrollText,
   Zap,
   Tag,
@@ -155,6 +156,7 @@ export default function Chores() {
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState(null);
 
   const [completingId, setCompletingId] = useState(null);
   const [photoFiles, setPhotoFiles] = useState({});
@@ -305,6 +307,20 @@ export default function Chores() {
       setError(err.message || t('chores.removeError'));
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDuplicate = async (chore) => {
+    setDuplicatingId(chore.id);
+    setError('');
+    try {
+      const copy = await api(`/api/chores/${chore.id}/duplicate`, { method: 'POST' });
+      await fetchChores();
+      if (copy?.id) setManagingChore(copy);
+    } catch (err) {
+      setError(err.message || t('chores.duplicateError'));
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -557,6 +573,19 @@ export default function Chores() {
                       <Pencil size={13} />
                     </button>
                     <button
+                      onClick={() => handleDuplicate(chore)}
+                      disabled={duplicatingId === chore.id}
+                      className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-accent"
+                      aria-label={t('chores.duplicateQuest')}
+                      title={t('chores.duplicateQuest')}
+                    >
+                      {duplicatingId === chore.id ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <Copy size={13} />
+                      )}
+                    </button>
+                    <button
                       onClick={() => setDeleteTarget(chore)}
                       className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-crimson"
                       aria-label={t('chores.deleteQuest')}
@@ -588,16 +617,28 @@ export default function Chores() {
                     {themedTitle(chore.title, colorTheme)}
                   </h3>
                   {isParent && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(chore);
-                      }}
-                      className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-crimson flex-shrink-0"
-                      aria-label={t('chores.deleteQuest')}
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleDuplicate(chore)}
+                        disabled={duplicatingId === chore.id}
+                        className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-accent"
+                        aria-label={t('chores.duplicateQuest')}
+                        title={t('chores.duplicateQuest')}
+                      >
+                        {duplicatingId === chore.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <Copy size={13} />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(chore)}
+                        className="p-1 rounded-md hover:bg-surface-raised transition-colors text-muted hover:text-crimson"
+                        aria-label={t('chores.deleteQuest')}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   )}
                   {isDone && (
                     <CheckCircle2 size={16} className="text-emerald flex-shrink-0" />

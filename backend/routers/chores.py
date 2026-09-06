@@ -347,6 +347,75 @@ async def create_chore(
     return ChoreResponse.model_validate(chore)
 
 
+@router.post("/{chore_id}/duplicate", response_model=ChoreResponse, status_code=201)
+async def duplicate_chore(
+    chore_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_parent),
+):
+    """Create a copy of an existing chore (Parent+).
+
+    Clones the chore's own fields plus its active per-kid assignment rules
+    and rotation (rotation index reset). Assignments, history, exclusions
+    and chore-specific vacation periods are NOT copied.
+    """
+    source = await _get_chore_or_404(db, chore_id)
+
+    clone = Chore(
+        title=f"{source.title} (copy)",
+        description=source.description,
+        points=source.points,
+        difficulty=source.difficulty,
+        icon=source.icon,
+        photo_url=source.photo_url,
+        category_id=source.category_id,
+        recurrence=source.recurrence,
+        custom_days=source.custom_days,
+        requires_photo=source.requires_photo,
+        sort_order=source.sort_order,
+        pauses_during_vacation=source.pauses_during_vacation,
+        window_start=source.window_start,
+        window_end=source.window_end,
+        malus_override=source.malus_override,
+        created_by=user.id,
+    )
+    db.add(clone)
+    await db.flush()
+
+    rules_result = await db.execute(
+        select(ChoreAssignmentRule).where(
+            ChoreAssignmentRule.chore_id == source.id,
+            ChoreAssignmentRule.is_active == True,
+        )
+    )
+    for rule in rules_result.scalars().all():
+        db.add(ChoreAssignmentRule(
+            chore_id=clone.id,
+            user_id=rule.user_id,
+            recurrence=rule.recurrence,
+            custom_days=rule.custom_days,
+            requires_photo=rule.requires_photo,
+            is_active=True,
+        ))
+
+    rotation_result = await db.execute(
+        select(ChoreRotation).where(ChoreRotation.chore_id == source.id)
+    )
+    source_rotation = rotation_result.scalar_one_or_none()
+    if source_rotation is not None:
+        db.add(ChoreRotation(
+            chore_id=clone.id,
+            kid_ids=list(source_rotation.kid_ids or []),
+            cadence=source_rotation.cadence,
+            current_index=0,
+        ))
+
+    await db.commit()
+    clone = await _reload_chore_with_category(db, clone.id)
+    await ws_manager.broadcast(_CHORE_CHANGED, exclude_user=user.id)
+    return ChoreResponse.model_validate(clone)
+
+
 @router.post("/cleanup-all-stale")
 async def cleanup_all_stale(
     db: AsyncSession = Depends(get_db),
