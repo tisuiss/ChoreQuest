@@ -15,6 +15,9 @@ import {
   CalendarDays,
   RotateCcw,
   XCircle,
+  SlidersHorizontal,
+  ListChecks,
+  Home,
 } from 'lucide-react';
 import VacationSettings from '../components/VacationSettings';
 import KidVacationSettings from '../components/KidVacationSettings';
@@ -38,6 +41,12 @@ const TIMEZONE_OPTIONS = [
   'America/Los_Angeles',
 ];
 
+const TABS = [
+  { id: 'general', labelKey: 'settings.tabGeneral', icon: SlidersHorizontal },
+  { id: 'tasks', labelKey: 'settings.tabTasks', icon: ListChecks },
+  { id: 'familyzone', labelKey: 'settings.tabFamilyZone', icon: Home },
+];
+
 export default function Settings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -45,6 +54,7 @@ export default function Settings() {
 
   const isParentOrAdmin = user?.role === 'parent' || user?.role === 'admin';
 
+  const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -182,12 +192,35 @@ export default function Settings() {
         <ArrowLeft size={16} />
         {t('settings.profile')}
       </button>
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <CogIcon size={24} className="text-cream" />
         <h1 className="text-cream text-lg font-semibold">
           {t('settings.title')}
         </h1>
       </div>
+
+      {/* Tabs */}
+      {!loading && !error && settings && (
+        <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 mb-6">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-surface-raised text-cream'
+                    : 'text-muted hover:text-cream'
+                }`}
+              >
+                <Icon size={14} className={activeTab === tab.id ? 'text-accent' : ''} />
+                {t(tab.labelKey)}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Error / Access denied */}
       {error && (
@@ -210,298 +243,445 @@ export default function Settings() {
       {/* Settings form */}
       {!loading && !error && settings && (
         <div className="space-y-6">
-          {/* Toggle settings */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3">
-              {t('settings.featureToggles')}
-            </h2>
 
-            <div className="divide-y divide-border">
-              <ToggleSwitch
-                enabled={settings.leaderboard_enabled ?? true}
-                onChange={(v) => updateSetting('leaderboard_enabled', v)}
-                label={t('settings.leaderboard')}
-              />
-              <ToggleSwitch
-                enabled={settings.chore_trading_enabled ?? true}
-                onChange={(v) => updateSetting('chore_trading_enabled', v)}
-                label={t('settings.choreTrading')}
-              />
-              <ToggleSwitch
-                enabled={settings.achievements_enabled ?? true}
-                onChange={(v) => updateSetting('achievements_enabled', v)}
-                label={t('settings.achievements')}
-              />
-              <ToggleSwitch
-                enabled={settings.auto_approve_chores ?? false}
-                onChange={(v) => updateSetting('auto_approve_chores', v)}
-                label={t('settings.autoApproveChores')}
-              />
-              <ToggleSwitch
-                enabled={settings.keep_validated_visible ?? true}
-                onChange={(v) => updateSetting('keep_validated_visible', v)}
-                label={t('settings.keepValidatedVisible')}
-              />
-              <ToggleSwitch
-                enabled={settings.kid_thumbs_buttons ?? false}
-                onChange={(v) => updateSetting('kid_thumbs_buttons', v)}
-                label={t('settings.kidThumbsButtons')}
-              />
-            </div>
-            <p className="text-muted text-xs mt-2">
-              {t('settings.kidThumbsButtonsHint')}
-            </p>
-          </div>
+          {activeTab === 'general' && (
+            <>
+              {/* Family default language */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Globe size={16} className="text-muted" />
+                  {t('settings.defaultLanguage')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.defaultLanguageHint')}
+                </p>
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.id}
+                      onClick={() => updateSetting('default_language', lang.id)}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        (settings.default_language ?? 'fr') === lang.id
+                          ? 'bg-surface-raised text-cream'
+                          : 'text-muted hover:text-cream'
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Family default language */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
-              <Globe size={16} className="text-muted" />
-              {t('settings.defaultLanguage')}
-            </h2>
-            <p className="text-muted text-xs mb-3">
-              {t('settings.defaultLanguageHint')}
-            </p>
-            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
-              {SUPPORTED_LANGUAGES.map((lang) => (
-                <button
-                  key={lang.id}
-                  onClick={() => updateSetting('default_language', lang.id)}
-                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    (settings.default_language ?? 'fr') === lang.id
-                      ? 'bg-surface-raised text-cream'
-                      : 'text-muted hover:text-cream'
-                  }`}
+              {/* Family timezone */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Clock size={16} className="text-muted" />
+                  {t('settings.timezone')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.timezoneHint')}
+                </p>
+                <select
+                  value={settings.timezone ?? 'Europe/Paris'}
+                  onChange={(e) => updateSetting('timezone', e.target.value)}
+                  className="field-input max-w-xs"
                 >
-                  {lang.label}
-                </button>
-              ))}
-            </div>
-          </div>
+                  {TIMEZONE_OPTIONS.map((tz) => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              </div>
 
-          {/* Family timezone */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
-              <Clock size={16} className="text-muted" />
-              {t('settings.timezone')}
-            </h2>
-            <p className="text-muted text-xs mb-3">
-              {t('settings.timezoneHint')}
-            </p>
-            <select
-              value={settings.timezone ?? 'Europe/Paris'}
-              onChange={(e) => updateSetting('timezone', e.target.value)}
-              className="field-input max-w-xs"
-            >
-              {TIMEZONE_OPTIONS.map((tz) => (
-                <option key={tz} value={tz}>{tz}</option>
-              ))}
-            </select>
-          </div>
+              {/* Admin link */}
+              {user?.role === 'admin' && (
+                <div className="game-panel p-4 text-center">
+                  <p className="text-muted text-xs mb-3">
+                    {t('settings.needAdvancedControls')}
+                  </p>
+                  <button
+                    onClick={() => navigate('/admin')}
+                    className="game-btn game-btn-purple"
+                  >
+                    <Shield size={14} className="inline mr-2" />
+                    {t('settings.adminDashboard')}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
 
-          {/* Week start day */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
-              <CalendarDays size={16} className="text-muted" />
-              {t('settings.weekStartDay')}
-            </h2>
-            <p className="text-muted text-xs mb-3">
-              {t('settings.weekStartDayHint')}
-            </p>
-            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
-              {[
-                { id: 'monday', label: t('calendar.days.mon') },
-                { id: 'sunday', label: t('calendar.days.sun') },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => updateSetting('week_start_day', opt.id)}
-                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    (settings.week_start_day ?? 'monday') === opt.id
-                      ? 'bg-surface-raised text-cream'
-                      : 'text-muted hover:text-cream'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          {activeTab === 'tasks' && (
+            <>
+              {/* Toggle settings */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3">
+                  {t('settings.featureToggles')}
+                </h2>
 
-          {/* Daily reset hour */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3">
-              {t('settings.dailyResetHour')}
-            </h2>
-            <p className="text-muted text-xs mb-3">
-              {t('settings.dailyResetHourHint')}
-            </p>
-            <input
-              type="number"
-              min={0}
-              max={23}
-              value={settings.daily_reset_hour ?? 0}
-              onChange={(e) => {
-                const val = Math.min(23, Math.max(0, parseInt(e.target.value, 10) || 0));
-                updateSetting('daily_reset_hour', val);
-              }}
-              className="field-input max-w-[120px]"
-            />
-          </div>
+                <div className="divide-y divide-border">
+                  <ToggleSwitch
+                    enabled={settings.leaderboard_enabled ?? true}
+                    onChange={(v) => updateSetting('leaderboard_enabled', v)}
+                    label={t('settings.leaderboard')}
+                  />
+                  <ToggleSwitch
+                    enabled={settings.chore_trading_enabled ?? true}
+                    onChange={(v) => updateSetting('chore_trading_enabled', v)}
+                    label={t('settings.choreTrading')}
+                  />
+                  <ToggleSwitch
+                    enabled={settings.achievements_enabled ?? true}
+                    onChange={(v) => updateSetting('achievements_enabled', v)}
+                    label={t('settings.achievements')}
+                  />
+                  <ToggleSwitch
+                    enabled={settings.auto_approve_chores ?? false}
+                    onChange={(v) => updateSetting('auto_approve_chores', v)}
+                    label={t('settings.autoApproveChores')}
+                  />
+                  <ToggleSwitch
+                    enabled={settings.keep_validated_visible ?? true}
+                    onChange={(v) => updateSetting('keep_validated_visible', v)}
+                    label={t('settings.keepValidatedVisible')}
+                  />
+                  <ToggleSwitch
+                    enabled={settings.kid_thumbs_buttons ?? false}
+                    onChange={(v) => updateSetting('kid_thumbs_buttons', v)}
+                    label={t('settings.kidThumbsButtons')}
+                  />
+                </div>
+                <p className="text-muted text-xs mt-2">
+                  {t('settings.kidThumbsButtonsHint')}
+                </p>
+              </div>
 
-          {/* Chore time window enforcement */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
-              <Clock size={16} className="text-muted" />
-              {t('settings.choreWindowEnforcement')}
-            </h2>
-            <p className="text-muted text-xs mb-3">
-              {t('settings.choreWindowEnforcementHint')}
-            </p>
-            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
-              {[
-                { id: 'indicative', label: t('settings.enforcementIndicative') },
-                { id: 'strict', label: t('settings.enforcementStrict') },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => updateSetting('chore_window_enforcement', opt.id)}
-                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    (settings.chore_window_enforcement ?? 'indicative') === opt.id
-                      ? 'bg-surface-raised text-cream'
-                      : 'text-muted hover:text-cream'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+              {/* Week start day */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <CalendarDays size={16} className="text-muted" />
+                  {t('settings.weekStartDay')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.weekStartDayHint')}
+                </p>
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+                  {[
+                    { id: 'monday', label: t('calendar.days.mon') },
+                    { id: 'sunday', label: t('calendar.days.sun') },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => updateSetting('week_start_day', opt.id)}
+                      className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        (settings.week_start_day ?? 'monday') === opt.id
+                          ? 'bg-surface-raised text-cream'
+                          : 'text-muted hover:text-cream'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Task not done handling */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
-              <XCircle size={16} className="text-muted" />
-              {t('settings.declineHandling')}
-            </h2>
-            <p className="text-muted text-xs mb-3">
-              {t('settings.declineHandlingHint')}
-            </p>
-            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
-              {[
-                { id: 'none', label: t('settings.declineModeNone') },
-                { id: 'malus', label: t('settings.declineModeMalus') },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => updateSetting('decline_malus_mode', opt.id)}
-                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
-                    (settings.decline_malus_mode ?? 'none') === opt.id
-                      ? 'bg-surface-raised text-cream'
-                      : 'text-muted hover:text-cream'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-
-            {(settings.decline_malus_mode ?? 'none') === 'malus' && (
-              <div className="pt-3">
-                <label className="block text-cream text-sm font-medium mb-1">
-                  {t('settings.declineMalusExtra')}
-                </label>
+              {/* Daily reset hour */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3">
+                  {t('settings.dailyResetHour')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.dailyResetHourHint')}
+                </p>
                 <input
                   type="number"
                   min={0}
-                  value={settings.decline_malus_extra ?? 0}
+                  max={23}
+                  value={settings.daily_reset_hour ?? 0}
                   onChange={(e) => {
-                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                    updateSetting('decline_malus_extra', val);
+                    const val = Math.min(23, Math.max(0, parseInt(e.target.value, 10) || 0));
+                    updateSetting('daily_reset_hour', val);
                   }}
                   className="field-input max-w-[120px]"
                 />
-                <p className="text-muted text-xs mt-1">{t('settings.declineMalusExtraHint')}</p>
               </div>
-            )}
-          </div>
 
-          {/* Periodic stars reset */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
-              <RotateCcw size={16} className="text-muted" />
-              {t('settings.pointsReset')}
-            </h2>
-            <p className="text-muted text-xs mb-3">
-              {t('settings.pointsResetHint')}
-            </p>
-            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 flex-wrap">
-              {[
-                { id: 'never', label: t('settings.pointsResetNever') },
-                { id: 'weekly', label: t('settings.pointsResetWeekly') },
-                { id: 'monthly', label: t('settings.pointsResetMonthly') },
-                { id: 'quarterly', label: t('settings.pointsResetQuarterly') },
-              ].map((opt) => {
-                const current = settings.points_reset_enabled
-                  ? (settings.points_reset_cadence ?? 'monthly')
-                  : 'never';
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => {
-                      if (opt.id === 'never') {
-                        updateSetting('points_reset_enabled', false);
-                      } else {
-                        updateSetting('points_reset_enabled', true);
-                        updateSetting('points_reset_cadence', opt.id);
-                      }
-                    }}
-                    className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
-                      current === opt.id
-                        ? 'bg-surface-raised text-cream'
-                        : 'text-muted hover:text-cream'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
+              {/* Chore time window enforcement */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Clock size={16} className="text-muted" />
+                  {t('settings.choreWindowEnforcement')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.choreWindowEnforcementHint')}
+                </p>
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+                  {[
+                    { id: 'indicative', label: t('settings.enforcementIndicative') },
+                    { id: 'strict', label: t('settings.enforcementStrict') },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => updateSetting('chore_window_enforcement', opt.id)}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        (settings.chore_window_enforcement ?? 'indicative') === opt.id
+                          ? 'bg-surface-raised text-cream'
+                          : 'text-muted hover:text-cream'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            {settings.points_reset_enabled && (
-              <div className="pt-3">
-                {(settings.points_reset_cadence ?? 'monthly') === 'weekly' ? (
-                  <div>
-                    <p className="text-muted text-xs mb-1.5">{t('settings.pointsResetWeekdayLabel')}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {DAY_KEYS.map((key, i) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => updateSetting('points_reset_weekday', i)}
-                          className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
-                            (settings.points_reset_weekday ?? 0) === i
-                              ? 'border-accent bg-accent/10 text-accent'
-                              : 'border-border text-muted hover:border-border-light'
-                          }`}
-                        >
-                          {t(key)}
-                        </button>
-                      ))}
-                    </div>
+              {/* Task not done handling */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <XCircle size={16} className="text-muted" />
+                  {t('settings.declineHandling')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.declineHandlingHint')}
+                </p>
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+                  {[
+                    { id: 'none', label: t('settings.declineModeNone') },
+                    { id: 'malus', label: t('settings.declineModeMalus') },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => updateSetting('decline_malus_mode', opt.id)}
+                      className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
+                        (settings.decline_malus_mode ?? 'none') === opt.id
+                          ? 'bg-surface-raised text-cream'
+                          : 'text-muted hover:text-cream'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {(settings.decline_malus_mode ?? 'none') === 'malus' && (
+                  <div className="pt-3">
+                    <label className="block text-cream text-sm font-medium mb-1">
+                      {t('settings.declineMalusExtra')}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={settings.decline_malus_extra ?? 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        updateSetting('decline_malus_extra', val);
+                      }}
+                      className="field-input max-w-[120px]"
+                    />
+                    <p className="text-muted text-xs mt-1">{t('settings.declineMalusExtraHint')}</p>
                   </div>
-                ) : (
-                  <p className="text-muted text-xs">
-                    {(settings.points_reset_cadence ?? 'monthly') === 'quarterly'
-                      ? t('settings.pointsResetQuarterlyHint')
-                      : t('settings.pointsResetMonthlyHint')}
-                  </p>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* Save button */}
+              {/* Periodic stars reset */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <RotateCcw size={16} className="text-muted" />
+                  {t('settings.pointsReset')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.pointsResetHint')}
+                </p>
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 flex-wrap">
+                  {[
+                    { id: 'never', label: t('settings.pointsResetNever') },
+                    { id: 'weekly', label: t('settings.pointsResetWeekly') },
+                    { id: 'monthly', label: t('settings.pointsResetMonthly') },
+                    { id: 'quarterly', label: t('settings.pointsResetQuarterly') },
+                  ].map((opt) => {
+                    const current = settings.points_reset_enabled
+                      ? (settings.points_reset_cadence ?? 'monthly')
+                      : 'never';
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => {
+                          if (opt.id === 'never') {
+                            updateSetting('points_reset_enabled', false);
+                          } else {
+                            updateSetting('points_reset_enabled', true);
+                            updateSetting('points_reset_cadence', opt.id);
+                          }
+                        }}
+                        className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
+                          current === opt.id
+                            ? 'bg-surface-raised text-cream'
+                            : 'text-muted hover:text-cream'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {settings.points_reset_enabled && (
+                  <div className="pt-3">
+                    {(settings.points_reset_cadence ?? 'monthly') === 'weekly' ? (
+                      <div>
+                        <p className="text-muted text-xs mb-1.5">{t('settings.pointsResetWeekdayLabel')}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {DAY_KEYS.map((key, i) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => updateSetting('points_reset_weekday', i)}
+                              className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                                (settings.points_reset_weekday ?? 0) === i
+                                  ? 'border-accent bg-accent/10 text-accent'
+                                  : 'border-border text-muted hover:border-border-light'
+                              }`}
+                            >
+                              {t(key)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-muted text-xs">
+                        {(settings.points_reset_cadence ?? 'monthly') === 'quarterly'
+                          ? t('settings.pointsResetQuarterlyHint')
+                          : t('settings.pointsResetMonthlyHint')}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Vacation Mode */}
+              <VacationSettings />
+
+              {/* Per-child vacations */}
+              <KidVacationSettings />
+
+              {/* Achievement point values */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Award size={16} className="text-muted" />
+                  {t('settings.achievementPoints')}
+                </h2>
+
+                {achievementsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 size={20} className="text-accent animate-spin" />
+                  </div>
+                ) : achievements.length === 0 ? (
+                  <p className="text-muted text-xs">
+                    {t('settings.noAchievements')}
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {achievements.map((ach) => {
+                      const tierColors = { bronze: 'text-amber-500 bg-amber-600/10 border-amber-600/30', silver: 'text-slate-300 bg-slate-300/10 border-slate-300/30', gold: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30' };
+                      const tierStyle = tierColors[ach.tier] || '';
+                      return (
+                      <div
+                        key={ach.id}
+                        className="p-3 rounded-md bg-surface-raised/30 border border-border space-y-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-cream text-sm truncate">
+                              {ach.title || ach.name}
+                            </p>
+                            {ach.tier && (
+                              <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-md border ${tierStyle}`}>
+                                {ach.tier}
+                              </span>
+                            )}
+                          </div>
+                          {ach.description && (
+                            <p className="text-muted text-xs">
+                              {ach.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={ach.points_reward ?? 0}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10) || 0;
+                              setAchievements((prev) =>
+                                prev.map((a) =>
+                                  a.id === ach.id
+                                    ? { ...a, points_reward: val }
+                                    : a
+                                )
+                              );
+                            }}
+                            className="field-input !w-20 !p-2 text-center"
+                          />
+                          <span className="text-muted text-xs">{t('settings.pts')}</span>
+                          <button
+                            onClick={() => updateAchievementPoints(ach)}
+                            disabled={achievementsSaving[ach.id]}
+                            className="game-btn game-btn-blue !py-2 !px-3 ml-auto"
+                            title={t('common.save')}
+                          >
+                            {achievementsSaving[ach.id] ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Save size={12} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'familyzone' && (
+            <>
+              {/* Default calendar view */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <CalendarDays size={16} className="text-muted" />
+                  {t('settings.familyZoneDefaultView')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.familyZoneDefaultViewHint')}
+                </p>
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+                  {[
+                    { id: 'week', label: t('familyZone.viewWeek') },
+                    { id: 'month', label: t('familyZone.viewMonth') },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => updateSetting('family_zone_default_view', opt.id)}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        (settings.family_zone_default_view ?? 'week') === opt.id
+                          ? 'bg-surface-raised text-cream'
+                          : 'text-muted hover:text-cream'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Photo-frame source */}
+              <FamilyPhotoSettings />
+            </>
+          )}
+
+          {/* Save button (applies to whichever settings were edited, on any tab) */}
           <button
             onClick={saveSettings}
             disabled={saving}
@@ -518,111 +698,6 @@ export default function Settings() {
             <p className={`text-sm ${saveMsg === t('settings.saved') ? 'text-emerald' : 'text-crimson'}`}>
               {saveMsg}
             </p>
-          )}
-
-          {/* Vacation Mode */}
-          <VacationSettings />
-
-          {/* Per-child vacations */}
-          <KidVacationSettings />
-
-          {/* Family Zone photo-frame source */}
-          <FamilyPhotoSettings />
-
-          {/* Achievement point values */}
-          <div className="game-panel p-4">
-            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
-              <Award size={16} className="text-muted" />
-              {t('settings.achievementPoints')}
-            </h2>
-
-            {achievementsLoading ? (
-              <div className="flex justify-center py-4">
-                <Loader2 size={20} className="text-accent animate-spin" />
-              </div>
-            ) : achievements.length === 0 ? (
-              <p className="text-muted text-xs">
-                {t('settings.noAchievements')}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {achievements.map((ach) => {
-                  const tierColors = { bronze: 'text-amber-500 bg-amber-600/10 border-amber-600/30', silver: 'text-slate-300 bg-slate-300/10 border-slate-300/30', gold: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30' };
-                  const tierStyle = tierColors[ach.tier] || '';
-                  return (
-                  <div
-                    key={ach.id}
-                    className="p-3 rounded-md bg-surface-raised/30 border border-border space-y-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-cream text-sm truncate">
-                          {ach.title || ach.name}
-                        </p>
-                        {ach.tier && (
-                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-md border ${tierStyle}`}>
-                            {ach.tier}
-                          </span>
-                        )}
-                      </div>
-                      {ach.description && (
-                        <p className="text-muted text-xs">
-                          {ach.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        value={ach.points_reward ?? 0}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10) || 0;
-                          setAchievements((prev) =>
-                            prev.map((a) =>
-                              a.id === ach.id
-                                ? { ...a, points_reward: val }
-                                : a
-                            )
-                          );
-                        }}
-                        className="field-input !w-20 !p-2 text-center"
-                      />
-                      <span className="text-muted text-xs">{t('settings.pts')}</span>
-                      <button
-                        onClick={() => updateAchievementPoints(ach)}
-                        disabled={achievementsSaving[ach.id]}
-                        className="game-btn game-btn-blue !py-2 !px-3 ml-auto"
-                        title={t('common.save')}
-                      >
-                        {achievementsSaving[ach.id] ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <Save size={12} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Admin link */}
-          {user?.role === 'admin' && (
-            <div className="game-panel p-4 text-center">
-              <p className="text-muted text-xs mb-3">
-                {t('settings.needAdvancedControls')}
-              </p>
-              <button
-                onClick={() => navigate('/admin')}
-                className="game-btn game-btn-purple"
-              >
-                <Shield size={14} className="inline mr-2" />
-                {t('settings.adminDashboard')}
-              </button>
-            </div>
           )}
         </div>
       )}

@@ -16,15 +16,22 @@ router = APIRouter(prefix="/api/kiosk", tags=["kiosk"])
 # ---------- GET /settings ----------
 @router.get("/settings")
 async def get_kiosk_settings(db: AsyncSession = Depends(get_db)):
-    """Public, minimal settings needed before any kid is selected.
+    """Public, minimal settings needed before any kid is selected (or for
+    the public Family Zone screen).
 
-    Only ever exposes an allowlisted key — never the full AppSetting table.
+    Only ever exposes an allowlisted set of keys — never the full
+    AppSetting table.
     """
     result = await db.execute(
-        select(AppSetting).where(AppSetting.key == "default_language")
+        select(AppSetting).where(
+            AppSetting.key.in_(["default_language", "family_zone_default_view"])
+        )
     )
-    setting = result.scalar_one_or_none()
-    return {"default_language": setting.value if setting else "fr"}
+    settings_map = {s.key: s.value for s in result.scalars().all()}
+    return {
+        "default_language": settings_map.get("default_language", "fr"),
+        "family_zone_default_view": settings_map.get("family_zone_default_view", "week"),
+    }
 
 
 # ---------- GET /kids ----------

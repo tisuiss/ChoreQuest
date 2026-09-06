@@ -78,6 +78,7 @@ export default function FamilyZone() {
       try {
         const data = await api('/api/kiosk/settings');
         applyDefaultIfUnset(data?.default_language);
+        if (data?.family_zone_default_view === 'month') setViewMode('month');
       } catch { /* non-critical */ }
     })();
   }, [applyDefaultIfUnset]);
