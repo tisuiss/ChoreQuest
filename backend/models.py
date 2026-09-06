@@ -465,6 +465,41 @@ class ChoreVacationPeriod(Base):
     creator = relationship("User")
 
 
+class FamilyEvent(Base):
+    """A family-wide calendar entry shown on the Family Zone screen —
+    independent of chore assignments (e.g. an appointment, birthday, outing).
+    member_id is null for an event that concerns the whole family."""
+    __tablename__ = "family_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    member_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    member = relationship("User")
+
+
+class WeeklyMenuEntry(Base):
+    """One day's planned dinner, shown in the Family Zone weekly menu."""
+    __tablename__ = "weekly_menu_entries"
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    dish: Mapped[str] = mapped_column(String(200), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class FamilyPhoto(Base):
+    """A photo in the Family Zone's photo-frame slideshow source, uploaded
+    via the generic /api/uploads endpoint and registered here."""
+    __tablename__ = "family_photos"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    uploaded_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    uploader = relationship("User")
+
+
 class KidVacationPeriod(Base):
     """Per-child vacation periods. While a kid is away:
 

@@ -27,6 +27,7 @@ async def init_db():
             Notification, ApiKey, AuditLog, AppSetting,
             InviteCode, RefreshToken, PushSubscription,
             Shoutout, VacationPeriod, ChoreVacationPeriod, KidVacationPeriod,
+            FamilyEvent, WeeklyMenuEntry, FamilyPhoto,
         )
         await conn.run_sync(Base.metadata.create_all)
 

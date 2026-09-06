@@ -47,6 +47,57 @@ class KioskLoginRequest(BaseModel):
     pin: str | None = Field(default=None, pattern=r"^\d{4,6}$")
 
 
+# Family Zone
+class FamilyEventCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    date: date
+    time: time | None = None
+    member_id: int | None = None
+
+
+class FamilyEventResponse(BaseModel):
+    id: int
+    title: str
+    date: date
+    time: time | None
+    member_id: int | None
+
+    model_config = {"from_attributes": True}
+
+
+class WeeklyMenuUpsert(BaseModel):
+    date: date
+    dish: str = Field(max_length=200)
+
+
+class WeeklyMenuResponse(BaseModel):
+    date: date
+    dish: str
+
+    model_config = {"from_attributes": True}
+
+
+class FamilyStarsResponse(BaseModel):
+    id: int
+    display_name: str
+    avatar_config: dict | None
+    avatar_photo_url: str | None = None
+    points_balance: int
+
+    model_config = {"from_attributes": True}
+
+
+class FamilyPhotoCreate(BaseModel):
+    url: str = Field(max_length=500)
+
+
+class FamilyPhotoResponse(BaseModel):
+    id: int
+    url: str
+
+    model_config = {"from_attributes": True}
+
+
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = Field(None, max_length=10)
     avatar_config: dict | None = None

@@ -8,6 +8,7 @@ import UpdatePrompt from './components/UpdatePrompt';
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const Kiosk = lazy(() => import('./pages/Kiosk'));
+const FamilyZone = lazy(() => import('./pages/FamilyZone'));
 const KioskDirect = lazy(() => import('./pages/KioskDirect'));
 const KidDashboard = lazy(() => import('./pages/KidDashboard'));
 const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/kiosk" element={<Kiosk />} />
+          <Route path="/familyzone" element={<FamilyZone />} />
           <Route
             path="*"
             element={<Navigate to={pinnedUsername ? `/kiosk/${pinnedUsername}` : '/login'} replace />}
