@@ -66,9 +66,11 @@ function weekGridStart(dateStr, sundayStart) {
 }
 
 // Date range covered by each view mode, anchored on `startDate`.
-// day: just that date. week: 7 days from startDate (unchanged behaviour).
-// month: the full calendar-grid range -- Monday of the week containing the
-// 1st of the month through Sunday of the week containing the last day.
+// day: just that date. week: the 7-day week containing startDate, aligned to
+// the family's configured first day (Monday by default, or Sunday).
+// month: the full calendar-grid range -- first-day-of-week of the week
+// containing the 1st of the month through the end of the week containing the
+// last day.
 function getViewRange(viewMode, startDate, sundayStart = false) {
   if (viewMode === 'day') {
     return { days: [startDate] };
@@ -87,8 +89,9 @@ function getViewRange(viewMode, startDate, sundayStart = false) {
     }
     return { days };
   }
-  // week
-  return { days: Array.from({ length: 7 }, (_, i) => addDays(startDate, i)) };
+  // week — aligned to the configured first day of week
+  const ws = weekGridStart(startDate, sundayStart);
+  return { days: Array.from({ length: 7 }, (_, i) => addDays(ws, i)) };
 }
 
 const SHORT_DAY_KEYS = ['calendar.days.sun', 'calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat'];
@@ -377,7 +380,8 @@ export default function Calendar() {
     }
   };
 
-  const endDate = addDays(startDate, 6);
+  const weekStart = weekGridStart(startDate, sundayStart);
+  const weekEnd = addDays(weekStart, 6);
   const today = toISO(new Date());
   const isAtToday = startDate === today;
   const formatShortDate = (str) => {
@@ -395,7 +399,7 @@ export default function Calendar() {
         month: 'long', year: 'numeric',
       });
     }
-    return `${formatShortDate(startDate)} – ${formatShortDate(endDate)}`;
+    return `${formatShortDate(weekStart)} – ${formatShortDate(weekEnd)}`;
   };
 
   // Kid + chore filters for the parent view (kids only ever see their own).
@@ -779,7 +783,7 @@ export default function Calendar() {
         <div className={viewMode === 'day' ? 'max-w-md mx-auto' : 'grid grid-cols-1 md:grid-cols-7 gap-3'}>
           {viewMode === 'day'
             ? renderDayColumn(startDate)
-            : Array.from({ length: 7 }, (_, i) => renderDayColumn(addDays(startDate, i)))}
+            : Array.from({ length: 7 }, (_, i) => renderDayColumn(addDays(weekStart, i)))}
         </div>
       )}
 
