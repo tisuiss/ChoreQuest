@@ -320,6 +320,22 @@ export default function FamilyZone() {
 
   const topStars = stars.length > 0 ? Math.max(...stars.map((k) => k.points_balance), 1) : 1;
 
+  // Today's dinner, fetched independently of the (navigable) menu panel above
+  // so the recap panel always shows the real current day's dish regardless
+  // of which week the menu panel is currently browsing.
+  const [todayDish, setTodayDish] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const realToday = new Date();
+        const data = await api(`/api/family-zone/menu?week_start=${ymd(startOfWeek(realToday))}`);
+        const entry = Array.isArray(data) ? data.find((m) => m.date === ymd(realToday)) : null;
+        setTodayDish(entry?.dish || '');
+      } catch { /* recap panel just omits the menu line */ }
+    })();
+  }, []);
+
   // ---------------------------------------------------------------------
   // To-do list
   // ---------------------------------------------------------------------
@@ -591,6 +607,12 @@ export default function FamilyZone() {
         {t('familyZone.todayDetailTitle')}
       </p>
       <p className="text-muted text-xs mb-3 capitalize">{fullDateFmt.format(today)}</p>
+      {todayDish && (
+        <div className="flex items-center gap-2 text-sm mb-3 pb-3 border-b border-border">
+          <UtensilsCrossed size={14} className="text-accent flex-shrink-0" />
+          <span className="text-cream">{todayDish}</span>
+        </div>
+      )}
       {(() => {
         const todayEvts = eventsFor(ymd(today));
         if (todayEvts.length === 0) {
