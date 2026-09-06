@@ -51,7 +51,7 @@ class KioskLoginRequest(BaseModel):
 class FamilyEventCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     date: date
-    time: time | None = None
+    time: "time | None" = None
     member_id: int | None = None
 
 
@@ -59,7 +59,7 @@ class FamilyEventResponse(BaseModel):
     id: int
     title: str
     date: date
-    time: time | None
+    time: "time | None"
     member_id: int | None
 
     model_config = {"from_attributes": True}
