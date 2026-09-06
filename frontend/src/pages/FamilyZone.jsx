@@ -195,6 +195,7 @@ export default function FamilyZone() {
     events.filter((e) => e.date === dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
 
   const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   const openEventModal = () => {
     const refDate = viewMode === 'week' ? today : monthCursor;
@@ -575,16 +576,20 @@ export default function FamilyZone() {
             const dStr = ymd(d);
             const outside = d.getMonth() !== monthCursor.getMonth();
             const isToday = sameDate(d, today);
+            const isPast = d < todayStart;
             const dayEvts = eventsFor(dStr);
             const shown = dayEvts.slice(0, 2);
             const rest = dayEvts.length - shown.length;
             return (
               <div
                 key={dStr}
-                className={`rounded-md border p-1 min-h-[64px] sm:min-h-[76px] flex flex-col gap-0.5 ${
+                className={`relative rounded-md border p-1 min-h-[64px] sm:min-h-[76px] flex flex-col gap-0.5 ${
                   outside ? 'opacity-35' : ''
                 } ${isToday ? 'border-accent bg-accent/5' : 'border-border bg-navy'}`}
               >
+                {isPast && (
+                  <X size={36} strokeWidth={2.5} className="absolute inset-0 m-auto text-crimson/35 pointer-events-none" />
+                )}
                 <span className={`text-[11px] font-bold font-mono ${isToday ? 'text-accent-light' : 'text-cream'}`}>{d.getDate()}</span>
                 {shown.map((e) => (
                   <div key={e.id} className="hidden sm:block rounded bg-surface-raised px-1 py-[1px] text-[9px] leading-tight truncate border-l-2" style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}>
