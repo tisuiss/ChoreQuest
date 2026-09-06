@@ -131,6 +131,8 @@
     "defaultLanguageHint": "Langue affichée sur l'écran kiosque avant qu'un enfant ne soit sélectionné.",
     "timezone": "Fuseau horaire familial",
     "timezoneHint": "Détermine \"aujourd'hui\" pour les séries, la réinitialisation des corvées et le calendrier. Appliqué immédiatement, sans redémarrage.",
+    "weekStartDay": "Jour de début de semaine",
+    "weekStartDayHint": "Premier jour des colonnes dans la vue mois du calendrier.",
     "dailyResetHour": "Heure de réinitialisation quotidienne",
     "dailyResetHourHint": "Heure de la journée (0-23) à laquelle les corvées quotidiennes se réinitialisent.",
     "choreWindowEnforcement": "Application des horaires de corvée",
@@ -685,6 +687,7 @@
       "sat": "Sam"
     },
     "allKids": "Tous les enfants",
+    "allChores": "Toutes les corvées",
     "viewDay": "Jour",
     "viewWeek": "Semaine",
     "viewMonth": "Mois",

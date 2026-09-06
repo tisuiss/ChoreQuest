@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Globe,
   Clock,
+  CalendarDays,
   RotateCcw,
   XCircle,
 } from 'lucide-react';
@@ -295,6 +296,35 @@ export default function Settings() {
                 <option key={tz} value={tz}>{tz}</option>
               ))}
             </select>
+          </div>
+
+          {/* Week start day */}
+          <div className="game-panel p-4">
+            <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+              <CalendarDays size={16} className="text-muted" />
+              {t('settings.weekStartDay')}
+            </h2>
+            <p className="text-muted text-xs mb-3">
+              {t('settings.weekStartDayHint')}
+            </p>
+            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
+              {[
+                { id: 'monday', label: t('calendar.days.mon') },
+                { id: 'sunday', label: t('calendar.days.sun') },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => updateSetting('week_start_day', opt.id)}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    (settings.week_start_day ?? 'monday') === opt.id
+                      ? 'bg-surface-raised text-cream'
+                      : 'text-muted hover:text-cream'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Daily reset hour */}

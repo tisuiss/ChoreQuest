@@ -54,6 +54,7 @@ DEFAULT_SETTINGS = {
     "achievements_enabled": "true",
     "auto_approve_chores": "false",
     "timezone": "Europe/Paris",
+    "week_start_day": "monday",
     "chore_window_enforcement": "indicative",
     "points_reset_enabled": "false",
     "points_reset_cadence": "monthly",

@@ -10,6 +10,7 @@ const SettingsContext = createContext({
   kid_thumbs_buttons: false,
   decline_malus_mode: 'none',
   decline_malus_extra: 0,
+  week_start_day: 'monday',
 });
 
 export function SettingsProvider({ children }) {
@@ -22,6 +23,7 @@ export function SettingsProvider({ children }) {
     kid_thumbs_buttons: false,
     decline_malus_mode: 'none',
     decline_malus_extra: 0,
+    week_start_day: 'monday',
   });
 
   const fetchFeatures = useCallback(async () => {
@@ -36,6 +38,7 @@ export function SettingsProvider({ children }) {
         kid_thumbs_buttons: data.kid_thumbs_buttons === 'true',
         decline_malus_mode: data.decline_malus_mode === 'malus' ? 'malus' : 'none',
         decline_malus_extra: Math.max(0, parseInt(data.decline_malus_extra, 10) || 0),
+        week_start_day: data.week_start_day === 'sunday' ? 'sunday' : 'monday',
       });
     } catch {
       // If fetch fails, keep defaults (all enabled)

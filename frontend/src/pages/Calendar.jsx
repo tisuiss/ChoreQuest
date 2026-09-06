@@ -52,11 +52,24 @@ function mondayOf(dateStr) {
   return addDays(dateStr, mondayOffset);
 }
 
+// Start of the grid week containing `dateStr`, honoring the family's
+// configured first day of week (Monday by default, or Sunday).
+function weekGridStart(dateStr, sundayStart) {
+  const dow = new Date(dateStr + 'T00:00:00').getDay(); // 0=Sun..6=Sat
+  let offset;
+  if (sundayStart) {
+    offset = -dow;
+  } else {
+    offset = dow === 0 ? -6 : 1 - dow;
+  }
+  return addDays(dateStr, offset);
+}
+
 // Date range covered by each view mode, anchored on `startDate`.
 // day: just that date. week: 7 days from startDate (unchanged behaviour).
 // month: the full calendar-grid range -- Monday of the week containing the
 // 1st of the month through Sunday of the week containing the last day.
-function getViewRange(viewMode, startDate) {
+function getViewRange(viewMode, startDate, sundayStart = false) {
   if (viewMode === 'day') {
     return { days: [startDate] };
   }
@@ -64,8 +77,8 @@ function getViewRange(viewMode, startDate) {
     const d = new Date(startDate + 'T00:00:00');
     const firstOfMonth = toISO(new Date(d.getFullYear(), d.getMonth(), 1));
     const lastOfMonth = toISO(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-    const gridStart = mondayOf(firstOfMonth);
-    const gridEnd = addDays(mondayOf(lastOfMonth), 6);
+    const gridStart = weekGridStart(firstOfMonth, sundayStart);
+    const gridEnd = addDays(weekGridStart(lastOfMonth, sundayStart), 6);
     const days = [];
     let cursor = gridStart;
     while (cursor <= gridEnd) {
@@ -80,6 +93,7 @@ function getViewRange(viewMode, startDate) {
 
 const SHORT_DAY_KEYS = ['calendar.days.sun', 'calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat'];
 const MONDAY_FIRST_DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
+const SUNDAY_FIRST_DAY_KEYS = ['calendar.days.sun', 'calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat'];
 
 function statusStyle(assignment, dayStr) {
   const today = toISO(new Date());
@@ -159,7 +173,8 @@ export default function Calendar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { chore_trading_enabled } = useSettings();
+  const { chore_trading_enabled, week_start_day } = useSettings();
+  const sundayStart = week_start_day === 'sunday';
   const { colorTheme } = useTheme();
   const isKid = user?.role === 'kid';
 
@@ -176,6 +191,8 @@ export default function Calendar() {
   const [selectedKid, setSelectedKid] = useState('');
   const [allKids, setAllKids] = useState([]);
   const [selectedKidFilter, setSelectedKidFilter] = useState('');
+  const [allChores, setAllChores] = useState([]);
+  const [selectedChoreFilter, setSelectedChoreFilter] = useState('');
   const [tradeSubmitting, setTradeSubmitting] = useState(false);
   const [tradeError, setTradeError] = useState('');
   const [removingId, setRemovingId] = useState(null);
@@ -191,7 +208,7 @@ export default function Calendar() {
       // The backend requires week_start to be a Monday. The displayed range
       // (a single day, 7 days, or a full month grid) can span several
       // Mon-Sun weeks, so fetch each covered week and merge the results.
-      const { days } = getViewRange(viewMode, startDate);
+      const { days } = getViewRange(viewMode, startDate, sundayStart);
       const byDay = {};
       for (const day of days) byDay[day] = [];
 
@@ -223,7 +240,7 @@ export default function Calendar() {
     } finally {
       setLoading(false);
     }
-  }, [startDate, viewMode, t]);
+  }, [startDate, viewMode, sundayStart, t]);
 
   useEffect(() => {
     fetchCalendar();
@@ -234,6 +251,9 @@ export default function Calendar() {
     api('/api/stats/kids')
       .then((data) => setAllKids(data || []))
       .catch(() => setAllKids([]));
+    api('/api/chores')
+      .then((data) => setAllChores(Array.isArray(data) ? data : []))
+      .catch(() => setAllChores([]));
   }, [isKid]);
 
   // Live updates via WebSocket
@@ -378,16 +398,23 @@ export default function Calendar() {
     return `${formatShortDate(startDate)} – ${formatShortDate(endDate)}`;
   };
 
+  // Kid + chore filters for the parent view (kids only ever see their own).
+  const applyFilters = (list) =>
+    isKid
+      ? list.filter((a) => a.user_id === user?.id)
+      : list.filter(
+          (a) =>
+            (!selectedKidFilter || a.user_id === Number(selectedKidFilter)) &&
+            (!selectedChoreFilter ||
+              String(a.chore_id ?? a.chore?.id) === selectedChoreFilter)
+        );
+
   const renderDayColumn = (dayStr) => {
     const d = new Date(dayStr + 'T00:00:00');
     const label = t(SHORT_DAY_KEYS[d.getDay()]);
     const isToday = dayStr === today;
     const allDayAssignments = assignments[dayStr] || [];
-    const dayAssignments = isKid
-      ? allDayAssignments.filter((a) => a.user_id === user?.id)
-      : allDayAssignments.filter(
-          (a) => !selectedKidFilter || a.user_id === Number(selectedKidFilter)
-        );
+    const dayAssignments = applyFilters(allDayAssignments);
     const dayGroups = groupByCategory(dayAssignments, t);
 
     return (
@@ -564,11 +591,7 @@ export default function Calendar() {
     const isToday = dayStr === today;
     const inCurrentMonth = new Date(startDate + 'T00:00:00').getMonth() === d.getMonth();
     const allDayAssignments = assignments[dayStr] || [];
-    const dayAssignments = isKid
-      ? allDayAssignments.filter((a) => a.user_id === user?.id)
-      : allDayAssignments.filter(
-          (a) => !selectedKidFilter || a.user_id === Number(selectedKidFilter)
-        );
+    const dayAssignments = applyFilters(allDayAssignments);
     const total = dayAssignments.length;
     const doneCount = dayAssignments.filter(
       (a) => a.status === 'verified' || a.status === 'completed'
@@ -699,6 +722,19 @@ export default function Calendar() {
             </select>
           )}
 
+          {!isKid && allChores.length > 0 && (
+            <select
+              value={selectedChoreFilter}
+              onChange={(e) => setSelectedChoreFilter(e.target.value)}
+              className="bg-surface-raised text-cream text-sm rounded-md border border-border px-2 py-1.5 max-w-[10rem] focus:outline-none focus:ring-1 focus:ring-accent"
+            >
+              <option value="">{t('calendar.allChores')}</option>
+              {allChores.map((c) => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+          )}
+
           {!isKid && (
             <button
               onClick={cleanupStale}
@@ -750,14 +786,14 @@ export default function Calendar() {
       {!loading && viewMode === 'month' && (
         <div>
           <div className="grid grid-cols-7 gap-1 mb-1">
-            {MONDAY_FIRST_DAY_KEYS.map((k) => (
+            {(sundayStart ? SUNDAY_FIRST_DAY_KEYS : MONDAY_FIRST_DAY_KEYS).map((k) => (
               <div key={k} className="text-center text-muted text-[10px] font-semibold uppercase py-1">
                 {t(k)}
               </div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
-            {getViewRange('month', startDate).days.map((dayStr) => renderMonthCell(dayStr))}
+            {getViewRange('month', startDate, sundayStart).days.map((dayStr) => renderMonthCell(dayStr))}
           </div>
         </div>
       )}
