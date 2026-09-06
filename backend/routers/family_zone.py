@@ -178,11 +178,19 @@ async def create_family_todo(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Public: add an item to the shared to-do list."""
+    """Public: add an item to the shared to-do list, optionally assigned to
+    a family member."""
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-todos:{client_ip}", 40, 900)
 
-    todo = FamilyTodo(text=body.text)
+    if body.assignee_id is not None:
+        member_result = await db.execute(
+            select(User).where(User.id == body.assignee_id, User.is_active == True)
+        )
+        if member_result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Assignee not found")
+
+    todo = FamilyTodo(text=body.text, assignee_id=body.assignee_id)
     db.add(todo)
     await db.commit()
     await db.refresh(todo)

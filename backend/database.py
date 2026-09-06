@@ -58,6 +58,7 @@ async def init_db():
             ("chores", "malus_override", "VARCHAR(10)"),
             ("rewards", "photo_url", "VARCHAR(255)"),
             ("rewards", "auto_purchase", "BOOLEAN DEFAULT 0"),
+            ("family_todos", "assignee_id", "INTEGER REFERENCES users(id)"),
         ]
         for table, col, typedef in _migrations:
             try:

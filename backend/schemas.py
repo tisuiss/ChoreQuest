@@ -103,6 +103,7 @@ class FamilyMemberResponse(BaseModel):
 
 class FamilyTodoCreate(BaseModel):
     text: str = Field(min_length=1, max_length=300)
+    assignee_id: int | None = None
 
 
 class FamilyTodoUpdate(BaseModel):
@@ -113,6 +114,7 @@ class FamilyTodoResponse(BaseModel):
     id: int
     text: str
     is_done: bool
+    assignee_id: int | None
 
     model_config = {"from_attributes": True}
 

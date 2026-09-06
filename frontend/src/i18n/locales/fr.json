@@ -128,6 +128,7 @@
     "loadPhotosError": "Impossible de charger les photos",
     "todoTitle": "Liste à faire",
     "todoPlaceholder": "Ajouter un élément...",
+    "todoAssigneeNone": "Non assigné",
     "todoEmpty": "Rien pour l'instant.",
     "todoToggle": "Marquer comme fait",
     "todoLoadError": "Impossible de charger la liste",

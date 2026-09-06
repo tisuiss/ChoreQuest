@@ -343,6 +343,7 @@ export default function FamilyZone() {
   const [todos, setTodos] = useState([]);
   const [todosError, setTodosError] = useState('');
   const [newTodoText, setNewTodoText] = useState('');
+  const [newTodoAssignee, setNewTodoAssignee] = useState('');
   const [addingTodo, setAddingTodo] = useState(false);
 
   const fetchTodos = useCallback(async () => {
@@ -363,8 +364,12 @@ export default function FamilyZone() {
     if (!text) return;
     setAddingTodo(true);
     try {
-      await api('/api/family-zone/todos', { method: 'POST', body: { text } });
+      await api('/api/family-zone/todos', {
+        method: 'POST',
+        body: { text, assignee_id: newTodoAssignee ? Number(newTodoAssignee) : null },
+      });
       setNewTodoText('');
+      setNewTodoAssignee('');
       await fetchTodos();
     } catch (err) {
       setTodosError(err.message || t('familyZone.todoAddError'));
@@ -372,6 +377,9 @@ export default function FamilyZone() {
       setAddingTodo(false);
     }
   };
+
+  const memberName = (id) => members.find((m) => m.id === id)?.display_name || '';
+  const pendingTodoCount = todos.filter((it) => !it.is_done).length;
 
   const toggleTodo = async (item) => {
     setTodos((prev) => prev.map((it) => (it.id === item.id ? { ...it, is_done: !it.is_done } : it)));
@@ -707,28 +715,57 @@ export default function FamilyZone() {
       <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-3">
         <ListTodo size={15} className="text-accent" />
         {t('familyZone.todoTitle')}
+        {pendingTodoCount > 0 && (
+          <span className="bg-crimson text-white text-[10px] font-bold min-w-[16px] h-[16px] flex items-center justify-center rounded-full px-1 leading-none">
+            {pendingTodoCount}
+          </span>
+        )}
       </p>
       {todosError && (
         <div className="mb-3 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
           {todosError}
         </div>
       )}
-      <form onSubmit={addTodo} className="flex gap-2 mb-3">
-        <input
-          className="field-input flex-1 !py-1.5 !text-sm"
-          placeholder={t('familyZone.todoPlaceholder')}
-          value={newTodoText}
-          onChange={(e) => setNewTodoText(e.target.value)}
+      <form onSubmit={addTodo} className="mb-3">
+        <div className="flex gap-2 mb-2">
+          <input
+            className="field-input flex-1 !py-1.5 !text-sm"
+            placeholder={t('familyZone.todoPlaceholder')}
+            value={newTodoText}
+            onChange={(e) => setNewTodoText(e.target.value)}
+            disabled={addingTodo}
+            maxLength={300}
+          />
+          <button
+            type="submit"
+            disabled={addingTodo || !newTodoText.trim()}
+            className="game-btn game-btn-blue !py-1.5 !px-3 flex-shrink-0"
+          >
+            {addingTodo ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+          </button>
+        </div>
+        <select
+          className="field-input !py-1 !text-xs"
+          value={newTodoAssignee}
+          onChange={(e) => setNewTodoAssignee(e.target.value)}
           disabled={addingTodo}
-          maxLength={300}
-        />
-        <button
-          type="submit"
-          disabled={addingTodo || !newTodoText.trim()}
-          className="game-btn game-btn-blue !py-1.5 !px-3 flex-shrink-0"
         >
-          {addingTodo ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-        </button>
+          <option value="">{t('familyZone.todoAssigneeNone')}</option>
+          {parentMembers.length > 0 && (
+            <optgroup label={t('familyZone.parentsGroup')}>
+              {parentMembers.map((m) => (
+                <option key={m.id} value={m.id}>{m.display_name}</option>
+              ))}
+            </optgroup>
+          )}
+          {kidMembers.length > 0 && (
+            <optgroup label={t('familyZone.kidsGroup')}>
+              {kidMembers.map((m) => (
+                <option key={m.id} value={m.id}>{m.display_name}</option>
+              ))}
+            </optgroup>
+          )}
+        </select>
       </form>
       {todos.length === 0 ? (
         <p className="text-muted text-xs">{t('familyZone.todoEmpty')}</p>
@@ -748,6 +785,14 @@ export default function FamilyZone() {
               <span className={`flex-1 text-sm truncate ${item.is_done ? 'line-through text-muted' : 'text-cream'}`}>
                 {item.text}
               </span>
+              {item.assignee_id != null && memberName(item.assignee_id) && (
+                <span
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 text-navy"
+                  style={{ background: `var(--color-${colorForMember(item.assignee_id)})` }}
+                >
+                  {memberName(item.assignee_id)}
+                </span>
+              )}
               <button
                 onClick={() => removeTodo(item.id)}
                 className="text-muted hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
