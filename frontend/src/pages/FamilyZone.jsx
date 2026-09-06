@@ -715,11 +715,6 @@ export default function FamilyZone() {
       <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-3">
         <ListTodo size={15} className="text-accent" />
         {t('familyZone.todoTitle')}
-        {pendingTodoCount > 0 && (
-          <span className="bg-crimson text-white text-[10px] font-bold min-w-[16px] h-[16px] flex items-center justify-center rounded-full px-1 leading-none">
-            {pendingTodoCount}
-          </span>
-        )}
       </p>
       {todosError && (
         <div className="mb-3 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
@@ -883,6 +878,11 @@ export default function FamilyZone() {
                   >
                     <Icon size={14} className={activeSection === tab.id ? 'text-accent' : ''} />
                     {t(tab.labelKey)}
+                    {tab.id === 'todo' && pendingTodoCount > 0 && (
+                      <span className="bg-crimson text-white text-[10px] font-bold min-w-[16px] h-[16px] flex items-center justify-center rounded-full px-1 leading-none">
+                        {pendingTodoCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
