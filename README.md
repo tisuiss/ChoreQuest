@@ -36,6 +36,7 @@ A gamified family chore management app with full RPG theming. Parents create que
 | 📅 **Calendar** | Weekly view with auto-generated recurring assignments |
 | 🎉 **Seasonal Events** | Time-limited XP multiplier events that compound when overlapping |
 | 🏖️ **Vacation Mode** | Set vacation periods that pause quests and preserve streaks |
+| 🧳 **Per-child Vacations** | Give one child time off — rotating quests skip them onto an available sibling, solo quests pause, no malus or streak break |
 | 📊 **Progress Charts** | 30-day daily charts showing XP earned, quests completed, and completion rates |
 | 🐣 **Pet Interactions** | Feed, pet, or play with your companion up to 3 times daily for 1–3 bonus pet XP each |
 | 🎊 **Party Page** | Family hub with bulletin board, member avatars, ranks, pets, progress rings, shoutouts, and emotes |
@@ -213,6 +214,7 @@ Notifications that arrive even when the app is closed — just like a native app
 - **Family overview** — dashboard with kid cards showing today's quest progress, points balance, and current streak
 - **Seasonal events** — create time-limited XP multiplier events (multipliers compound if multiple events are active)
 - **Vacation mode** — set vacation/blackout periods that pause quest assignments and preserve kids' streaks. Streaks are automatically maintained across vacation days
+- **Per-child vacations** — schedule time off for a single child from Settings. Quests that rotate between kids skip the absent child and hand the turn to the next available sibling; quests assigned only to that child are paused. No "not done" malus and no streak break for those days
 - **Category management** — create, edit, and delete quest categories with custom icons and colours
 - **Chore rotations** — rotate a quest between kids on a set cadence (daily/weekly/fortnightly/monthly) with manual advance option
 - **Achievement management** — enable or disable individual achievements from Settings, with tier badges (Bronze/Silver/Gold) shown inline
@@ -357,6 +359,7 @@ frontend/
       EmoteBar       # Emote reaction buttons
       StreakDisplay   # Flame icon with streak count
       VacationSettings # Vacation period management
+      KidVacationSettings # Per-child vacation periods
     hooks/           # useAuth, useTheme, useWebSocket, useNotifications, usePushNotifications
     api/client.js    # Fetch wrapper with token refresh
     utils/

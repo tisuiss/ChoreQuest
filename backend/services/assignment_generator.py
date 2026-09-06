@@ -24,6 +24,7 @@ from backend.services.rotation import (
     get_rotation_kid_for_day,
     should_advance_rotation,
     advance_rotation,
+    next_available_kid,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,8 +48,17 @@ async def auto_generate_week_assignments(
     # out individually via Chore.pauses_during_vacation, so this can no
     # longer be filtered out of week_dates up front (see per-chore checks
     # in _generate_from_rules/_generate_legacy).
-    from backend.routers.vacation import is_vacation_day, load_chore_vacation_dates
+    from backend.routers.vacation import (
+        is_vacation_day,
+        load_chore_vacation_dates,
+        load_kid_vacation_map,
+    )
     vacation_dates = {d for d in week_dates if await is_vacation_day(db, d)}
+
+    # child_id -> set of that child's vacation dates this week. Rotation
+    # chores hand a vacationing kid's turn to the next available sibling;
+    # solo chores are simply paused for that kid.
+    kid_vacation_map = await load_kid_vacation_map(db, week_start, week_end)
 
     exclusion_set = await _load_exclusion_set(db, week_start, week_end)
 
@@ -64,9 +74,12 @@ async def auto_generate_week_assignments(
             rotation = await _load_rotation(db, chore.id)
             await _generate_from_rules(
                 db, chore, rules, rotation, week_dates, exclusion_set, paused_dates,
+                kid_vacation_map,
             )
         else:
-            await _generate_legacy(db, chore, week_dates, exclusion_set, paused_dates)
+            await _generate_legacy(
+                db, chore, week_dates, exclusion_set, paused_dates, kid_vacation_map,
+            )
 
     await db.commit()
 
@@ -83,8 +96,18 @@ async def generate_daily_assignments(db: AsyncSession, today: date) -> None:
     # Vacation mode is per-chore now (Chore.pauses_during_vacation) — compute
     # once whether today is a vacation day, then let each chore below decide
     # whether that pauses it (default yes, matching the old blanket skip).
-    from backend.routers.vacation import is_vacation_day, is_chore_vacation_day
+    from backend.routers.vacation import (
+        is_vacation_day,
+        is_chore_vacation_day,
+        load_kid_vacation_map,
+    )
     today_is_vacation = await is_vacation_day(db, today)
+
+    # Children on vacation today: rotation chores hand their turn to the
+    # next available sibling; solo chores are paused for them.
+    kids_on_vacation_today = set(
+        (await load_kid_vacation_map(db, today, today)).keys()
+    )
 
     now = datetime.now(timezone.utc)
     chores = await _load_active_chores(db)
@@ -121,10 +144,19 @@ async def generate_daily_assignments(db: AsyncSession, today: date) -> None:
                 advance_rotation(rotation, now)
 
             for rule in active_rules:
-                # Rotation filtering: only generate for the current rotation kid
-                if rotation and int(rule.user_id) != int(
-                    rotation.kid_ids[rotation.current_index]
-                ):
+                # Rotation filtering: only generate for the current rotation
+                # kid, skipping past any kid who is on vacation today.
+                if rotation:
+                    expected_kid = next_available_kid(
+                        rotation.kid_ids,
+                        rotation.current_index,
+                        kids_on_vacation_today,
+                    )
+                    if int(rule.user_id) != expected_kid:
+                        continue
+
+                # Solo (non-rotation) chore: pause this kid's slot while away.
+                if int(rule.user_id) in kids_on_vacation_today:
                     continue
 
                 await _create_if_missing(db, chore.id, rule.user_id, today)
@@ -143,11 +175,19 @@ async def generate_daily_assignments(db: AsyncSession, today: date) -> None:
             if rotation:
                 if should_advance_rotation(rotation, now):
                     advance_rotation(rotation, now)
-                user_ids = [rotation.kid_ids[rotation.current_index]]
+                user_ids = [
+                    next_available_kid(
+                        rotation.kid_ids,
+                        rotation.current_index,
+                        kids_on_vacation_today,
+                    )
+                ]
             else:
                 user_ids = await _get_legacy_user_ids(db, chore.id)
 
             for uid in user_ids:
+                if int(uid) in kids_on_vacation_today:
+                    continue
                 await _create_if_missing(db, chore.id, uid, today)
 
 
@@ -267,8 +307,10 @@ async def _generate_from_rules(
     week_dates: list[date],
     exclusion_set: set[tuple[int, int, date]],
     paused_dates: set[date] = frozenset(),
+    kid_vacation_map: dict[int, set[date]] | None = None,
 ) -> None:
     """Generate week assignments using per-kid assignment rules."""
+    kid_vacation_map = kid_vacation_map or {}
     active_weekdays = _collect_active_weekdays(rules, chore) if rotation else None
 
     # Anchor the projection to when current_index was last set, NOT today.
@@ -296,8 +338,12 @@ async def _generate_from_rules(
 
             # Rotation filtering
             if rotation and rotation.kid_ids:
+                unavailable = {
+                    int(k) for k in rotation.kid_ids
+                    if day in kid_vacation_map.get(int(k), ())
+                }
                 expected_kid = get_rotation_kid_for_day(
-                    rotation, day, reference_day, active_weekdays,
+                    rotation, day, reference_day, active_weekdays, unavailable,
                 )
                 if int(rule.user_id) != expected_kid:
                     # Clean up any stale pending assignment for the wrong kid
@@ -306,6 +352,14 @@ async def _generate_from_rules(
                         db, chore.id, rule.user_id, day,
                     )
                     continue
+
+            # This kid is on vacation on this day -- pause their slot (for a
+            # rotation chore this only happens when every kid is away).
+            if day in kid_vacation_map.get(int(rule.user_id), ()):
+                await _remove_stale_rotation_assignment(
+                    db, chore.id, rule.user_id, day,
+                )
+                continue
 
             if (chore.id, rule.user_id, day) in exclusion_set:
                 continue
@@ -339,8 +393,10 @@ async def _generate_legacy(
     week_dates: list[date],
     exclusion_set: set[tuple[int, int, date]],
     paused_dates: set[date] = frozenset(),
+    kid_vacation_map: dict[int, set[date]] | None = None,
 ) -> None:
     """Generate week assignments using chore-level recurrence (legacy path)."""
+    kid_vacation_map = kid_vacation_map or {}
     if chore.recurrence == Recurrence.once:
         return
 
@@ -375,5 +431,7 @@ async def _generate_legacy(
 
         for user_id in user_ids:
             if (chore.id, user_id, day) in exclusion_set:
+                continue
+            if day in kid_vacation_map.get(int(user_id), ()):
                 continue
             await _create_if_missing(db, chore.id, user_id, day)

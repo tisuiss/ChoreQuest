@@ -460,3 +460,23 @@ class ChoreVacationPeriod(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     creator = relationship("User")
+
+
+class KidVacationPeriod(Base):
+    """Per-child vacation periods. While a kid is away:
+
+    - chores that rotate between kids skip that kid and hand the turn to
+      the next available sibling in the rotation (redistribution);
+    - chores assigned only to that kid are paused for those days;
+    - "not done" malus and streak breaks are suppressed for those days.
+    """
+    __tablename__ = "kid_vacation_periods"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])

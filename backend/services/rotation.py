@@ -42,6 +42,7 @@ def get_rotation_kid_for_day(
     target_day: date,
     reference_day: date,
     active_weekdays: list[int] | None = None,
+    unavailable_kid_ids: set[int] | None = None,
 ) -> int:
     """Return the kid ID that should be assigned on ``target_day``
     given the rotation's current state.
@@ -52,6 +53,11 @@ def get_rotation_kid_for_day(
     otherwise every calendar day counts.
 
     For all other cadences, the same kid is used for the entire period.
+
+    When *unavailable_kid_ids* is supplied (e.g. children on vacation on
+    ``target_day``), the turn is handed to the next kid in rotation order
+    who is available, so their share is redistributed.  If every kid is
+    unavailable the originally-scheduled kid is returned.
     """
     cadence = _cadence_value(rotation.cadence)
 
@@ -64,7 +70,24 @@ def get_rotation_kid_for_day(
     else:
         idx = rotation.current_index
 
-    return int(rotation.kid_ids[idx])
+    return next_available_kid(rotation.kid_ids, idx, unavailable_kid_ids)
+
+
+def next_available_kid(
+    kid_ids: list, start_index: int, unavailable_kid_ids: set[int] | None
+) -> int:
+    """Walk forward from ``start_index`` through ``kid_ids`` (wrapping) and
+    return the first kid not in ``unavailable_kid_ids``.  Falls back to the
+    kid at ``start_index`` when everyone is unavailable."""
+    n = len(kid_ids)
+    start_index %= n
+    if not unavailable_kid_ids:
+        return int(kid_ids[start_index])
+    for step in range(n):
+        candidate = int(kid_ids[(start_index + step) % n])
+        if candidate not in unavailable_kid_ids:
+            return candidate
+    return int(kid_ids[start_index])
 
 
 def _count_occurrences(start: date, end: date, weekdays: list[int]) -> int:

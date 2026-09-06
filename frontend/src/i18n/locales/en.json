@@ -353,6 +353,11 @@
     "title": "Pauses specific to this chore",
     "description": "On top of family vacations, you can set periods during which this particular chore is paused, without affecting other chores."
   },
+  "kidVacation": {
+    "title": "Per-child vacations",
+    "description": "Schedule each child's time off. Rotating chores skip the child who's away and pass to an available sibling; their solo chores are paused. No malus or streak break on those days.",
+    "child": "Child"
+  },
   "shoutouts": {
     "title": "Shoutouts",
     "give": "+ Give Shoutout",

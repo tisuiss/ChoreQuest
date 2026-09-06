@@ -44,7 +44,7 @@ async def reset_stale_streaks(db, today: date):
     streak is preserved.  Streak freezes are NOT consumed here because
     they are consumed at completion-time (see chores.py verify logic).
     """
-    from backend.routers.vacation import is_vacation_day
+    from backend.routers.vacation import is_vacation_day, is_kid_on_vacation
 
     yesterday = today - timedelta(days=1)
     result = await db.execute(
@@ -74,7 +74,9 @@ async def reset_stale_streaks(db, today: date):
         all_vacation = True
         for offset in range(1, gap):
             gap_day = kid.last_streak_date + timedelta(days=offset)
-            if not await is_vacation_day(db, gap_day):
+            if not await is_vacation_day(db, gap_day) and not await is_kid_on_vacation(
+                db, kid.id, gap_day
+            ):
                 all_vacation = False
                 break
 
@@ -184,6 +186,8 @@ async def mark_yesterdays_leftovers_as_not_done(db, today: date):
     else the family's decline-malus setting), the same way the kid's own
     "No" button and a parent's manual status change do.
     """
+    from backend.routers.vacation import is_kid_on_vacation
+
     yesterday = today - timedelta(days=1)
 
     malus_setting_result = await db.execute(
@@ -208,6 +212,10 @@ async def mark_yesterdays_leftovers_as_not_done(db, today: date):
     for assignment in assignments:
         assignment.status = AssignmentStatus.skipped
         assignment.updated_at = now
+
+        # A child on vacation yesterday is closed out without any malus.
+        if await is_kid_on_vacation(db, assignment.user_id, yesterday):
+            continue
 
         chore = assignment.chore
         if chore is not None and should_apply_malus(chore, family_malus_enabled) and chore.points > 0:

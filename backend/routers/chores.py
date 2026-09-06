@@ -1207,11 +1207,13 @@ async def _finalize_verification(
             kid.last_streak_date = today
         elif gap > 1:
             # Check if all gap days were vacation days (streak shouldn't break)
-            from backend.routers.vacation import is_vacation_day
+            from backend.routers.vacation import is_vacation_day, is_kid_on_vacation
             all_vacation = True
             for offset in range(1, gap):
                 gap_day = kid.last_streak_date + timedelta(days=offset)
-                if not await is_vacation_day(db, gap_day):
+                if not await is_vacation_day(db, gap_day) and not await is_kid_on_vacation(
+                    db, kid.id, gap_day
+                ):
                     all_vacation = False
                     break
             if all_vacation:

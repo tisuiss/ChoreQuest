@@ -44,13 +44,15 @@ async def _effective_streak(db: AsyncSession, user: User) -> int:
     if user.last_streak_date >= yesterday:
         return user.current_streak
 
-    # Gap > 1 day — check vacation days
-    from backend.routers.vacation import is_vacation_day
+    # Gap > 1 day — check vacation days (family-wide or this child's own)
+    from backend.routers.vacation import is_vacation_day, is_kid_on_vacation
 
     gap = (today - user.last_streak_date).days
     for offset in range(1, gap):
         gap_day = user.last_streak_date + timedelta(days=offset)
-        if not await is_vacation_day(db, gap_day):
+        if not await is_vacation_day(db, gap_day) and not await is_kid_on_vacation(
+            db, user.id, gap_day
+        ):
             return 0
 
     return user.current_streak

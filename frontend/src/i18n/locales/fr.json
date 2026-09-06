@@ -353,6 +353,11 @@
     "title": "Pauses spécifiques à cette corvée",
     "description": "En plus des vacances familiales, tu peux définir des périodes pendant lesquelles cette corvée précise est suspendue, sans toucher aux autres corvées."
   },
+  "kidVacation": {
+    "title": "Vacances par enfant",
+    "description": "Planifie les vacances de chaque enfant. Les corvées en rotation sautent l'enfant absent et passent à un frère ou une sœur disponible ; ses corvées personnelles sont mises en pause. Aucun malus ni rupture de série pendant ces jours.",
+    "child": "Enfant"
+  },
   "shoutouts": {
     "title": "Bravos",
     "give": "+ Donner un bravo",

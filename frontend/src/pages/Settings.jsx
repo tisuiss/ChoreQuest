@@ -16,6 +16,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import VacationSettings from '../components/VacationSettings';
+import KidVacationSettings from '../components/KidVacationSettings';
 import { SUPPORTED_LANGUAGES } from '../hooks/useLanguage';
 
 const DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
@@ -471,6 +472,9 @@ export default function Settings() {
 
           {/* Vacation Mode */}
           <VacationSettings />
+
+          {/* Per-child vacations */}
+          <KidVacationSettings />
 
           {/* Achievement point values */}
           <div className="game-panel p-4">
