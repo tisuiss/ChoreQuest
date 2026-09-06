@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { themedTitle, themedDescription } from '../utils/questThemeText';
 import Modal from '../components/Modal';
@@ -108,9 +109,22 @@ export default function Chores() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
+  const { decline_malus_mode, decline_malus_extra } = useSettings();
   const navigate = useNavigate();
   const isParent = user?.role === 'parent' || user?.role === 'admin';
   const isKid = user?.role === 'kid';
+
+  // Whether this chore would cost stars if left not done -- its own
+  // override takes priority, else the family's decline_malus_mode setting.
+  const choreHasMalus = (chore) => {
+    const enabled = chore.malus_override === 'malus'
+      ? true
+      : chore.malus_override === 'none'
+        ? false
+        : decline_malus_mode === 'malus';
+    return enabled && (chore.points + decline_malus_extra) > 0;
+  };
+  const choreMalusAmount = (chore) => chore.points + decline_malus_extra;
 
   const [chores, setChores] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -504,6 +518,15 @@ export default function Chores() {
                     <Star size={11} fill="currentColor" />
                     {chore.points}
                   </span>
+                  {choreHasMalus(chore) && (
+                    <span
+                      className="hidden sm:flex items-center gap-1 text-crimson text-xs font-medium flex-shrink-0"
+                      title={t('chores.malusHint')}
+                    >
+                      <Star size={11} className="fill-crimson" />
+                      -{choreMalusAmount(chore)}
+                    </span>
+                  )}
                   <div className="hidden sm:block flex-shrink-0">
                     <DifficultyStars level={chore.difficulty || 1} />
                   </div>
@@ -615,6 +638,15 @@ export default function Chores() {
                     <span className="flex items-center gap-1 text-muted text-xs">
                       <Camera size={11} />
                       {t('chores.photo')}
+                    </span>
+                  )}
+                  {choreHasMalus(chore) && (
+                    <span
+                      className="flex items-center gap-1 text-crimson text-xs font-medium"
+                      title={t('chores.malusHint')}
+                    >
+                      <Star size={11} className="fill-crimson" />
+                      -{choreMalusAmount(chore)}
                     </span>
                   )}
                   {isParent && assignCount > 0 && (

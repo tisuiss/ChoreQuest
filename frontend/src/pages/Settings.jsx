@@ -374,6 +374,25 @@ export default function Settings() {
                 </button>
               ))}
             </div>
+
+            {(settings.decline_malus_mode ?? 'none') === 'malus' && (
+              <div className="pt-3">
+                <label className="block text-cream text-sm font-medium mb-1">
+                  {t('settings.declineMalusExtra')}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={settings.decline_malus_extra ?? 0}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    updateSetting('decline_malus_extra', val);
+                  }}
+                  className="field-input max-w-[120px]"
+                />
+                <p className="text-muted text-xs mt-1">{t('settings.declineMalusExtraHint')}</p>
+              </div>
+            )}
           </div>
 
           {/* Periodic stars reset */}

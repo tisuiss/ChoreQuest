@@ -85,7 +85,7 @@ const cardVariants = {
 
 // ---------- chore card ----------
 
-function ChoreActionCard({ chore, status, idx, completing, declining, photoFile, onPhotoChange, onComplete, onDecline, onZoomPhoto, colorTheme, enforcement, thumbsMode, malusMode, t }) {
+function ChoreActionCard({ chore, status, idx, completing, declining, photoFile, onPhotoChange, onComplete, onDecline, onZoomPhoto, colorTheme, enforcement, thumbsMode, malusMode, malusExtra, t }) {
   const categoryColor = chore.category?.colour || '#14b8a6';
   const iconName = chore.icon || chore.category?.icon;
   const needsPhoto = chore.requires_photo && !photoFile;
@@ -94,6 +94,7 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
   const effectiveMalus = chore.malus_override === 'malus' ? true
     : chore.malus_override === 'none' ? false
     : malusMode === 'malus';
+  const malusAmount = chore.points + (malusExtra || 0);
 
   const hasWindow = Boolean(chore.window_start && chore.window_end);
   const windowLabel = hasWindow
@@ -213,8 +214,8 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
               disabled={completing || declining}
               aria-label={t('common.no')}
               title={
-                effectiveMalus && chore.points > 0
-                  ? t('kidDashboard.declineMalusHint', { points: chore.points })
+                effectiveMalus && malusAmount > 0
+                  ? t('kidDashboard.declineMalusHint', { points: malusAmount })
                   : t('common.no')
               }
               className={`flex-1 rounded-lg py-2.5 text-sm font-semibold flex flex-col items-center justify-center gap-0.5 transition-opacity bg-surface-raised text-muted border border-border ${
@@ -233,9 +234,9 @@ function ChoreActionCard({ chore, status, idx, completing, declining, photoFile,
                   </>
                 )}
               </span>
-              {effectiveMalus && chore.points > 0 && (
+              {effectiveMalus && malusAmount > 0 && (
                 <span className="text-[10px] font-medium text-crimson/80">
-                  -{chore.points}
+                  -{malusAmount}
                 </span>
               )}
             </button>
@@ -253,7 +254,7 @@ export default function KidDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { colorTheme } = useTheme();
-  const { chore_window_enforcement, keep_validated_visible, kid_thumbs_buttons, decline_malus_mode } = useSettings();
+  const { chore_window_enforcement, keep_validated_visible, kid_thumbs_buttons, decline_malus_mode, decline_malus_extra } = useSettings();
 
   // data state
   const [assignments, setAssignments] = useState([]);
@@ -341,6 +342,41 @@ export default function KidDashboard() {
     window.addEventListener('ws:message', handler);
     return () => window.removeEventListener('ws:message', handler);
   }, [fetchData]);
+
+  // ---- Auto-refresh right when a category's fixed window opens/closes ----
+  // Categories with a window_start/window_end are shown/hidden purely
+  // based on the current time (see isWithinCategoryWindow above), so a
+  // kiosk sitting idle on this screen would otherwise only pick up the
+  // change on the next WS event or manual refresh -- this schedules a
+  // refetch for the exact moment the soonest boundary is crossed.
+  useEffect(() => {
+    const boundaries = new Set();
+    assignments.forEach((a) => {
+      const cat = a.chore?.category;
+      if (cat?.window_start) boundaries.add(cat.window_start);
+      if (cat?.window_end) boundaries.add(cat.window_end);
+    });
+    if (boundaries.size === 0) return;
+
+    const now = new Date();
+    const nowStr = nowTimeString();
+    let nextDelayMs = null;
+    boundaries.forEach((timeStr) => {
+      if (timeStr <= nowStr) return; // already passed today
+      const [h, m, s] = timeStr.split(':').map(Number);
+      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
+      const delay = target.getTime() - now.getTime();
+      if (delay > 0 && (nextDelayMs === null || delay < nextDelayMs)) {
+        nextDelayMs = delay;
+      }
+    });
+    if (nextDelayMs === null) return;
+
+    // Small buffer past the boundary so the >=/<= comparisons in
+    // isWithinCategoryWindow have already flipped by the time we refetch.
+    const timeout = setTimeout(fetchData, nextDelayMs + 1000);
+    return () => clearTimeout(timeout);
+  }, [assignments, fetchData]);
 
   // ---- chore completion ----
 
@@ -575,6 +611,7 @@ export default function KidDashboard() {
                         enforcement={chore_window_enforcement}
                         thumbsMode={kid_thumbs_buttons}
                         malusMode={decline_malus_mode}
+                        malusExtra={decline_malus_extra}
                         t={t}
                       />
                     );

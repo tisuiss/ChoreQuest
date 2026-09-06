@@ -51,7 +51,7 @@ from backend.achievements import check_achievements
 from backend.websocket_manager import ws_manager
 from backend.services.recurrence import should_create_on_day
 from backend.services.rotation import get_rotation_kid_for_day
-from backend.services.malus import should_apply_malus
+from backend.services.malus import should_apply_malus, get_family_malus_settings
 
 logger = logging.getLogger(__name__)
 
@@ -759,6 +759,28 @@ async def assign_chore(
             )
             db.add(rule)
 
+        # Non-rotation: remove any already-generated pending assignment that
+        # no longer matches this kid's (possibly just-changed) schedule --
+        # e.g. switching from daily to Saturday/Sunday-only must clear out
+        # whatever weekday assignments were created under the old schedule,
+        # today included, so the kid stops seeing them. Rotation has its
+        # own equivalent cleanup above (it depends on whose turn it is, not
+        # just this one kid's recurrence).
+        if not rotation_active:
+            stale_result = await db.execute(
+                select(ChoreAssignment).where(
+                    ChoreAssignment.chore_id == chore_id,
+                    ChoreAssignment.user_id == item.user_id,
+                    ChoreAssignment.date >= today,
+                    ChoreAssignment.status == AssignmentStatus.pending,
+                )
+            )
+            for stale in stale_result.scalars().all():
+                if not should_create_on_day(
+                    item.recurrence, stale.date, chore.created_at.weekday(), item.custom_days,
+                ):
+                    await db.delete(stale)
+
         # Create today's assignment if schedule matches
         create_today = should_create_on_day(
             item.recurrence, today, chore.created_at.weekday(), item.custom_days,
@@ -1108,8 +1130,9 @@ async def decline_chore(
     Never awards points. If the effective malus policy for this chore (its
     own override, or the family's "decline_malus_mode" setting) is "malus",
     also deducts stars equal to what completing the chore would have earned
-    — clamped to the kid's current balance so it never goes negative, since
-    this is a system action the kid can't be blocked from.
+    plus the family's flat extra malus — clamped to the kid's current
+    balance so it never goes negative, since this is a system action the
+    kid can't be blocked from.
     """
     today = date.today()
     now = datetime.now(timezone.utc)
@@ -1135,13 +1158,9 @@ async def decline_chore(
     assignment.status = AssignmentStatus.skipped
     assignment.updated_at = now
 
-    malus_setting_result = await db.execute(
-        select(AppSetting).where(AppSetting.key == "decline_malus_mode")
-    )
-    malus_setting = malus_setting_result.scalar_one_or_none()
-    family_malus_enabled = malus_setting is not None and malus_setting.value == "malus"
-    if should_apply_malus(chore, family_malus_enabled) and chore.points > 0:
-        malus_amount = min(chore.points, user.points_balance)
+    family_malus_enabled, malus_extra = await get_family_malus_settings(db)
+    if should_apply_malus(chore, family_malus_enabled) and (chore.points + malus_extra) > 0:
+        malus_amount = min(chore.points + malus_extra, user.points_balance)
         if malus_amount > 0:
             user.points_balance -= malus_amount
             db.add(PointTransaction(
@@ -1603,15 +1622,11 @@ async def set_assignment_status(
         assignment.completed_at = now
     elif body.status == AssignmentStatus.skipped:
         assignment.status = AssignmentStatus.skipped
-        malus_setting_result = await db.execute(
-            select(AppSetting).where(AppSetting.key == "decline_malus_mode")
-        )
-        malus_setting = malus_setting_result.scalar_one_or_none()
-        family_malus_enabled = malus_setting is not None and malus_setting.value == "malus"
-        if body.malus and should_apply_malus(chore, family_malus_enabled) and chore.points > 0:
+        family_malus_enabled, malus_extra = await get_family_malus_settings(db)
+        if body.malus and should_apply_malus(chore, family_malus_enabled) and (chore.points + malus_extra) > 0:
             kid_result = await db.execute(select(User).where(User.id == assignment.user_id))
             kid = kid_result.scalar_one()
-            malus_amount = min(chore.points, kid.points_balance)
+            malus_amount = min(chore.points + malus_extra, kid.points_balance)
             if malus_amount > 0:
                 kid.points_balance -= malus_amount
                 db.add(PointTransaction(

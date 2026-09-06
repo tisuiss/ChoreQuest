@@ -9,6 +9,7 @@ const SettingsContext = createContext({
   keep_validated_visible: true,
   kid_thumbs_buttons: false,
   decline_malus_mode: 'none',
+  decline_malus_extra: 0,
 });
 
 export function SettingsProvider({ children }) {
@@ -20,6 +21,7 @@ export function SettingsProvider({ children }) {
     keep_validated_visible: true,
     kid_thumbs_buttons: false,
     decline_malus_mode: 'none',
+    decline_malus_extra: 0,
   });
 
   const fetchFeatures = useCallback(async () => {
@@ -33,6 +35,7 @@ export function SettingsProvider({ children }) {
         keep_validated_visible: data.keep_validated_visible !== 'false',
         kid_thumbs_buttons: data.kid_thumbs_buttons === 'true',
         decline_malus_mode: data.decline_malus_mode === 'malus' ? 'malus' : 'none',
+        decline_malus_extra: Math.max(0, parseInt(data.decline_malus_extra, 10) || 0),
       });
     } catch {
       // If fetch fails, keep defaults (all enabled)

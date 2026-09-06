@@ -3,6 +3,12 @@ import { api, setAccessToken, clearAccessToken, getAccessToken } from '../api/cl
 
 export const KIOSK_SESSION_KEY = 'chorequest_kiosk_session';
 export const KIOSK_PINNED_SESSION_KEY = 'chorequest_kiosk_pinned_session';
+// Persisted in localStorage (survives full page/browser reloads, unlike
+// sessionStorage) so a device dedicated to one kid via /kiosk/<username>
+// can silently re-open that same kid's kiosk if the session is ever lost
+// mid-use (token/cookie expiry, etc.) instead of falling through to the
+// generic /login screen.
+export const KIOSK_PINNED_USERNAME_KEY = 'chorequest_kiosk_pinned_username';
 
 const AuthContext = createContext(null);
 
@@ -141,6 +147,7 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     sessionStorage.setItem(KIOSK_SESSION_KEY, '1');
     sessionStorage.setItem(KIOSK_PINNED_SESSION_KEY, '1');
+    try { localStorage.setItem(KIOSK_PINNED_USERNAME_KEY, username); } catch { /* ignore */ }
     return data.user;
   };
 
@@ -161,6 +168,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     sessionStorage.removeItem(KIOSK_SESSION_KEY);
     sessionStorage.removeItem(KIOSK_PINNED_SESSION_KEY);
+    try { localStorage.removeItem(KIOSK_PINNED_USERNAME_KEY); } catch { /* ignore */ }
   };
 
   const updateUser = (updates) => {
