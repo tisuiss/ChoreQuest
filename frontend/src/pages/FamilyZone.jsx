@@ -52,6 +52,10 @@ export default function FamilyZone() {
     () => new Intl.DateTimeFormat(i18n.language, { month: 'long' }),
     [i18n.language]
   );
+  const fullDateFmt = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { weekday: 'long', day: 'numeric', month: 'long' }),
+    [i18n.language]
+  );
 
   // ---------------------------------------------------------------------
   // Kids quick access
@@ -580,6 +584,36 @@ export default function FamilyZone() {
     </div>
   );
 
+  const todayDetailSection = (
+    <div className="game-panel p-4">
+      <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-1">
+        <CalendarDays size={15} className="text-accent" />
+        {t('familyZone.todayDetailTitle')}
+      </p>
+      <p className="text-muted text-xs mb-3 capitalize">{fullDateFmt.format(today)}</p>
+      {(() => {
+        const todayEvts = eventsFor(ymd(today));
+        if (todayEvts.length === 0) {
+          return <p className="text-muted text-sm">{t('familyZone.todayDetailEmpty')}</p>;
+        }
+        return (
+          <div className="flex flex-col gap-2">
+            {todayEvts.map((e) => (
+              <div
+                key={e.id}
+                className="rounded-md bg-surface-raised px-3 py-2 border-l-2"
+                style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}
+              >
+                {e.time && <span className="block font-mono text-muted text-xs mb-0.5">{e.time.slice(0, 5)}</span>}
+                <span className="text-cream text-sm font-medium">{e.title}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+    </div>
+  );
+
   const menuSection = (
     <div className="game-panel p-4">
       <p className="text-cream text-sm font-bold flex items-center gap-1.5">
@@ -781,7 +815,14 @@ export default function FamilyZone() {
                 );
               })}
             </div>
-            {activeSection === 'calendar' && calendarSection}
+            {activeSection === 'calendar' && (
+              viewMode === 'month' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4 items-start">
+                  {calendarSection}
+                  {todayDetailSection}
+                </div>
+              ) : calendarSection
+            )}
             {activeSection === 'menu' && menuSection}
             {activeSection === 'todo' && todoSection}
             {activeSection === 'stars' && starsSection}

@@ -89,6 +89,8 @@
     "subtitle": "Family screen",
     "kidsHeading": "Quick access — kids",
     "calendarTab": "Calendar",
+    "todayDetailTitle": "Today",
+    "todayDetailEmpty": "Nothing planned today.",
     "menuTab": "Menu",
     "todoTab": "To-do",
     "allDone": "All done",
