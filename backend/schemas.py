@@ -2,6 +2,12 @@ from datetime import datetime, date, time
 from pydantic import BaseModel, Field
 from backend.models import UserRole, Difficulty, Recurrence, AssignmentStatus, RedemptionStatus, PointType, NotificationType, RotationCadence
 
+# A field literally named "time" self-shadows a bare `time | None` annotation
+# (pydantic resolves the forward ref using the class's own namespace, where
+# the field's default value has already overwritten the name "time"), so
+# fields named "time" reference this alias instead of `time` directly.
+OptionalTime = time | None
+
 
 # Auth
 class RegisterRequest(BaseModel):
@@ -51,7 +57,7 @@ class KioskLoginRequest(BaseModel):
 class FamilyEventCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     date: date
-    time: "time | None" = None
+    time: OptionalTime = None
     member_id: int | None = None
 
 
@@ -59,7 +65,7 @@ class FamilyEventResponse(BaseModel):
     id: int
     title: str
     date: date
-    time: "time | None"
+    time: OptionalTime
     member_id: int | None
 
     model_config = {"from_attributes": True}
