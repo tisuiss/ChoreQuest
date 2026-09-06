@@ -14,7 +14,6 @@ import AvatarDisplay from '../components/AvatarDisplay';
 const MEMBER_COLORS = ['accent', 'gold', 'purple', 'emerald', 'crimson'];
 
 const SECTION_TABS = [
-  { id: 'kids', labelKey: 'familyZone.kidsTab', icon: ListChecks },
   { id: 'calendar', labelKey: 'familyZone.calendarTab', icon: CalendarDays },
   { id: 'menu', labelKey: 'familyZone.menuTab', icon: UtensilsCrossed },
   { id: 'todo', labelKey: 'familyZone.todoTab', icon: ListTodo },
@@ -58,7 +57,7 @@ export default function FamilyZone() {
   // Kids quick access
   // ---------------------------------------------------------------------
   const [layoutMode, setLayoutMode] = useState('grid');
-  const [activeSection, setActiveSection] = useState('kids');
+  const [activeSection, setActiveSection] = useState('calendar');
   const [kids, setKids] = useState([]);
   const [kidsError, setKidsError] = useState('');
   const [selectedKid, setSelectedKid] = useState(null);
@@ -764,6 +763,7 @@ export default function FamilyZone() {
 
         {layoutMode === 'tabs' ? (
           <>
+            {kidsSection}
             <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 mb-5 overflow-x-auto">
               {SECTION_TABS.map((tab) => {
                 const Icon = tab.icon;
@@ -781,7 +781,6 @@ export default function FamilyZone() {
                 );
               })}
             </div>
-            {activeSection === 'kids' && kidsSection}
             {activeSection === 'calendar' && calendarSection}
             {activeSection === 'menu' && menuSection}
             {activeSection === 'todo' && todoSection}
