@@ -30,6 +30,7 @@ const emptyForm = {
   photo_url: null,
   stock: '',
   category: '',
+  auto_purchase: false,
 };
 
 const TABS = [
@@ -124,6 +125,7 @@ export default function Rewards() {
       photo_url: reward.photo_url || null,
       stock: reward.stock != null ? String(reward.stock) : '',
       category: reward.category || '',
+      auto_purchase: !!reward.auto_purchase,
     });
     setFormError('');
     setShowModal(true);
@@ -177,6 +179,7 @@ export default function Rewards() {
       icon: form.icon || undefined,
       photo_url: form.photo_url || null,
       category: form.category.trim() || undefined,
+      auto_purchase: !!form.auto_purchase,
     };
 
     if (form.stock !== '') {
@@ -408,6 +411,11 @@ export default function Rewards() {
                       {reward.category}
                     </span>
                   )}
+                  {reward.auto_purchase && (
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-accent/40 bg-accent/10 text-accent">
+                      {t('rewards.autoPurchaseBadge')}
+                    </span>
+                  )}
                 </div>
 
                 {reward.stock != null && (
@@ -544,6 +552,18 @@ export default function Rewards() {
             <label className="block text-cream text-sm font-medium mb-1">{t('rewards.stockOptional')}</label>
             <input type="number" min={0} value={form.stock} onChange={(e) => updateForm('stock', e.target.value)} placeholder={t('rewards.stockPlaceholder')} className="field-input" />
             <p className="text-muted text-xs mt-1">{t('rewards.stockHint')}</p>
+          </div>
+          <div>
+            <label className="flex items-center gap-2 text-cream text-sm font-medium cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.auto_purchase}
+                onChange={(e) => updateForm('auto_purchase', e.target.checked)}
+                className="w-4 h-4"
+              />
+              {t('rewards.autoPurchase')}
+            </label>
+            <p className="text-muted text-xs mt-1">{t('rewards.autoPurchaseHint')}</p>
           </div>
         </div>
       </Modal>

@@ -221,6 +221,14 @@
     "reward_redeemed_by_kid": {
       "title": "Récompense échangée !",
       "message": "{{kidName}} a échangé « {{title}} » contre {{points}} étoiles"
+    },
+    "reward_auto_purchased": {
+      "title": "Récompense achetée automatiquement !",
+      "message": "Tu avais assez d'étoiles — « {{title}} » a été achetée automatiquement pour toi !"
+    },
+    "reward_auto_purchased_by_kid": {
+      "title": "Achat automatique",
+      "message": "{{kidName}} a atteint {{points}} étoiles — « {{title}} » a été achetée automatiquement"
     }
   },
   "profile": {
@@ -672,6 +680,9 @@
     "stockOptional": "Stock (facultatif)",
     "stockPlaceholder": "Laisser vide pour illimité",
     "stockHint": "Laisser vide pour un stock illimité.",
+    "autoPurchase": "Achat automatique",
+    "autoPurchaseHint": "Dès qu'un enfant atteint le nombre d'étoiles requis, la récompense est achetée automatiquement pour lui.",
+    "autoPurchaseBadge": "Auto",
     "removeReward": "Supprimer la récompense",
     "removing": "Suppression...",
     "removeConfirm": "Supprimer « {{title}} » de la boutique ?"
@@ -757,7 +768,8 @@
     "tabAssign": "Assignation",
     "tabHistory": "Historique",
     "tabVacation": "Vacances",
-    "saved": "Enregistré !"
+    "saved": "Enregistré !",
+    "createThenAssign": "Crée la corvée, puis assigne les enfants, la rotation et les vacances dans les onglets."
   },
   "choreDetail": {
     "backToBoard": "Retour au tableau des quêtes",

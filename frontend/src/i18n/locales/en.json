@@ -221,6 +221,14 @@
     "reward_redeemed_by_kid": {
       "title": "Reward Redeemed!",
       "message": "{{kidName}} redeemed '{{title}}' for {{points}} stars"
+    },
+    "reward_auto_purchased": {
+      "title": "Reward Auto-Purchased!",
+      "message": "You had enough stars — '{{title}}' was bought for you automatically!"
+    },
+    "reward_auto_purchased_by_kid": {
+      "title": "Auto-Purchase",
+      "message": "{{kidName}} reached {{points}} stars — '{{title}}' was auto-purchased"
     }
   },
   "profile": {
@@ -672,6 +680,9 @@
     "stockOptional": "Stock (Optional)",
     "stockPlaceholder": "Leave empty for unlimited",
     "stockHint": "Leave empty for unlimited supply.",
+    "autoPurchase": "Auto-purchase",
+    "autoPurchaseHint": "As soon as a kid reaches the required number of stars, the reward is bought for them automatically.",
+    "autoPurchaseBadge": "Auto",
     "removeReward": "Remove Reward",
     "removing": "Removing...",
     "removeConfirm": "Remove \"{{title}}\" from the shop?"
@@ -757,7 +768,8 @@
     "tabAssign": "Assignment",
     "tabHistory": "History",
     "tabVacation": "Vacations",
-    "saved": "Saved!"
+    "saved": "Saved!",
+    "createThenAssign": "Create the chore, then set kids, rotation and vacations in the tabs."
   },
   "choreDetail": {
     "backToBoard": "Back to Quest Board",

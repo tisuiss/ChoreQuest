@@ -283,6 +283,7 @@ async def create_reward(
         category=body.category,
         stock=body.stock,
         auto_approve_threshold=body.auto_approve_threshold,
+        auto_purchase=body.auto_purchase,
         created_by=current_user.id,
     )
     db.add(reward)

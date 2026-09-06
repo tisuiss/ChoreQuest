@@ -190,6 +190,7 @@ class RewardCreate(BaseModel):
     category: str | None = None
     stock: int | None = None
     auto_approve_threshold: int | None = None
+    auto_purchase: bool = False
 
 
 class RewardUpdate(BaseModel):
@@ -201,6 +202,7 @@ class RewardUpdate(BaseModel):
     category: str | None = None
     stock: int | None = None
     auto_approve_threshold: int | None = None
+    auto_purchase: bool | None = None
 
 
 class RewardResponse(BaseModel):
@@ -213,6 +215,7 @@ class RewardResponse(BaseModel):
     category: str | None = None
     stock: int | None
     auto_approve_threshold: int | None
+    auto_purchase: bool = False
     is_active: bool
     created_by: int
     created_at: datetime

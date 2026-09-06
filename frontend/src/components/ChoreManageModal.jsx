@@ -23,6 +23,7 @@ import {
   XCircle,
   SkipForward,
   Clock,
+  BookTemplate,
 } from 'lucide-react';
 
 const DIFFICULTY_OPTIONS = [
@@ -37,6 +38,11 @@ const FREQUENCY_OPTIONS = [
   { value: 'daily', labelKey: 'questAssign.frequency.daily' },
   { value: 'weekly', labelKey: 'questAssign.frequency.weekly' },
   { value: 'fortnightly', labelKey: 'questAssign.frequency.fortnightly' },
+];
+// Chore-level recurrence, only offered while creating (immutable afterwards).
+const INFO_RECURRENCE_OPTIONS = [
+  ...FREQUENCY_OPTIONS,
+  { value: 'custom', labelKey: 'questAssign.frequency.custom' },
 ];
 const ROTATION_CADENCE_OPTIONS = [
   { value: 'daily', labelKey: 'questAssign.frequency.daily' },
@@ -63,37 +69,81 @@ const TAB_DEFS = [
 // ---------------------------------------------------------------------------
 
 function buildInfoForm(chore) {
+  const c = chore || {};
   return {
-    title: chore.title || '',
-    description: chore.description || '',
-    points: chore.points ?? 10,
-    difficulty: chore.difficulty || 'easy',
-    category_id: chore.category_id ? String(chore.category_id) : '',
-    photo_url: chore.photo_url || null,
-    sort_order: chore.sort_order ?? 0,
-    pausesDuringVacation: chore.pauses_during_vacation ?? true,
-    windowStart: chore.window_start ? chore.window_start.slice(0, 5) : '',
-    windowEnd: chore.window_end ? chore.window_end.slice(0, 5) : '',
-    malusOverride: chore.malus_override || 'inherit',
+    title: c.title || '',
+    description: c.description || '',
+    points: c.points ?? 10,
+    difficulty: c.difficulty || 'easy',
+    category_id: c.category_id ? String(c.category_id) : '',
+    photo_url: c.photo_url || null,
+    sort_order: c.sort_order ?? 0,
+    recurrence: c.recurrence || 'once',
+    customDays: Array.isArray(c.custom_days) ? c.custom_days : [],
+    pausesDuringVacation: c.pauses_during_vacation ?? true,
+    windowStart: c.window_start ? c.window_start.slice(0, 5) : '',
+    windowEnd: c.window_end ? c.window_end.slice(0, 5) : '',
+    malusOverride: c.malus_override || 'inherit',
   };
 }
 
-function InfoTab({ chore, categories, onChanged }) {
+function InfoTab({ chore, categories, onChanged, createMode = false, onCreated }) {
   const { t } = useTranslation();
+  const { colorTheme } = useTheme();
+  const DAY_NAMES = DAY_KEYS.map((k) => t(k));
   const [form, setForm] = useState(() => buildInfoForm(chore));
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   useEffect(() => {
     setForm(buildInfoForm(chore));
     setFormError('');
   }, [chore]);
 
+  useEffect(() => {
+    if (!createMode) return;
+    api('/api/chores/templates')
+      .then((data) => setTemplates(Array.isArray(data) ? data : []))
+      .catch(() => setTemplates([]));
+  }, [createMode]);
+
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
+
+  const toggleCustomDay = (dayIdx) => {
+    setForm((prev) => {
+      const set = new Set(prev.customDays);
+      if (set.has(dayIdx)) set.delete(dayIdx);
+      else set.add(dayIdx);
+      return { ...prev, customDays: [...set].sort((a, b) => a - b) };
+    });
+  };
+
+  const applyTemplate = (tpl) => {
+    const catMatch = categories.find(
+      (c) => c.name.toLowerCase() === (tpl.category_name || '').toLowerCase()
+    );
+    setForm((prev) => ({
+      ...prev,
+      title: tpl.title,
+      description: tpl.description || '',
+      points: tpl.suggested_points,
+      difficulty: tpl.difficulty,
+      category_id: catMatch ? String(catMatch.id) : prev.category_id,
+    }));
+    setShowTemplates(false);
+  };
+
+  const templatesByCategory = templates.reduce((acc, tpl) => {
+    const cat = tpl.category_name || t('questCreate.otherCategory');
+    (acc[cat] = acc[cat] || []).push(tpl);
+    return acc;
+  }, {});
 
   const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
@@ -133,26 +183,41 @@ function InfoTab({ chore, categories, onChanged }) {
 
     setSubmitting(true);
     setFormError('');
+
+    const payload = {
+      title: form.title.trim(),
+      description: form.description.trim() || null,
+      points: Number(form.points),
+      difficulty: form.difficulty,
+      category_id: Number(form.category_id),
+      photo_url: form.photo_url || null,
+      sort_order: Number(form.sort_order) || 0,
+      pauses_during_vacation: !!form.pausesDuringVacation,
+      window_start: form.windowStart || null,
+      window_end: form.windowEnd || null,
+      malus_override: form.malusOverride === 'inherit' ? null : form.malusOverride,
+    };
+
     try {
-      await api(`/api/chores/${chore.id}`, {
-        method: 'PUT',
-        body: {
-          title: form.title.trim(),
-          description: form.description.trim() || null,
-          points: Number(form.points),
-          difficulty: form.difficulty,
-          category_id: Number(form.category_id),
-          photo_url: form.photo_url || null,
-          sort_order: Number(form.sort_order) || 0,
-          pauses_during_vacation: !!form.pausesDuringVacation,
-          window_start: form.windowStart || null,
-          window_end: form.windowEnd || null,
-          malus_override: form.malusOverride === 'inherit' ? null : form.malusOverride,
-        },
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-      onChanged();
+      if (createMode) {
+        const created = await api('/api/chores', {
+          method: 'POST',
+          body: {
+            ...payload,
+            recurrence: form.recurrence,
+            custom_days: form.recurrence === 'custom' ? form.customDays : null,
+            requires_photo: false,
+            assigned_user_ids: [],
+          },
+        });
+        onChanged?.();
+        onCreated?.(created);
+      } else {
+        await api(`/api/chores/${chore.id}`, { method: 'PUT', body: payload });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+        onChanged();
+      }
     } catch (err) {
       setFormError(err.message || t('questCreate.saveError'));
     } finally {
@@ -165,6 +230,58 @@ function InfoTab({ chore, categories, onChanged }) {
       {formError && (
         <div className="p-2 rounded border border-crimson/40 bg-crimson/10 text-crimson text-sm">
           {formError}
+        </div>
+      )}
+
+      {createMode && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowTemplates(!showTemplates)}
+            className="flex items-center gap-2 text-accent text-sm hover:text-accent/80 transition-colors"
+          >
+            <BookTemplate size={14} />
+            {showTemplates ? t('questCreate.hideTemplates') : t('questCreate.chooseTemplate')}
+          </button>
+          {showTemplates && (
+            <div className="mt-3 max-h-60 overflow-y-auto space-y-3 border border-border rounded-lg p-3 bg-surface-raised/30">
+              {Object.entries(templatesByCategory).map(([cat, tpls]) => (
+                <div key={cat}>
+                  <p className="text-muted text-xs font-bold mb-1">{cat}</p>
+                  <div className="space-y-1">
+                    {tpls.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => applyTemplate(tpl)}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-raised transition-colors border border-transparent hover:border-accent/30"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-cream text-sm font-medium">
+                            {themedTitle(tpl.title, colorTheme)}
+                          </span>
+                          <span className="flex items-center gap-1 text-gold text-xs">
+                            <Star size={10} className="fill-gold" />
+                            {t('chores.starsCount', { count: tpl.suggested_points })}
+                          </span>
+                        </div>
+                        {tpl.description && (
+                          <p className="text-muted text-xs line-clamp-1 mt-0.5">
+                            {themedDescription(tpl.title, tpl.description, colorTheme)}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {templates.length === 0 && (
+                <p className="text-muted text-xs text-center py-3">
+                  {t('questCreate.noTemplates')}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -308,7 +425,44 @@ function InfoTab({ chore, categories, onChanged }) {
         <p className="text-muted text-xs mt-1">{t('questCreate.malusOverrideHint')}</p>
       </div>
 
-      {chore.recurrence && chore.recurrence !== 'once' && (
+      {createMode && (
+        <div>
+          <label className="block text-cream text-sm font-medium mb-1 tracking-wide">
+            {t('questCreate.recurrence')}
+          </label>
+          <select
+            value={form.recurrence}
+            onChange={(e) => updateForm('recurrence', e.target.value)}
+            className={`${selectClass} w-full p-3`}
+          >
+            {INFO_RECURRENCE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
+          {form.recurrence === 'custom' && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {DAY_NAMES.map((day, i) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleCustomDay(i)}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                    form.customDays.includes(i)
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border text-muted hover:border-border-light'
+                  }`}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(createMode ? form.recurrence !== 'once' : chore?.recurrence && chore.recurrence !== 'once') && (
         <label className="flex items-center gap-2 text-cream text-sm cursor-pointer">
           <input
             type="checkbox"
@@ -365,8 +519,17 @@ function InfoTab({ chore, categories, onChanged }) {
         className="game-btn game-btn-gold w-full flex items-center justify-center gap-1.5"
       >
         {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-        {submitting ? t('common.saving') : saved ? t('choreManage.saved') : t('common.save')}
+        {submitting
+          ? t('common.saving')
+          : createMode
+          ? t('questCreate.createQuest')
+          : saved
+          ? t('choreManage.saved')
+          : t('common.save')}
       </button>
+      {createMode && (
+        <p className="text-muted text-xs text-center">{t('choreManage.createThenAssign')}</p>
+      )}
     </div>
   );
 }
@@ -446,8 +609,18 @@ function AssignTab({ chore, kids, onChanged }) {
             setScheduleDays([]);
           }
         } else {
-          setScheduleFrequency('once');
-          setScheduleDays([]);
+          // No per-kid rules yet — seed from the chore-level recurrence
+          // chosen at creation so the tab reflects it.
+          if (chore.recurrence === 'custom' && chore.custom_days?.length) {
+            setScheduleFrequency('daily');
+            setScheduleDays(chore.custom_days);
+          } else if (chore.recurrence && chore.recurrence !== 'once') {
+            setScheduleFrequency(chore.recurrence);
+            setScheduleDays([]);
+          } else {
+            setScheduleFrequency('once');
+            setScheduleDays([]);
+          }
         }
       })
       .catch(() => {
@@ -1240,45 +1413,72 @@ function HistoryTab({ chore, kids }) {
 // Shell — tab switcher
 // ---------------------------------------------------------------------------
 
-export default function ChoreManageModal({ isOpen, onClose, chore, kids = [], categories = [], onChanged }) {
+export default function ChoreManageModal({
+  isOpen,
+  onClose,
+  chore,
+  createMode = false,
+  kids = [],
+  categories = [],
+  onChanged,
+}) {
   const { t } = useTranslation();
   const { colorTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('info');
+  // In create mode the chore doesn't exist yet; InfoTab creates it and hands
+  // it back here so the Assign / History / Vacation tabs unlock.
+  const [draftChore, setDraftChore] = useState(null);
 
   useEffect(() => {
-    if (isOpen) setActiveTab('info');
+    if (isOpen) {
+      setActiveTab('info');
+      setDraftChore(null);
+    }
   }, [isOpen, chore?.id]);
 
-  if (!chore) return null;
+  if (!isOpen) return null;
+  if (!createMode && !chore) return null;
+
+  const activeChore = chore || draftChore;
+  const creating = createMode && !activeChore;
+  const tabs = creating ? TAB_DEFS.filter((x) => x.id === 'info') : TAB_DEFS;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={t('choreManage.title')}
-      actions={[{ label: t('common.close'), onClick: onClose, className: 'game-btn game-btn-blue' }]}
+      title={activeChore || !createMode ? t('choreManage.title') : t('questCreate.newTitle')}
+      actions={[
+        {
+          label: creating ? t('common.cancel') : t('common.close'),
+          onClick: onClose,
+          className: 'game-btn game-btn-blue',
+        },
+      ]}
     >
       <div className="space-y-4">
         {/* Quest summary */}
-        <div className="p-3 rounded-lg border border-border bg-surface-raised/30">
-          <h3 className="text-cream font-bold text-base">{themedTitle(chore.title, colorTheme)}</h3>
-          {chore.description && (
-            <p className="text-muted text-xs mt-1">{themedDescription(chore.title, chore.description, colorTheme)}</p>
-          )}
-          <div className="flex items-center gap-3 mt-1.5">
-            <span className="flex items-center gap-1 text-gold text-sm font-bold">
-              <Star size={12} className="fill-gold" />
-              {t('chores.starsCount', { count: chore.points })}
-            </span>
-            {chore.category && (
-              <span className="text-muted text-xs">{chore.category.name || chore.category}</span>
+        {activeChore && (
+          <div className="p-3 rounded-lg border border-border bg-surface-raised/30">
+            <h3 className="text-cream font-bold text-base">{themedTitle(activeChore.title, colorTheme)}</h3>
+            {activeChore.description && (
+              <p className="text-muted text-xs mt-1">{themedDescription(activeChore.title, activeChore.description, colorTheme)}</p>
             )}
+            <div className="flex items-center gap-3 mt-1.5">
+              <span className="flex items-center gap-1 text-gold text-sm font-bold">
+                <Star size={12} className="fill-gold" />
+                {t('chores.starsCount', { count: activeChore.points })}
+              </span>
+              {activeChore.category && (
+                <span className="text-muted text-xs">{activeChore.category.name || activeChore.category}</span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Tabs */}
         <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 flex-wrap">
-          {TAB_DEFS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -1294,16 +1494,26 @@ export default function ChoreManageModal({ isOpen, onClose, chore, kids = [], ca
         </div>
 
         {activeTab === 'info' && (
-          <InfoTab chore={chore} categories={categories} onChanged={onChanged} />
+          <InfoTab
+            chore={activeChore}
+            createMode={creating}
+            categories={categories}
+            onChanged={onChanged}
+            onCreated={(c) => {
+              setDraftChore(c);
+              onChanged?.();
+              setActiveTab('assign');
+            }}
+          />
         )}
-        {activeTab === 'assign' && (
-          <AssignTab chore={chore} kids={kids} onChanged={onChanged} />
+        {activeTab === 'assign' && activeChore && (
+          <AssignTab chore={activeChore} kids={kids} onChanged={onChanged} />
         )}
-        {activeTab === 'history' && (
-          <HistoryTab chore={chore} kids={kids} />
+        {activeTab === 'history' && activeChore && (
+          <HistoryTab chore={activeChore} kids={kids} />
         )}
-        {activeTab === 'vacation' && (
-          <ChoreVacationSettings choreId={chore.id} />
+        {activeTab === 'vacation' && activeChore && (
+          <ChoreVacationSettings choreId={activeChore.id} />
         )}
       </div>
     </Modal>

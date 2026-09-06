@@ -52,6 +52,7 @@ from backend.websocket_manager import ws_manager
 from backend.services.recurrence import should_create_on_day
 from backend.services.rotation import get_rotation_kid_for_day
 from backend.services.malus import should_apply_malus, get_family_malus_settings
+from backend.services.auto_purchase import process_auto_purchases
 
 logger = logging.getLogger(__name__)
 
@@ -1312,6 +1313,9 @@ async def _finalize_verification(
         assignment.user_id,
         {"type": "chore_verified", "data": ws_data},
     )
+
+    # Auto-purchase any reward the kid can now afford.
+    await process_auto_purchases(db, kid)
 
     return total_awarded
 

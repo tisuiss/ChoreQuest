@@ -23,6 +23,7 @@ from backend.schemas import (
 )
 from backend.dependencies import get_current_user, require_parent, require_admin
 from backend.achievements import check_achievements
+from backend.services.auto_purchase import process_auto_purchases
 from backend.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/api/points", tags=["points"])
@@ -243,6 +244,9 @@ async def award_bonus(
         },
     })
 
+    if body.amount > 0:
+        await process_auto_purchases(db, user)
+
     return tx
 
 
@@ -307,5 +311,8 @@ async def adjust_points(
         "type": "data_changed",
         "data": {"entity": "points", "new_balance": user.points_balance},
     })
+
+    if body.amount > 0:
+        await process_auto_purchases(db, user)
 
     return tx

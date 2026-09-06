@@ -7,7 +7,6 @@ import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { themedTitle, themedDescription } from '../utils/questThemeText';
 import Modal from '../components/Modal';
-import QuestCreateModal from '../components/QuestCreateModal';
 import ChoreManageModal from '../components/ChoreManageModal';
 import CategoryManageModal from '../components/CategoryManageModal';
 import AvatarDisplay from '../components/AvatarDisplay';
@@ -744,12 +743,14 @@ export default function Chores() {
         </div>
       )}
 
-      <QuestCreateModal
+      <ChoreManageModal
         isOpen={showCreateModal}
+        createMode
+        chore={null}
         onClose={() => setShowCreateModal(false)}
-        onCreated={fetchChores}
-        categories={categories}
+        onChanged={fetchChores}
         kids={kids}
+        categories={categories}
       />
 
       <ChoreManageModal
