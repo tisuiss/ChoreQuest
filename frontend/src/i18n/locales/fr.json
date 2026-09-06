@@ -120,7 +120,15 @@
     "exitPhotoFrame": "Quitter le cadre photo",
     "photoFrameEmpty": "Aucune photo configurée pour l'instant.",
     "photoFrameEmptyHint": "Ajoute des photos depuis Réglages > Cadre photo familial.",
-    "loadPhotosError": "Impossible de charger les photos"
+    "loadPhotosError": "Impossible de charger les photos",
+    "todoTitle": "Liste à faire",
+    "todoPlaceholder": "Ajouter un élément...",
+    "todoEmpty": "Rien pour l'instant.",
+    "todoToggle": "Marquer comme fait",
+    "todoLoadError": "Impossible de charger la liste",
+    "todoAddError": "Impossible d'ajouter l'élément",
+    "todoSaveError": "Impossible de mettre à jour l'élément",
+    "todoRemoveError": "Impossible de supprimer l'élément"
   },
   "familyPhotoSettings": {
     "title": "Cadre photo familial",

@@ -500,6 +500,16 @@ class FamilyPhoto(Base):
     uploader = relationship("User")
 
 
+class FamilyTodo(Base):
+    """A simple shared to-do item on the Family Zone screen (shopping list,
+    reminders, etc.) -- unrelated to chores or points."""
+    __tablename__ = "family_todos"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    text: Mapped[str] = mapped_column(String(300), nullable=False)
+    is_done: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class KidVacationPeriod(Base):
     """Per-child vacation periods. While a kid is away:
 

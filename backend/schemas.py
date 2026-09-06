@@ -101,6 +101,22 @@ class FamilyMemberResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FamilyTodoCreate(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+
+
+class FamilyTodoUpdate(BaseModel):
+    is_done: bool
+
+
+class FamilyTodoResponse(BaseModel):
+    id: int
+    text: str
+    is_done: bool
+
+    model_config = {"from_attributes": True}
+
+
 class FamilyPhotoCreate(BaseModel):
     url: str = Field(max_length=500)
 

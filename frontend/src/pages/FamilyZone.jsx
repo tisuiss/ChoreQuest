@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Swords, Loader2, ListChecks, ChevronLeft, ChevronRight, Plus, X,
   UtensilsCrossed, Star, Pencil, ArrowLeft, CalendarDays, Images,
+  ListTodo, Check,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -233,7 +234,7 @@ export default function FamilyZone() {
   // ---------------------------------------------------------------------
   // Weekly menu
   // ---------------------------------------------------------------------
-  const menuWeekStart = startOfWeek(new Date());
+  const [menuWeekStart, setMenuWeekStart] = useState(() => startOfWeek(new Date()));
   const [menu, setMenu] = useState([]);
   const [menuError, setMenuError] = useState('');
   const [editingDish, setEditingDish] = useState(null);
@@ -248,10 +249,18 @@ export default function FamilyZone() {
     } catch (err) {
       setMenuError(err.message || t('familyZone.menuLoadError'));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t]);
+  }, [menuWeekStart, t]);
 
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
+
+  const menuGoPrev = () => setMenuWeekStart((w) => addDays(w, -7));
+  const menuGoNext = () => setMenuWeekStart((w) => addDays(w, 7));
+  const menuWeekEnd = addDays(menuWeekStart, 6);
+  const menuRangeLabel = t('familyZone.weekOf', {
+    start: menuWeekStart.getDate(),
+    end: menuWeekEnd.getDate(),
+    month: monthFmt.format(menuWeekEnd),
+  });
 
   const dishFor = (dateStr) => menu.find((m) => m.date === dateStr)?.dish || '';
 
@@ -296,6 +305,62 @@ export default function FamilyZone() {
   }, [fetchStars]);
 
   const topStars = stars.length > 0 ? Math.max(...stars.map((k) => k.points_balance), 1) : 1;
+
+  // ---------------------------------------------------------------------
+  // To-do list
+  // ---------------------------------------------------------------------
+  const [todos, setTodos] = useState([]);
+  const [todosError, setTodosError] = useState('');
+  const [newTodoText, setNewTodoText] = useState('');
+  const [addingTodo, setAddingTodo] = useState(false);
+
+  const fetchTodos = useCallback(async () => {
+    try {
+      const data = await api('/api/family-zone/todos');
+      setTodos(Array.isArray(data) ? data : []);
+      setTodosError('');
+    } catch (err) {
+      setTodosError(err.message || t('familyZone.todoLoadError'));
+    }
+  }, [t]);
+
+  useEffect(() => { fetchTodos(); }, [fetchTodos]);
+
+  const addTodo = async (e) => {
+    e.preventDefault();
+    const text = newTodoText.trim();
+    if (!text) return;
+    setAddingTodo(true);
+    try {
+      await api('/api/family-zone/todos', { method: 'POST', body: { text } });
+      setNewTodoText('');
+      await fetchTodos();
+    } catch (err) {
+      setTodosError(err.message || t('familyZone.todoAddError'));
+    } finally {
+      setAddingTodo(false);
+    }
+  };
+
+  const toggleTodo = async (item) => {
+    setTodos((prev) => prev.map((it) => (it.id === item.id ? { ...it, is_done: !it.is_done } : it)));
+    try {
+      await api(`/api/family-zone/todos/${item.id}`, { method: 'PUT', body: { is_done: !item.is_done } });
+    } catch (err) {
+      setTodosError(err.message || t('familyZone.todoSaveError'));
+      fetchTodos();
+    }
+  };
+
+  const removeTodo = async (id) => {
+    setTodos((prev) => prev.filter((it) => it.id !== id));
+    try {
+      await api(`/api/family-zone/todos/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      setTodosError(err.message || t('familyZone.todoRemoveError'));
+      fetchTodos();
+    }
+  };
 
   // ---------------------------------------------------------------------
   // Photo frame (guest mode)
@@ -529,10 +594,19 @@ export default function FamilyZone() {
           {/* Right column: menu + stars */}
           <div className="flex flex-col gap-4">
             <div className="game-panel p-4">
-              <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-3">
+              <p className="text-cream text-sm font-bold flex items-center gap-1.5">
                 <UtensilsCrossed size={15} className="text-accent" />
                 {t('familyZone.menuTitle')}
               </p>
+              <div className="flex items-center gap-2 mt-1.5 mb-3">
+                <button onClick={menuGoPrev} className="w-6 h-6 rounded-md border border-border bg-navy text-muted hover:text-cream hover:border-border-light flex items-center justify-center">
+                  <ChevronLeft size={13} />
+                </button>
+                <span className="text-muted text-xs">{menuRangeLabel}</span>
+                <button onClick={menuGoNext} className="w-6 h-6 rounded-md border border-border bg-navy text-muted hover:text-cream hover:border-border-light flex items-center justify-center">
+                  <ChevronRight size={13} />
+                </button>
+              </div>
               {menuError && (
                 <div className="mb-3 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
                   {menuError}
@@ -576,6 +650,64 @@ export default function FamilyZone() {
                   );
                 })}
               </div>
+            </div>
+
+            <div className="game-panel p-4">
+              <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-3">
+                <ListTodo size={15} className="text-accent" />
+                {t('familyZone.todoTitle')}
+              </p>
+              {todosError && (
+                <div className="mb-3 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
+                  {todosError}
+                </div>
+              )}
+              <form onSubmit={addTodo} className="flex gap-2 mb-3">
+                <input
+                  className="field-input flex-1 !py-1.5 !text-sm"
+                  placeholder={t('familyZone.todoPlaceholder')}
+                  value={newTodoText}
+                  onChange={(e) => setNewTodoText(e.target.value)}
+                  disabled={addingTodo}
+                  maxLength={300}
+                />
+                <button
+                  type="submit"
+                  disabled={addingTodo || !newTodoText.trim()}
+                  className="game-btn game-btn-blue !py-1.5 !px-3 flex-shrink-0"
+                >
+                  {addingTodo ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                </button>
+              </form>
+              {todos.length === 0 ? (
+                <p className="text-muted text-xs">{t('familyZone.todoEmpty')}</p>
+              ) : (
+                <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
+                  {todos.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 group">
+                      <button
+                        onClick={() => toggleTodo(item)}
+                        className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                          item.is_done ? 'bg-accent border-accent' : 'border-border-light'
+                        }`}
+                        aria-label={t('familyZone.todoToggle')}
+                      >
+                        {item.is_done && <Check size={11} className="text-navy" />}
+                      </button>
+                      <span className={`flex-1 text-sm truncate ${item.is_done ? 'line-through text-muted' : 'text-cream'}`}>
+                        {item.text}
+                      </span>
+                      <button
+                        onClick={() => removeTodo(item.id)}
+                        className="text-muted hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        aria-label={t('common.delete')}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="game-panel p-4">

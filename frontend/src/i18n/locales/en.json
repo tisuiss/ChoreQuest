@@ -120,7 +120,15 @@
     "exitPhotoFrame": "Exit photo frame",
     "photoFrameEmpty": "No photos set up yet.",
     "photoFrameEmptyHint": "Add photos from Settings > Family photo frame.",
-    "loadPhotosError": "Could not load the photos"
+    "loadPhotosError": "Could not load the photos",
+    "todoTitle": "To-do list",
+    "todoPlaceholder": "Add an item...",
+    "todoEmpty": "Nothing yet.",
+    "todoToggle": "Mark as done",
+    "todoLoadError": "Could not load the list",
+    "todoAddError": "Could not add the item",
+    "todoSaveError": "Could not update the item",
+    "todoRemoveError": "Could not remove the item"
   },
   "familyPhotoSettings": {
     "title": "Family photo frame",

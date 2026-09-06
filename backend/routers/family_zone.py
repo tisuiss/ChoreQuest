@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import User, UserRole, FamilyEvent, WeeklyMenuEntry, FamilyPhoto
+from backend.models import User, UserRole, FamilyEvent, WeeklyMenuEntry, FamilyPhoto, FamilyTodo
 from backend.schemas import (
     FamilyEventCreate,
     FamilyEventResponse,
@@ -16,6 +16,9 @@ from backend.schemas import (
     FamilyPhotoCreate,
     FamilyPhotoResponse,
     FamilyMemberResponse,
+    FamilyTodoCreate,
+    FamilyTodoUpdate,
+    FamilyTodoResponse,
 )
 from backend.rate_limit import rate_limiter
 from backend.dependencies import require_parent
@@ -149,6 +152,75 @@ async def get_family_stars(db: AsyncSession = Depends(get_db)):
         .order_by(User.points_balance.desc())
     )
     return result.scalars().all()
+
+
+# ---------------------------------------------------------------------------
+# To-do list
+# ---------------------------------------------------------------------------
+# A shared, generic to-do list on the Family Zone screen -- unrelated to
+# chores/points (shopping list, reminders, etc.). Public read/write, same
+# trust model as the rest of the Family Zone screen.
+
+# ---------- GET /todos ----------
+@router.get("/todos", response_model=list[FamilyTodoResponse])
+async def list_family_todos(db: AsyncSession = Depends(get_db)):
+    """Public: the shared to-do list, pending items first."""
+    result = await db.execute(
+        select(FamilyTodo).order_by(FamilyTodo.is_done, FamilyTodo.created_at)
+    )
+    return result.scalars().all()
+
+
+# ---------- POST /todos ----------
+@router.post("/todos", response_model=FamilyTodoResponse, status_code=201)
+async def create_family_todo(
+    body: FamilyTodoCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: add an item to the shared to-do list."""
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limiter.check(f"family-zone-todos:{client_ip}", 40, 900)
+
+    todo = FamilyTodo(text=body.text)
+    db.add(todo)
+    await db.commit()
+    await db.refresh(todo)
+    return todo
+
+
+# ---------- PUT /todos/{id} ----------
+@router.put("/todos/{todo_id}", response_model=FamilyTodoResponse)
+async def update_family_todo(
+    todo_id: int,
+    body: FamilyTodoUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: mark a to-do item done or not done."""
+    result = await db.execute(select(FamilyTodo).where(FamilyTodo.id == todo_id))
+    todo = result.scalar_one_or_none()
+    if todo is None:
+        raise HTTPException(status_code=404, detail="To-do item not found")
+    todo.is_done = body.is_done
+    await db.commit()
+    await db.refresh(todo)
+    return todo
+
+
+# ---------- DELETE /todos/{id} ----------
+@router.delete("/todos/{todo_id}", status_code=204)
+async def delete_family_todo(
+    todo_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: remove a to-do item."""
+    result = await db.execute(select(FamilyTodo).where(FamilyTodo.id == todo_id))
+    todo = result.scalar_one_or_none()
+    if todo is None:
+        raise HTTPException(status_code=404, detail="To-do item not found")
+    await db.delete(todo)
+    await db.commit()
+    return None
 
 
 # ---------------------------------------------------------------------------
