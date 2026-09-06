@@ -155,8 +155,10 @@ export default function Kiosk() {
                 <input
                   key={i}
                   ref={(el) => (pinRefs.current[i] = el)}
-                  type="text"
+                  type="tel"
                   inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
                   maxLength={1}
                   value={digit}
                   disabled={submitting}

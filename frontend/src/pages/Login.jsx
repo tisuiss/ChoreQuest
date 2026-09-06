@@ -144,8 +144,10 @@ export default function Login() {
               {t('login.pinCode')}
             </label>
             <input
-              type="text"
+              type="tel"
               inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
               maxLength={6}
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
