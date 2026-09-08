@@ -196,16 +196,22 @@ export default function FamilyZone() {
 
   const rangeStart = viewMode === 'week' ? weekStart : startOfWeek(monthCursor);
   const rangeEnd = viewMode === 'week' ? addDays(weekStart, 6) : addDays(startOfWeek(monthCursor), 41);
+  // Stable primitive strings for the effect/callback deps below -- rangeStart
+  // and rangeEnd above are new Date instances on every render, so depending
+  // on them directly made fetchEvents/fetchCalendarMenu change identity (and
+  // their effects re-fire) on every single render, an infinite fetch loop.
+  const rangeStartStr = ymd(rangeStart);
+  const rangeEndStr = ymd(rangeEnd);
 
   const fetchEvents = useCallback(async () => {
     try {
-      const data = await api(`/api/family-zone/events?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`);
+      const data = await api(`/api/family-zone/events?start=${rangeStartStr}&end=${rangeEndStr}`);
       setEvents(Array.isArray(data) ? data : []);
       setEventsError('');
     } catch (err) {
       setEventsError(err.message || t('familyZone.loadEventsError'));
     }
-  }, [rangeStart, rangeEnd, t]);
+  }, [rangeStartStr, rangeEndStr, t]);
 
   // This screen is meant to stay open indefinitely (a wall display), so a
   // transient failure (e.g. the backend restarting during a deploy) must
@@ -228,10 +234,10 @@ export default function FamilyZone() {
 
   const fetchCalendarMenu = useCallback(async () => {
     try {
-      const data = await api(`/api/family-zone/menu?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`);
+      const data = await api(`/api/family-zone/menu?start=${rangeStartStr}&end=${rangeEndStr}`);
       setCalendarMenu(Array.isArray(data) ? data : []);
     } catch { /* calendar just omits dishes on failure */ }
-  }, [rangeStart, rangeEnd]);
+  }, [rangeStartStr, rangeEndStr]);
 
   useEffect(() => {
     fetchCalendarMenu();
