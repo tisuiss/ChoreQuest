@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { api, setAccessToken, clearAccessToken, getAccessToken } from '../api/client';
+import { api, setAccessToken, clearAccessToken, getAccessToken, getDeviceToken } from '../api/client';
 
 export const KIOSK_SESSION_KEY = 'chorequest_kiosk_session';
 export const KIOSK_PINNED_SESSION_KEY = 'chorequest_kiosk_pinned_session';
@@ -106,11 +106,16 @@ export function AuthProvider({ children }) {
     // Uses a direct fetch (not the shared api() helper): there is no prior
     // session to refresh at this point, so api()'s 401-triggers-refresh
     // retry would just mask a wrong-PIN error behind a misleading
-    // "Session expired" message.
+    // "Session expired" message. Attach the device token too: a kid with no
+    // PIN set requires it server-side (same trust boundary as login-direct).
+    const deviceToken = getDeviceToken();
     const res = await fetch('/api/kiosk/login', {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(deviceToken ? { 'X-Device-Token': deviceToken } : {}),
+      },
       body: JSON.stringify({ kid_id: kidId, pin }),
     });
     if (!res.ok) {
@@ -130,9 +135,14 @@ export function AuthProvider({ children }) {
 
   const kioskLoginDirect = async (username) => {
     // Same rationale as kioskLogin for using a raw fetch instead of api().
+    // This endpoint requires the paired device token server-side (it grants
+    // passwordless kid access) — attach it manually since it bypasses the
+    // shared api() helper that normally does this.
+    const deviceToken = getDeviceToken();
     const res = await fetch(`/api/kiosk/login-direct/${encodeURIComponent(username)}`, {
       method: 'POST',
       credentials: 'include',
+      headers: deviceToken ? { 'X-Device-Token': deviceToken } : undefined,
     });
     if (!res.ok) {
       let detail = 'Could not open this kid\'s kiosk';

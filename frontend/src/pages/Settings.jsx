@@ -23,6 +23,7 @@ import {
 import VacationSettings from '../components/VacationSettings';
 import KidVacationSettings from '../components/KidVacationSettings';
 import FamilyPhotoSettings from '../components/FamilyPhotoSettings';
+import TrustedDeviceSettings from '../components/TrustedDeviceSettings';
 import { SUPPORTED_LANGUAGES } from '../hooks/useLanguage';
 
 const DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
@@ -749,6 +750,9 @@ export default function Settings() {
 
               {/* Photo-frame source */}
               <FamilyPhotoSettings />
+
+              {/* Trusted kiosk device pairing */}
+              <TrustedDeviceSettings paired={!!settings.kiosk_device_token} />
             </>
           )}
 

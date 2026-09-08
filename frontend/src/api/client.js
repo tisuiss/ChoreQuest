@@ -1,4 +1,5 @@
 const TOKEN_KEY = 'chorequest_access_token';
+const DEVICE_TOKEN_KEY = 'chorequest_kiosk_device_token';
 
 let accessToken = null;
 
@@ -22,6 +23,21 @@ export function getAccessToken() {
 export function clearAccessToken() {
   accessToken = null;
   try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+}
+
+// The paired kiosk-device token — a shared secret stored once (via the
+// /pair page) so this specific screen keeps direct access without a login,
+// while every other device is required to authenticate normally. Sent
+// alongside (not instead of) the Authorization header on every request.
+export function getDeviceToken() {
+  try { return localStorage.getItem(DEVICE_TOKEN_KEY); } catch { return null; }
+}
+
+export function setDeviceToken(token) {
+  try {
+    if (token) localStorage.setItem(DEVICE_TOKEN_KEY, token);
+    else localStorage.removeItem(DEVICE_TOKEN_KEY);
+  } catch { /* ignore */ }
 }
 
 async function refreshToken() {
@@ -55,6 +71,11 @@ export async function api(path, options = {}) {
 
   if (accessToken) {
     config.headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  const deviceToken = getDeviceToken();
+  if (deviceToken) {
+    config.headers['X-Device-Token'] = deviceToken;
   }
 
   if (body && !(body instanceof FormData)) {

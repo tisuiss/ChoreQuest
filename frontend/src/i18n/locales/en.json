@@ -185,6 +185,26 @@
     "uploadError": "Could not add the photo",
     "removeError": "Could not remove the photo"
   },
+  "trustedDevice": {
+    "title": "Trusted device",
+    "hint": "Only the paired kiosk screen can open Kiosk and Family Zone without logging in. Every other device needs an account login. Generate a pairing link and open it once on the internal screen.",
+    "statusPaired": "A device is currently paired.",
+    "statusNotPaired": "No device paired yet — Kiosk and Family Zone will ask for a login until you pair one.",
+    "generate": "Generate pairing link",
+    "regenerate": "Regenerate pairing link",
+    "regenerateWarning": "Regenerating immediately signs the previously paired screen out — it will need to be re-paired with the new link.",
+    "copy": "Copy link",
+    "openOnce": "Open this link once on the internal screen — it will stay signed in from then on.",
+    "generateError": "Could not generate a pairing link"
+  },
+  "pairDevice": {
+    "invalid": "This pairing link is invalid or has expired.",
+    "invalidHint": "Ask a parent to generate a new pairing link from Settings.",
+    "success": "This device is now paired.",
+    "successHint": "Kiosk and Family Zone will stay accessible here without logging in.",
+    "goToFamilyZone": "Go to Family Zone",
+    "goToKiosk": "Go to Kiosk"
+  },
   "pointsHistory": {
     "title": "Stars History",
     "allKids": "All kids",

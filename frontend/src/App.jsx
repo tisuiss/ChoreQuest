@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth, KIOSK_PINNED_USERNAME_KEY } from './hooks/useAuth';
 import { useWebSocket } from './hooks/useWebSocket';
+import { getDeviceToken } from './api/client';
 import Layout from './components/Layout';
 import UpdatePrompt from './components/UpdatePrompt';
 
@@ -10,6 +11,7 @@ const Register = lazy(() => import('./pages/Register'));
 const Kiosk = lazy(() => import('./pages/Kiosk'));
 const FamilyZone = lazy(() => import('./pages/FamilyZone'));
 const KioskDirect = lazy(() => import('./pages/KioskDirect'));
+const PairDevice = lazy(() => import('./pages/PairDevice'));
 const KidDashboard = lazy(() => import('./pages/KidDashboard'));
 const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -47,16 +49,39 @@ export default function App() {
 
   if (loading) return <Loading />;
 
-  // /kiosk/<username> must work regardless of auth state — switching from
-  // one kid's pinned kiosk session straight to another's, without an
-  // explicit logout step, needs this route reachable even while a kid is
-  // already logged in (it's absent from the routes below once !user is
-  // false, which otherwise silently swallows the navigation).
+  // Whether this device is either logged in or has already been paired as
+  // the trusted kiosk screen (a one-time-use token stored in localStorage
+  // via /pair). Only then do /kiosk and /familyzone stay directly reachable
+  // — every other device gets redirected to /login instead.
+  const hasFamilyAccess = !!user || !!getDeviceToken();
+
+  // /pair must work regardless of auth state — it's how a fresh device
+  // becomes the trusted kiosk screen in the first place.
+  if (location.pathname === '/pair') {
+    return (
+      <Suspense fallback={<Loading />}>
+        <Routes>
+          <Route path="/pair" element={<PairDevice />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
+  // /kiosk/<username> must work regardless of login state for an already
+  // paired/logged-in device — switching from one kid's pinned kiosk session
+  // straight to another's, without an explicit logout step, needs this
+  // route reachable even while a kid is already logged in (it's absent from
+  // the routes below once !user is false, which otherwise silently
+  // swallows the navigation). An unpaired, logged-out visitor is redirected
+  // to /login instead of reaching the kid-switch screen.
   if (location.pathname.startsWith('/kiosk/')) {
     return (
       <Suspense fallback={<Loading />}>
         <Routes>
-          <Route path="/kiosk/:username" element={<KioskDirect />} />
+          <Route
+            path="/kiosk/:username"
+            element={hasFamilyAccess ? <KioskDirect /> : <Navigate to="/login" replace />}
+          />
           <Route path="*" element={<Navigate to="/kiosk" replace />} />
         </Routes>
       </Suspense>
@@ -66,7 +91,9 @@ export default function App() {
   if (!user) {
     // A device pinned to one kid (/kiosk/<username>) self-heals here: if the
     // session was ever lost mid-use (token/cookie expiry after a reload),
-    // silently re-open that kid's kiosk instead of stopping on /login.
+    // silently re-open that kid's kiosk instead of stopping on /login. Only
+    // applies to an already-paired device — an unpaired one falls through
+    // to /login like any other unrecognized visitor.
     let pinnedUsername = null;
     try { pinnedUsername = localStorage.getItem(KIOSK_PINNED_USERNAME_KEY); } catch { /* ignore */ }
 
@@ -76,11 +103,22 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/kiosk" element={<Kiosk />} />
-          <Route path="/familyzone" element={<FamilyZone />} />
+          <Route
+            path="/kiosk"
+            element={hasFamilyAccess ? <Kiosk /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/familyzone"
+            element={hasFamilyAccess ? <FamilyZone /> : <Navigate to="/login" replace />}
+          />
           <Route
             path="*"
-            element={<Navigate to={pinnedUsername ? `/kiosk/${pinnedUsername}` : '/login'} replace />}
+            element={
+              <Navigate
+                to={hasFamilyAccess && pinnedUsername ? `/kiosk/${pinnedUsername}` : '/login'}
+                replace
+              />
+            }
           />
         </Routes>
       </Suspense>

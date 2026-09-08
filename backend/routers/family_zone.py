@@ -26,7 +26,7 @@ from backend.schemas import (
     FamilyTodoResponse,
 )
 from backend.rate_limit import rate_limiter
-from backend.dependencies import require_parent
+from backend.dependencies import require_parent, require_family_access
 from backend.routers.uploads import UPLOAD_DIR
 
 router = APIRouter(prefix="/api/family-zone", tags=["family-zone"])
@@ -82,9 +82,10 @@ async def list_family_events(
     start: date = Query(...),
     end: date = Query(...),
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public roster of family events in [start, end], for the Family Zone
-    calendar screen -- no auth required, same trust model as /api/kiosk.
+    """Roster of family events in [start, end], for the Family Zone
+    calendar screen -- paired kiosk device or logged-in user.
     """
     if end < start:
         raise HTTPException(status_code=400, detail="end must be on or after start")
@@ -145,13 +146,14 @@ async def create_family_event(
     body: FamilyEventCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: add an event from the Family Zone screen -- optionally
-    repeated, in which case one row per occurrence is created.
+    """Add an event from the Family Zone screen -- optionally repeated, in
+    which case one row per occurrence is created.
 
-    No login required, on purpose -- this mirrors the kiosk's trust model
-    (a device already physically secured in the home), so any family member
-    standing at the screen can jot down an appointment or outing.
+    Paired kiosk device or logged-in user -- the paired screen keeps the old
+    frictionless "physically secured device" trust model; anyone else must
+    log in first.
     """
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-events:{client_ip}", 30, 900)
@@ -183,10 +185,11 @@ async def update_family_event(
     body: FamilyEventUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: edit an event -- same trust model as creating one. A repeat
-    option here only adds new future occurrences; it never touches other
-    rows from a previous repeat batch."""
+    """Edit an event -- same trust model as creating one. A repeat option
+    here only adds new future occurrences; it never touches other rows from
+    a previous repeat batch."""
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-events:{client_ip}", 30, 900)
 
@@ -216,8 +219,9 @@ async def update_family_event(
 async def delete_family_event(
     event_id: int,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: remove a single event occurrence."""
+    """Remove a single event occurrence."""
     result = await db.execute(select(FamilyEvent).where(FamilyEvent.id == event_id))
     event = result.scalar_one_or_none()
     if event is None:
@@ -229,10 +233,13 @@ async def delete_family_event(
 
 # ---------- GET /members ----------
 @router.get("/members", response_model=list[FamilyMemberResponse])
-async def list_family_members(db: AsyncSession = Depends(get_db)):
-    """Public: every active family member (kid, parent, admin) -- just id,
-    display name and role -- so the Family Zone calendar can assign an
-    event to a parent as well as a kid."""
+async def list_family_members(
+    db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
+):
+    """Every active family member (kid, parent, admin) -- just id, display
+    name and role -- so the Family Zone calendar can assign an event to a
+    parent as well as a kid."""
     result = await db.execute(
         select(User).where(User.is_active == True).order_by(User.display_name)
     )
@@ -243,14 +250,18 @@ async def list_family_members(db: AsyncSession = Depends(get_db)):
 # Birthdays
 # ---------------------------------------------------------------------------
 # A free-form birthday book on the Family Zone screen -- any loved one, not
-# just people with a ChoreQuest account (grandparents, friends, etc.). Public
-# read/write, same trust model as the rest of the screen. Sorting by next
-# occurrence (rather than the raw stored date) is done client-side.
+# just people with a ChoreQuest account (grandparents, friends, etc.). Same
+# trust model as the rest of the screen (paired device or logged-in user).
+# Sorting by next occurrence (rather than the raw stored date) is done
+# client-side.
 
 # ---------- GET /birthdays ----------
 @router.get("/birthdays", response_model=list[FamilyBirthdayResponse])
-async def list_birthdays(db: AsyncSession = Depends(get_db)):
-    """Public: every tracked birthday."""
+async def list_birthdays(
+    db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
+):
+    """Every tracked birthday."""
     result = await db.execute(select(FamilyBirthday).order_by(FamilyBirthday.name))
     return result.scalars().all()
 
@@ -261,8 +272,9 @@ async def create_birthday(
     body: FamilyBirthdayCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: add a birthday to track."""
+    """Add a birthday to track."""
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-birthdays:{client_ip}", 30, 900)
 
@@ -282,10 +294,11 @@ async def update_birthday(
     body: FamilyBirthdayUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: edit a tracked birthday. Does not touch any calendar events
-    created from it before the edit -- use "Add to calendar" again to
-    (re)generate occurrences from the updated date."""
+    """Edit a tracked birthday. Does not touch any calendar events created
+    from it before the edit -- use "Add to calendar" again to (re)generate
+    occurrences from the updated date."""
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-birthdays:{client_ip}", 30, 900)
 
@@ -310,8 +323,9 @@ async def update_birthday(
 async def delete_birthday(
     birthday_id: int,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: remove a tracked birthday."""
+    """Remove a tracked birthday."""
     result = await db.execute(select(FamilyBirthday).where(FamilyBirthday.id == birthday_id))
     birthday = result.scalar_one_or_none()
     if birthday is None:
@@ -328,9 +342,10 @@ async def get_weekly_menu(
     start: date | None = Query(None, description="Range start, used together with `end` instead of `week_start` (e.g. for a month-view calendar)"),
     end: date | None = Query(None, description="Range end (inclusive), used together with `start`"),
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: planned dinners, either for one Monday-start week (`week_start`)
-    or an arbitrary range (`start`/`end`) -- the latter powers the Family Zone
+    """Planned dinners, either for one Monday-start week (`week_start`) or an
+    arbitrary range (`start`/`end`) -- the latter powers the Family Zone
     calendar's month/week view, which can span more than a single week.
     """
     if week_start is not None:
@@ -362,8 +377,9 @@ async def upsert_weekly_menu_entry(
     body: WeeklyMenuUpsert,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: set (or clear, with an empty dish) one day's planned dinner."""
+    """Set (or clear, with an empty dish) one day's planned dinner."""
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-menu:{client_ip}", 30, 900)
 
@@ -383,8 +399,11 @@ async def upsert_weekly_menu_entry(
 
 # ---------- GET /stars ----------
 @router.get("/stars", response_model=list[FamilyStarsResponse])
-async def get_family_stars(db: AsyncSession = Depends(get_db)):
-    """Public: kids ranked by current star balance, for the Family Zone."""
+async def get_family_stars(
+    db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
+):
+    """Kids ranked by current star balance, for the Family Zone."""
     result = await db.execute(
         select(User)
         .where(User.role == UserRole.kid, User.is_active == True)
@@ -397,13 +416,16 @@ async def get_family_stars(db: AsyncSession = Depends(get_db)):
 # To-do list
 # ---------------------------------------------------------------------------
 # A shared, generic to-do list on the Family Zone screen -- unrelated to
-# chores/points (shopping list, reminders, etc.). Public read/write, same
-# trust model as the rest of the Family Zone screen.
+# chores/points (shopping list, reminders, etc.). Same trust model as the
+# rest of the Family Zone screen (paired device or logged-in user).
 
 # ---------- GET /todos ----------
 @router.get("/todos", response_model=list[FamilyTodoResponse])
-async def list_family_todos(db: AsyncSession = Depends(get_db)):
-    """Public: the shared to-do list, pending items first."""
+async def list_family_todos(
+    db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
+):
+    """The shared to-do list, pending items first."""
     result = await db.execute(
         select(FamilyTodo).order_by(FamilyTodo.is_done, FamilyTodo.created_at)
     )
@@ -416,9 +438,10 @@ async def create_family_todo(
     body: FamilyTodoCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: add an item to the shared to-do list, optionally assigned to
-    a family member."""
+    """Add an item to the shared to-do list, optionally assigned to a family
+    member."""
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-todos:{client_ip}", 40, 900)
 
@@ -442,8 +465,9 @@ async def update_family_todo(
     todo_id: int,
     body: FamilyTodoUpdate,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: mark a to-do item done or not done."""
+    """Mark a to-do item done or not done."""
     result = await db.execute(select(FamilyTodo).where(FamilyTodo.id == todo_id))
     todo = result.scalar_one_or_none()
     if todo is None:
@@ -459,8 +483,9 @@ async def update_family_todo(
 async def delete_family_todo(
     todo_id: int,
     db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
 ):
-    """Public: remove a to-do item."""
+    """Remove a to-do item."""
     result = await db.execute(select(FamilyTodo).where(FamilyTodo.id == todo_id))
     todo = result.scalar_one_or_none()
     if todo is None:
@@ -476,13 +501,17 @@ async def delete_family_todo(
 # The Family Zone screen can switch into a fullscreen photo-frame slideshow
 # (e.g. when guests are over, instead of showing everyone's chores/stars).
 # Photos are uploaded via the existing /api/uploads endpoint and merely
-# registered here; GET is public like the rest of the Family Zone screen,
-# while adding/removing photos is parent-only and done from Settings.
+# registered here; GET follows the same trust model as the rest of the
+# Family Zone screen (paired device or logged-in user), while adding/
+# removing photos is parent-only and done from Settings.
 
 # ---------- GET /photos ----------
 @router.get("/photos", response_model=list[FamilyPhotoResponse])
-async def list_family_photos(db: AsyncSession = Depends(get_db)):
-    """Public: photos available for the Family Zone photo-frame slideshow."""
+async def list_family_photos(
+    db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
+):
+    """Photos available for the Family Zone photo-frame slideshow."""
     result = await db.execute(select(FamilyPhoto).order_by(FamilyPhoto.created_at.desc()))
     return result.scalars().all()
 

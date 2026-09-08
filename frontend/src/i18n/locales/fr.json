@@ -185,6 +185,26 @@
     "uploadError": "Impossible d'ajouter la photo",
     "removeError": "Impossible de supprimer la photo"
   },
+  "trustedDevice": {
+    "title": "Appareil de confiance",
+    "hint": "Seul l'écran kiosk appairé peut ouvrir Kiosk et Family Zone sans se connecter. Tout autre appareil doit se connecter avec un compte. Génère un lien d'appairage et ouvre-le une seule fois sur l'écran interne.",
+    "statusPaired": "Un appareil est actuellement appairé.",
+    "statusNotPaired": "Aucun appareil appairé pour l'instant — Kiosk et Family Zone demanderont une connexion tant que rien n'est appairé.",
+    "generate": "Générer un lien d'appairage",
+    "regenerate": "Régénérer le lien d'appairage",
+    "regenerateWarning": "Régénérer déconnecte immédiatement l'écran appairé précédemment — il devra être ré-appairé avec le nouveau lien.",
+    "copy": "Copier le lien",
+    "openOnce": "Ouvre ce lien une seule fois sur l'écran interne — il restera connecté ensuite.",
+    "generateError": "Impossible de générer un lien d'appairage"
+  },
+  "pairDevice": {
+    "invalid": "Ce lien d'appairage est invalide ou a expiré.",
+    "invalidHint": "Demande à un parent de générer un nouveau lien depuis les Réglages.",
+    "success": "Cet appareil est maintenant appairé.",
+    "successHint": "Kiosk et Family Zone resteront accessibles ici sans connexion.",
+    "goToFamilyZone": "Aller à Family Zone",
+    "goToKiosk": "Aller au Kiosk"
+  },
   "pointsHistory": {
     "title": "Historique des étoiles",
     "allKids": "Tous les enfants",

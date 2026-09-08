@@ -357,3 +357,25 @@ async def update_settings(
         await apply_family_timezone(db)
 
     return {"detail": "Settings updated"}
+
+
+# ---------- POST /kiosk-device-token/regenerate ----------
+@router.post("/kiosk-device-token/regenerate")
+async def regenerate_kiosk_device_token(
+    db: AsyncSession = Depends(get_db),
+    _parent: User = Depends(require_parent),
+):
+    """Generate a new pairing token for the trusted kiosk device, invalidating
+    any previously paired device (single active token -- one paired screen
+    at a time, by design). The frontend turns this into a one-time
+    /pair?token=... link to open on the physical screen."""
+    new_token = secrets.token_urlsafe(32)
+    result = await db.execute(select(AppSetting).where(AppSetting.key == "kiosk_device_token"))
+    existing = result.scalar_one_or_none()
+    if existing:
+        existing.value = new_token
+        existing.updated_at = datetime.now(timezone.utc)
+    else:
+        db.add(AppSetting(key="kiosk_device_token", value=new_token))
+    await db.commit()
+    return {"token": new_token}

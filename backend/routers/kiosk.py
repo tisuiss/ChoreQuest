@@ -1,3 +1,4 @@
+import secrets
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -9,6 +10,7 @@ from backend.models import User, UserRole, AuditLog, AppSetting, Chore, ChoreAss
 from backend.schemas import KioskKidResponse, KioskLoginRequest, AuthResponse
 from backend.auth import verify_pin, issue_tokens
 from backend.rate_limit import rate_limiter
+from backend.dependencies import require_family_access, require_device_token
 
 router = APIRouter(prefix="/api/kiosk", tags=["kiosk"])
 
@@ -45,8 +47,12 @@ async def get_kiosk_settings(db: AsyncSession = Depends(get_db)):
 
 # ---------- GET /kids ----------
 @router.get("/kids", response_model=list[KioskKidResponse])
-async def list_kiosk_kids(db: AsyncSession = Depends(get_db)):
-    """Public roster for the kiosk kid-selection screen — no auth required.
+async def list_kiosk_kids(
+    db: AsyncSession = Depends(get_db),
+    _access: User | None = Depends(require_family_access),
+):
+    """Roster for the kiosk kid-selection screen — paired device or logged-in
+    user only (family names/avatars, not meant for random visitors).
 
     Only exposes what's needed to render tappable tiles: id, display name,
     avatar, whether a PIN gate is needed, and today's pending chore count.
@@ -117,6 +123,11 @@ async def kiosk_login(
     if kid.pin_hash is not None:
         if not body.pin or not verify_pin(body.pin, kid.pin_hash):
             raise HTTPException(status_code=401, detail="Invalid PIN")
+    else:
+        # No PIN set on this kid — nothing else secret-checks this login, so
+        # require the paired kiosk device (same trust boundary as login-direct)
+        # instead of leaving it open to anyone who can guess/enumerate a kid_id.
+        await require_device_token(request, db)
 
     audit = AuditLog(
         user_id=kid.id,
@@ -130,6 +141,24 @@ async def kiosk_login(
     return await issue_tokens(kid, db, response)
 
 
+# ---------- GET /pair-check ----------
+@router.get("/pair-check")
+async def check_pairing_token(token: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Public: lets the /pair page confirm a candidate device token before
+    the frontend stores it in localStorage, instead of blindly trusting the
+    URL. The token is high-entropy (32 random bytes via secrets.token_urlsafe)
+    so brute force isn't the real risk — the rate limit here is defense in
+    depth, same as every other public kiosk endpoint.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limiter.check(f"pair-check:{client_ip}", 10, 900)
+
+    result = await db.execute(select(AppSetting).where(AppSetting.key == "kiosk_device_token"))
+    setting = result.scalar_one_or_none()
+    valid = bool(setting and setting.value and secrets.compare_digest(token, setting.value))
+    return {"valid": valid}
+
+
 # ---------- POST /login-direct/{username} ----------
 @router.post("/login-direct/{username}", response_model=AuthResponse)
 async def kiosk_login_direct(
@@ -137,15 +166,19 @@ async def kiosk_login_direct(
     request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
+    _device: None = Depends(require_device_token),
 ):
     """Log straight into a kid's kiosk session by username, bypassing any PIN.
 
     Powers a bookmarkable /kiosk/<username> URL for a device dedicated to one
     kid (e.g. a tablet mounted in their room) — intentionally skips the PIN
     gate that /login normally enforces, since the whole point is frictionless
-    access from a trusted, already-physically-secured device. Still rate
-    limited and audit-logged (with a distinct "kiosk-direct" method) so this
-    bypass stays visible and abuse-resistant.
+    access from a trusted, already-physically-secured device. Restricted to
+    the paired kiosk device (require_device_token) — no fallback to a
+    logged-in user's Bearer token, since that would let any authenticated
+    family member bypass into a DIFFERENT kid's account with no secret.
+    Still rate limited and audit-logged (with a distinct "kiosk-direct"
+    method) so this bypass stays visible and abuse-resistant.
     """
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"kiosk-direct:{client_ip}", 20, 900)
