@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Swords, Loader2, ListChecks, ChevronLeft, ChevronRight, Plus, X,
   UtensilsCrossed, Star, Pencil, ArrowLeft, CalendarDays, Images,
-  ListTodo, Check,
+  ListTodo, Check, LayoutDashboard,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -13,11 +13,10 @@ import AvatarDisplay from '../components/AvatarDisplay';
 
 const MEMBER_COLORS = ['accent', 'gold', 'purple', 'emerald', 'crimson'];
 
-const SECTION_TABS = [
-  { id: 'calendar', labelKey: 'familyZone.calendarTab', icon: CalendarDays },
-  { id: 'menu', labelKey: 'familyZone.menuTab', icon: UtensilsCrossed },
-  { id: 'todo', labelKey: 'familyZone.todoTab', icon: ListTodo },
-  { id: 'stars', labelKey: 'familyZone.starsTitle', icon: Star },
+const SIDEBAR_ITEMS = [
+  { id: 'dashboard', labelKey: 'familyZone.navDashboard', icon: LayoutDashboard },
+  { id: 'menu', labelKey: 'familyZone.navMenu', icon: UtensilsCrossed },
+  { id: 'todo', labelKey: 'familyZone.navTodo', icon: ListTodo },
 ];
 
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -58,28 +57,13 @@ export default function FamilyZone() {
   );
 
   // ---------------------------------------------------------------------
-  // Responsive layout
+  // Left-hand navigation (kids quick-access always stays above it)
   // ---------------------------------------------------------------------
-  // The 2-column "grid" layout (calendar + stacked menu/todo/stars) needs
-  // real width to breathe -- below the same breakpoint used for that grid
-  // split (Tailwind's lg, 1024px) it's cramped, so narrow windows always
-  // fall back to the one-section-at-a-time "tabs" layout regardless of
-  // what's configured in kiosk settings. Wide windows keep the configured
-  // preference.
-  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
-  useEffect(() => {
-    const onResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  const isNarrowWindow = windowWidth < 1024;
+  const [sidebarView, setSidebarView] = useState('dashboard'); // 'dashboard' | 'menu' | 'todo'
 
   // ---------------------------------------------------------------------
   // Kids quick access
   // ---------------------------------------------------------------------
-  const [layoutMode, setLayoutMode] = useState('grid');
-  const effectiveLayoutMode = isNarrowWindow ? 'tabs' : layoutMode;
-  const [activeSection, setActiveSection] = useState('calendar');
   const [kids, setKids] = useState([]);
   const [kidsError, setKidsError] = useState('');
   const [selectedKid, setSelectedKid] = useState(null);
@@ -111,7 +95,6 @@ export default function FamilyZone() {
         const data = await api('/api/kiosk/settings');
         applyDefaultIfUnset(data?.default_language);
         if (data?.family_zone_default_view === 'month') setViewMode('month');
-        if (data?.family_zone_layout === 'tabs') setLayoutMode('tabs');
       } catch { /* non-critical */ }
     })();
   }, [applyDefaultIfUnset]);
@@ -300,9 +283,13 @@ export default function FamilyZone() {
     : `${monthFmt.format(monthCursor)} ${monthCursor.getFullYear()}`;
 
   // ---------------------------------------------------------------------
-  // Weekly menu
+  // Menu (2-week view)
   // ---------------------------------------------------------------------
-  const [menuConfigOpen, setMenuConfigOpen] = useState(false);
+  const shortDateFmt = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short' }),
+    [i18n.language]
+  );
+  const MENU_SPAN_DAYS = 14;
   const [menuWeekStart, setMenuWeekStart] = useState(() => startOfWeek(new Date()));
   const [menu, setMenu] = useState([]);
   const [menuError, setMenuError] = useState('');
@@ -312,7 +299,9 @@ export default function FamilyZone() {
 
   const fetchMenu = useCallback(async () => {
     try {
-      const data = await api(`/api/family-zone/menu?week_start=${ymd(menuWeekStart)}`);
+      const data = await api(
+        `/api/family-zone/menu?start=${ymd(menuWeekStart)}&end=${ymd(addDays(menuWeekStart, MENU_SPAN_DAYS - 1))}`
+      );
       setMenu(Array.isArray(data) ? data : []);
       setMenuError('');
     } catch (err) {
@@ -322,14 +311,10 @@ export default function FamilyZone() {
 
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
 
-  const menuGoPrev = () => setMenuWeekStart((w) => addDays(w, -7));
-  const menuGoNext = () => setMenuWeekStart((w) => addDays(w, 7));
-  const menuWeekEnd = addDays(menuWeekStart, 6);
-  const menuRangeLabel = t('familyZone.weekOf', {
-    start: menuWeekStart.getDate(),
-    end: menuWeekEnd.getDate(),
-    month: monthFmt.format(menuWeekEnd),
-  });
+  const menuGoPrev = () => setMenuWeekStart((w) => addDays(w, -MENU_SPAN_DAYS));
+  const menuGoNext = () => setMenuWeekStart((w) => addDays(w, MENU_SPAN_DAYS));
+  const menuWeekEnd = addDays(menuWeekStart, MENU_SPAN_DAYS - 1);
+  const menuRangeLabel = `${shortDateFmt.format(menuWeekStart)} – ${shortDateFmt.format(menuWeekEnd)}`;
 
   const dishFor = (dateStr) => menu.find((m) => m.date === dateStr)?.dish || '';
 
@@ -432,7 +417,6 @@ export default function FamilyZone() {
     }
   };
 
-  const memberName = (id) => members.find((m) => m.id === id)?.display_name || '';
   const pendingTodoCount = todos.filter((it) => !it.is_done).length;
 
   const toggleTodo = async (item) => {
@@ -511,7 +495,7 @@ export default function FamilyZone() {
   const monthDays = viewMode === 'month'
     ? Array.from({ length: 42 }, (_, i) => addDays(startOfWeek(monthCursor), i))
     : [];
-  const menuDays = Array.from({ length: 7 }, (_, i) => addDays(menuWeekStart, i));
+  const menuDays = Array.from({ length: MENU_SPAN_DAYS }, (_, i) => addDays(menuWeekStart, i));
 
   const kidsSection = (
     <>
@@ -737,48 +721,122 @@ export default function FamilyZone() {
           {menuError}
         </div>
       )}
-      <div className="flex flex-col">
-        {menuDays.map((d) => {
-          const dStr = ymd(d);
-          const isToday = sameDate(d, today);
-          const isEditing = editingDish === dStr;
-          return (
-            <div key={dStr} className={`flex items-center gap-2.5 py-2 border-t border-border first:border-t-0 ${isToday ? 'text-cream' : ''}`}>
-              <span className={`w-9 flex-shrink-0 text-[11px] font-bold uppercase ${isToday ? 'text-accent-light' : 'text-muted'}`}>
-                {weekdayFmt.format(d)}
-              </span>
-              {isEditing ? (
-                <input
-                  autoFocus
-                  className="field-input flex-1 !py-1 !text-sm"
-                  value={dishDraft}
-                  disabled={savingDish}
-                  onChange={(e) => setDishDraft(e.target.value)}
-                  onBlur={() => saveDish(dStr)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveDish(dStr); if (e.key === 'Escape') setEditingDish(null); }}
-                />
-              ) : (
-                <button
-                  onClick={() => startEditDish(dStr)}
-                  className={`flex-1 text-left text-sm flex items-center gap-1.5 group ${isToday ? 'font-semibold' : ''} ${dishFor(dStr) ? '' : 'text-muted italic'}`}
-                >
-                  <span className="truncate">{dishFor(dStr) || t('familyZone.menuPlaceholder')}</span>
-                  <Pencil size={11} className="text-muted opacity-0 group-hover:opacity-100 flex-shrink-0" />
-                </button>
-              )}
-              {isToday && !isEditing && (
-                <span className="text-[9px] font-bold uppercase tracking-wide text-navy bg-accent-light px-2 py-0.5 rounded-full flex-shrink-0">
-                  {t('familyZone.menuToday')}
-                </span>
-              )}
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6">
+        {[menuDays.slice(0, 7), menuDays.slice(7, 14)].map((week, wi) => (
+          <div key={wi} className="flex flex-col">
+            {week.map((d) => {
+              const dStr = ymd(d);
+              const isToday = sameDate(d, today);
+              const isEditing = editingDish === dStr;
+              return (
+                <div key={dStr} className={`flex items-center gap-2.5 py-2 border-t border-border first:border-t-0 ${isToday ? 'text-cream' : ''}`}>
+                  <span className={`w-9 flex-shrink-0 text-[11px] font-bold uppercase ${isToday ? 'text-accent-light' : 'text-muted'}`}>
+                    {weekdayFmt.format(d)}
+                  </span>
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      className="field-input flex-1 !py-1 !text-sm"
+                      value={dishDraft}
+                      disabled={savingDish}
+                      onChange={(e) => setDishDraft(e.target.value)}
+                      onBlur={() => saveDish(dStr)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveDish(dStr); if (e.key === 'Escape') setEditingDish(null); }}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => startEditDish(dStr)}
+                      className={`flex-1 text-left text-sm flex items-center gap-1.5 group ${isToday ? 'font-semibold' : ''} ${dishFor(dStr) ? '' : 'text-muted italic'}`}
+                    >
+                      <span className="truncate">{dishFor(dStr) || t('familyZone.menuPlaceholder')}</span>
+                      <Pencil size={11} className="text-muted opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                    </button>
+                  )}
+                  {isToday && !isEditing && (
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-navy bg-accent-light px-2 py-0.5 rounded-full flex-shrink-0">
+                      {t('familyZone.menuToday')}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
 
-  const todoSection = (
+  const todoAddForm = (
+    <form onSubmit={addTodo} className="mb-4">
+      <div className="flex gap-2 mb-2">
+        <input
+          className="field-input flex-1 !py-1.5 !text-sm"
+          placeholder={t('familyZone.todoPlaceholder')}
+          value={newTodoText}
+          onChange={(e) => setNewTodoText(e.target.value)}
+          disabled={addingTodo}
+          maxLength={300}
+        />
+        <button
+          type="submit"
+          disabled={addingTodo || !newTodoText.trim()}
+          className="game-btn game-btn-blue !py-1.5 !px-3 flex-shrink-0"
+        >
+          {addingTodo ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+        </button>
+      </div>
+      <select
+        className="field-input !py-1 !text-xs"
+        value={newTodoAssignee}
+        onChange={(e) => setNewTodoAssignee(e.target.value)}
+        disabled={addingTodo}
+      >
+        <option value="">{t('familyZone.todoAssigneeNone')}</option>
+        {parentMembers.length > 0 && (
+          <optgroup label={t('familyZone.parentsGroup')}>
+            {parentMembers.map((m) => (
+              <option key={m.id} value={m.id}>{m.display_name}</option>
+            ))}
+          </optgroup>
+        )}
+        {kidMembers.length > 0 && (
+          <optgroup label={t('familyZone.kidsGroup')}>
+            {kidMembers.map((m) => (
+              <option key={m.id} value={m.id}>{m.display_name}</option>
+            ))}
+          </optgroup>
+        )}
+      </select>
+    </form>
+  );
+
+  const renderTodoRow = (item) => (
+    <div key={item.id} className="flex items-center gap-2 group">
+      <button
+        onClick={() => toggleTodo(item)}
+        className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+          item.is_done ? 'bg-accent border-accent' : 'border-border-light'
+        }`}
+        aria-label={t('familyZone.todoToggle')}
+      >
+        {item.is_done && <Check size={11} className="text-navy" />}
+      </button>
+      <span className={`flex-1 text-sm truncate ${item.is_done ? 'line-through text-muted' : 'text-cream'}`}>
+        {item.text}
+      </span>
+      <button
+        onClick={() => removeTodo(item.id)}
+        className="text-muted hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+        aria-label={t('common.delete')}
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+
+  // Compact per-member counts for the Dashboard -- every member shown even
+  // with 0 pending items, tapping one jumps to the full To-do view.
+  const todoSummarySection = (
     <div className="game-panel p-4">
       <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-3">
         <ListTodo size={15} className="text-accent" />
@@ -789,84 +847,81 @@ export default function FamilyZone() {
           {todosError}
         </div>
       )}
-      <form onSubmit={addTodo} className="mb-3">
-        <div className="flex gap-2 mb-2">
-          <input
-            className="field-input flex-1 !py-1.5 !text-sm"
-            placeholder={t('familyZone.todoPlaceholder')}
-            value={newTodoText}
-            onChange={(e) => setNewTodoText(e.target.value)}
-            disabled={addingTodo}
-            maxLength={300}
-          />
-          <button
-            type="submit"
-            disabled={addingTodo || !newTodoText.trim()}
-            className="game-btn game-btn-blue !py-1.5 !px-3 flex-shrink-0"
-          >
-            {addingTodo ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-          </button>
-        </div>
-        <select
-          className="field-input !py-1 !text-xs"
-          value={newTodoAssignee}
-          onChange={(e) => setNewTodoAssignee(e.target.value)}
-          disabled={addingTodo}
-        >
-          <option value="">{t('familyZone.todoAssigneeNone')}</option>
-          {parentMembers.length > 0 && (
-            <optgroup label={t('familyZone.parentsGroup')}>
-              {parentMembers.map((m) => (
-                <option key={m.id} value={m.id}>{m.display_name}</option>
-              ))}
-            </optgroup>
-          )}
-          {kidMembers.length > 0 && (
-            <optgroup label={t('familyZone.kidsGroup')}>
-              {kidMembers.map((m) => (
-                <option key={m.id} value={m.id}>{m.display_name}</option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-      </form>
-      {todos.length === 0 ? (
-        <p className="text-muted text-xs">{t('familyZone.todoEmpty')}</p>
+      {members.length === 0 ? (
+        <p className="text-muted text-xs">{t('familyZone.noKidsYet')}</p>
       ) : (
-        <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
-          {todos.map((item) => (
-            <div key={item.id} className="flex items-center gap-2 group">
+        <div className="flex flex-col gap-0.5">
+          {members.map((m) => {
+            const count = todos.filter((it) => it.assignee_id === m.id && !it.is_done).length;
+            return (
               <button
-                onClick={() => toggleTodo(item)}
-                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                  item.is_done ? 'bg-accent border-accent' : 'border-border-light'
-                }`}
-                aria-label={t('familyZone.todoToggle')}
+                key={m.id}
+                onClick={() => setSidebarView('todo')}
+                className="flex items-center gap-2.5 py-1.5 w-full text-left hover:opacity-80 transition-opacity"
               >
-                {item.is_done && <Check size={11} className="text-navy" />}
-              </button>
-              <span className={`flex-1 text-sm truncate ${item.is_done ? 'line-through text-muted' : 'text-cream'}`}>
-                {item.text}
-              </span>
-              {item.assignee_id != null && memberName(item.assignee_id) && (
-                <span
-                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 text-navy"
-                  style={{ background: `var(--color-${colorForMember(item.assignee_id)})` }}
-                >
-                  {memberName(item.assignee_id)}
+                <AvatarDisplay config={m.avatar_config} photoUrl={m.avatar_photo_url} size="sm" name={m.display_name} />
+                <span className="flex-1 text-sm text-cream truncate">{m.display_name}</span>
+                <span className={`text-xs font-bold min-w-[22px] text-center px-1.5 py-0.5 rounded-full ${
+                  count > 0 ? 'bg-accent/15 text-accent' : 'bg-navy text-muted'
+                }`}>
+                  {count}
                 </span>
-              )}
-              <button
-                onClick={() => removeTodo(item.id)}
-                className="text-muted hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                aria-label={t('common.delete')}
-              >
-                <X size={14} />
               </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+    </div>
+  );
+
+  // Full per-user cards for the dedicated To-do view.
+  const todoByUserSection = (
+    <div className="space-y-4">
+      <div className="game-panel p-4">
+        <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-3">
+          <ListTodo size={15} className="text-accent" />
+          {t('familyZone.todoTitle')}
+        </p>
+        {todosError && (
+          <div className="mb-3 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
+            {todosError}
+          </div>
+        )}
+        {todoAddForm}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {members.map((m) => {
+          const items = todos.filter((it) => it.assignee_id === m.id);
+          const pending = items.filter((it) => !it.is_done).length;
+          return (
+            <div key={m.id} className="game-panel p-4">
+              <div className="flex items-center gap-2.5 mb-3">
+                <AvatarDisplay config={m.avatar_config} photoUrl={m.avatar_photo_url} size="sm" name={m.display_name} />
+                <p className="text-cream text-sm font-semibold flex-1 truncate">{m.display_name}</p>
+                <span className="text-muted text-xs flex-shrink-0">{pending}</span>
+              </div>
+              {items.length === 0 ? (
+                <p className="text-muted text-xs">{t('familyZone.todoEmpty')}</p>
+              ) : (
+                <div className="flex flex-col gap-2">{items.map(renderTodoRow)}</div>
+              )}
+            </div>
+          );
+        })}
+        {(() => {
+          const unassigned = todos.filter((it) => it.assignee_id == null);
+          if (unassigned.length === 0) return null;
+          return (
+            <div className="game-panel p-4">
+              <div className="flex items-center gap-2.5 mb-3">
+                <p className="text-cream text-sm font-semibold flex-1">{t('familyZone.todoAssigneeNone')}</p>
+                <span className="text-muted text-xs flex-shrink-0">{unassigned.filter((it) => !it.is_done).length}</span>
+              </div>
+              <div className="flex flex-col gap-2">{unassigned.map(renderTodoRow)}</div>
+            </div>
+          );
+        })()}
+      </div>
     </div>
   );
 
@@ -922,71 +977,57 @@ export default function FamilyZone() {
             <p className="text-muted text-xs">{t('familyZone.subtitle')}</p>
           </div>
           <button
-            onClick={() => setMenuConfigOpen(true)}
-            className="ml-auto game-btn !bg-surface !border !border-border text-muted hover:text-cream flex items-center gap-1.5 !text-xs"
-          >
-            <UtensilsCrossed size={14} />
-            {t('familyZone.configureMenus')}
-          </button>
-          <button
             onClick={openPhotoFrame}
-            className="game-btn !bg-surface !border !border-border text-muted hover:text-cream flex items-center gap-1.5 !text-xs"
+            className="ml-auto game-btn !bg-surface !border !border-border text-muted hover:text-cream flex items-center gap-1.5 !text-xs"
           >
             <Images size={14} />
             {t('familyZone.photoFrame')}
           </button>
         </div>
 
-        {effectiveLayoutMode === 'tabs' ? (
-          <>
-            {kidsSection}
-            <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 mb-5 overflow-x-auto">
-              {SECTION_TABS.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveSection(tab.id)}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-                      activeSection === tab.id ? 'bg-surface-raised text-cream' : 'text-muted hover:text-cream'
-                    }`}
-                  >
-                    <Icon size={14} className={activeSection === tab.id ? 'text-accent' : ''} />
-                    {t(tab.labelKey)}
-                    {tab.id === 'todo' && pendingTodoCount > 0 && (
-                      <span className="bg-crimson text-white text-[10px] font-bold min-w-[16px] h-[16px] flex items-center justify-center rounded-full px-1 leading-none">
-                        {pendingTodoCount}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {activeSection === 'calendar' && (
-              viewMode === 'month' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4 items-start">
-                  {calendarSection}
+        {kidsSection}
+
+        <div className="flex flex-col md:flex-row gap-5 items-start">
+          {/* Left nav -- kids quick access above always stays outside this row */}
+          <aside className="w-full md:w-44 flex-shrink-0 flex md:flex-col gap-1 overflow-x-auto">
+            {SIDEBAR_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = sidebarView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setSidebarView(item.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+                    active ? 'bg-surface-raised text-cream' : 'text-muted hover:text-cream hover:bg-surface-raised/50'
+                  }`}
+                >
+                  <Icon size={16} className={active ? 'text-accent' : ''} />
+                  {t(item.labelKey)}
+                  {item.id === 'todo' && pendingTodoCount > 0 && (
+                    <span className="ml-auto bg-crimson text-white text-[10px] font-bold min-w-[16px] h-[16px] flex items-center justify-center rounded-full px-1 leading-none">
+                      {pendingTodoCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </aside>
+
+          <div className="flex-1 min-w-0 w-full">
+            {sidebarView === 'dashboard' && (
+              <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4 items-start">
+                {calendarSection}
+                <div className="flex flex-col gap-4">
                   {todayDetailSection}
+                  {todoSummarySection}
+                  {starsSection}
                 </div>
-              ) : calendarSection
-            )}
-            {activeSection === 'menu' && menuSection}
-            {activeSection === 'todo' && todoSection}
-            {activeSection === 'stars' && starsSection}
-          </>
-        ) : (
-          <>
-            {kidsSection}
-            <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4 items-start">
-              {calendarSection}
-              <div className="flex flex-col gap-4">
-                {todayDetailSection}
-                {todoSection}
-                {starsSection}
               </div>
-            </div>
-          </>
-        )}
+            )}
+            {sidebarView === 'menu' && menuSection}
+            {sidebarView === 'todo' && todoByUserSection}
+          </div>
+        </div>
 
         <p className="text-center mt-8 text-muted text-sm">
           <Link to="/login" className="text-accent hover:text-accent-light font-medium transition-colors">
@@ -1118,24 +1159,6 @@ export default function FamilyZone() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Meal menu configuration modal */}
-      {menuConfigOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setMenuConfigOpen(false); }}
-        >
-          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-2 px-1">
-              <p className="text-cream text-sm font-bold">{t('familyZone.configureMenus')}</p>
-              <button onClick={() => setMenuConfigOpen(false)} className="text-muted hover:text-cream">
-                <X size={20} />
-              </button>
-            </div>
-            {menuSection}
           </div>
         </div>
       )}

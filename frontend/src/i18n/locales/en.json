@@ -88,6 +88,9 @@
   "familyZone": {
     "subtitle": "Family screen",
     "kidsHeading": "Quick access — kids",
+    "navDashboard": "Dashboard",
+    "navMenu": "Menu",
+    "navTodo": "To-do",
     "calendarTab": "Calendar",
     "todayDetailTitle": "Today",
     "todayDetailEmpty": "Nothing planned today.",

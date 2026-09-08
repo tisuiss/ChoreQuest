@@ -97,6 +97,8 @@ class FamilyMemberResponse(BaseModel):
     id: int
     display_name: str
     role: UserRole
+    avatar_config: dict | None = None
+    avatar_photo_url: str | None = None
 
     model_config = {"from_attributes": True}
 
