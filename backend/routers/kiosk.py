@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -14,6 +15,7 @@ from backend.dependencies import require_family_access, require_device_token
 from backend.routers.vacation import is_vacation_day, load_chore_vacation_dates, load_kid_vacation_map
 
 router = APIRouter(prefix="/api/kiosk", tags=["kiosk"])
+logger = logging.getLogger(__name__)
 
 
 # ---------- GET /settings ----------
@@ -102,13 +104,31 @@ async def list_kiosk_kids(
         kid_vacation_map = await load_kid_vacation_map(db, today, today)
         chore_vacation_cache: dict[int, set[date]] = {}
 
+        logger.info(
+            "kiosk pending-count DEBUG: today=%s now_time=%s family_vacation_today=%s "
+            "raw pending rows=%d",
+            today, now_time, family_vacation_today, len(todays_assignments),
+        )
+
         for a in todays_assignments:
+            category = a.chore.category if a.chore else None
+            logger.info(
+                "  assignment id=%d user_id=%d chore=%r category=%r "
+                "window_start=%r window_end=%r date=%s status=%s",
+                a.id, a.user_id, a.chore.title if a.chore else None,
+                category.name if category else None,
+                category.window_start if category else None,
+                category.window_end if category else None,
+                a.date, a.status,
+            )
+
             if today in kid_vacation_map.get(a.user_id, set()):
+                logger.info("    -> excluded: kid on vacation")
                 continue
             if a.chore:
-                category = a.chore.category
                 if category and category.window_start and category.window_end:
                     if not (category.window_start <= now_time <= category.window_end):
+                        logger.info("    -> excluded: outside category window")
                         continue
 
                 if a.chore.id not in chore_vacation_cache:
@@ -120,7 +140,9 @@ async def list_kiosk_kids(
                     or today in chore_vacation_cache[a.chore.id]
                 )
                 if chore_paused:
+                    logger.info("    -> excluded: chore paused by vacation")
                     continue
+            logger.info("    -> COUNTED")
             pending_counts[a.user_id] = pending_counts.get(a.user_id, 0) + 1
 
     return [
