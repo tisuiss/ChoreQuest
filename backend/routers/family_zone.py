@@ -73,10 +73,14 @@ async def create_family_event(
         if member_result.scalar_one_or_none() is None:
             raise HTTPException(status_code=404, detail="Member not found")
 
+    # An all-day event has no meaningful start time/duration -- normalize
+    # server-side regardless of what the client happened to send.
     event = FamilyEvent(
         title=body.title,
         date=body.date,
-        time=body.time,
+        time=None if body.all_day else body.time,
+        duration_minutes=None if body.all_day else body.duration_minutes,
+        all_day=body.all_day,
         member_id=body.member_id,
     )
     db.add(event)

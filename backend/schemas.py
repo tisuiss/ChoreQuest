@@ -58,6 +58,8 @@ class FamilyEventCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     date: date
     time: OptionalTime = None
+    duration_minutes: int | None = Field(None, gt=0)
+    all_day: bool = False
     member_id: int | None = None
 
 
@@ -66,6 +68,8 @@ class FamilyEventResponse(BaseModel):
     title: str
     date: date
     time: OptionalTime
+    duration_minutes: int | None = None
+    all_day: bool = False
     member_id: int | None
 
     model_config = {"from_attributes": True}

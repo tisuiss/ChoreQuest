@@ -19,6 +19,30 @@ const SIDEBAR_ITEMS = [
   { id: 'todo', labelKey: 'familyZone.navTodo', icon: ListTodo },
 ];
 
+// Duration presets (minutes) offered on the add-event form.
+const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240, 360, 480];
+
+// "HH:MM" (+ duration) -> "HH:MM–HH:MM", or just "HH:MM" without a duration.
+function formatEventTimeRange(timeStr, durationMinutes) {
+  const start = timeStr.slice(0, 5);
+  if (!durationMinutes) return start;
+  const [h, m] = timeStr.split(':').map(Number);
+  const totalMin = h * 60 + m + durationMinutes;
+  const endH = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+  const endM = String(totalMin % 60).padStart(2, '0');
+  return `${start}–${endH}:${endM}`;
+}
+
+// 90 -> "1h30", 60 -> "1h", 15 -> "15 min" -- abbreviated, reads fine in
+// both French and English without needing pluralized translation strings.
+function formatDurationLabel(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h${String(m).padStart(2, '0')}`;
+}
+
 function pad(n) { return String(n).padStart(2, '0'); }
 function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function sameDate(a, b) {
@@ -161,7 +185,7 @@ export default function FamilyZone() {
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState('');
   const [showEventModal, setShowEventModal] = useState(false);
-  const [eventForm, setEventForm] = useState({ title: '', date: '', time: '', member_id: '' });
+  const [eventForm, setEventForm] = useState({ title: '', date: '', time: '', duration_minutes: '60', all_day: false, member_id: '' });
   const [savingEvent, setSavingEvent] = useState(false);
   const [members, setMembers] = useState([]);
 
@@ -235,7 +259,7 @@ export default function FamilyZone() {
 
   const openEventModal = () => {
     const refDate = viewMode === 'week' ? today : monthCursor;
-    setEventForm({ title: '', date: ymd(refDate), time: '', member_id: '' });
+    setEventForm({ title: '', date: ymd(refDate), time: '', duration_minutes: '60', all_day: false, member_id: '' });
     setShowEventModal(true);
   };
 
@@ -249,7 +273,9 @@ export default function FamilyZone() {
         body: {
           title: eventForm.title.trim(),
           date: eventForm.date,
-          time: eventForm.time || null,
+          all_day: eventForm.all_day,
+          time: eventForm.all_day ? null : (eventForm.time || null),
+          duration_minutes: eventForm.all_day || !eventForm.duration_minutes ? null : Number(eventForm.duration_minutes),
           member_id: eventForm.member_id ? Number(eventForm.member_id) : null,
         },
       });
@@ -610,7 +636,11 @@ export default function FamilyZone() {
                 )}
                 {dayEvts.map((e) => (
                   <div key={e.id} className="rounded bg-surface-raised px-1.5 py-1 text-[10.5px] leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}>
-                    {e.time && <span className="block font-mono text-muted text-[9px]">{e.time.slice(0, 5)}</span>}
+                    {e.all_day ? (
+                      <span className="block font-mono text-accent-light text-[9px]">{t('familyZone.allDay')}</span>
+                    ) : e.time && (
+                      <span className="block font-mono text-muted text-[9px]">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
+                    )}
                     <span className="text-cream font-medium">{e.title}</span>
                   </div>
                 ))}
@@ -691,7 +721,11 @@ export default function FamilyZone() {
                 className="rounded-md bg-surface-raised px-3 py-2 border-l-2"
                 style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}
               >
-                {e.time && <span className="block font-mono text-muted text-xs mb-0.5">{e.time.slice(0, 5)}</span>}
+                {e.all_day ? (
+                  <span className="block font-mono text-accent-light text-xs mb-0.5">{t('familyZone.allDay')}</span>
+                ) : e.time && (
+                  <span className="block font-mono text-muted text-xs mb-0.5">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
+                )}
                 <span className="text-cream text-sm font-medium">{e.title}</span>
               </div>
             ))}
@@ -1099,7 +1133,7 @@ export default function FamilyZone() {
                   maxLength={200}
                 />
               </div>
-              <div className="flex gap-2.5 mb-3">
+              <div className="flex gap-2.5 mb-3 items-end">
                 <div className="flex-1">
                   <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
                     {t('familyZone.dateLabel')}
@@ -1112,18 +1146,46 @@ export default function FamilyZone() {
                     required
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
-                    {t('familyZone.timeLabel')}
-                  </label>
+                <label className="flex items-center gap-1.5 text-xs text-muted cursor-pointer select-none pb-2.5 flex-shrink-0">
                   <input
-                    type="time"
-                    className="field-input"
-                    value={eventForm.time}
-                    onChange={(e) => setEventForm((f) => ({ ...f, time: e.target.value }))}
+                    type="checkbox"
+                    checked={eventForm.all_day}
+                    onChange={(e) => setEventForm((f) => ({ ...f, all_day: e.target.checked }))}
+                    className="w-4 h-4"
                   />
-                </div>
+                  {t('familyZone.allDay')}
+                </label>
               </div>
+              {!eventForm.all_day && (
+                <div className="flex gap-2.5 mb-3">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                      {t('familyZone.timeLabel')}
+                    </label>
+                    <input
+                      type="time"
+                      className="field-input"
+                      value={eventForm.time}
+                      onChange={(e) => setEventForm((f) => ({ ...f, time: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                      {t('familyZone.durationLabel')}
+                    </label>
+                    <select
+                      className="field-input"
+                      value={eventForm.duration_minutes}
+                      onChange={(e) => setEventForm((f) => ({ ...f, duration_minutes: e.target.value }))}
+                    >
+                      <option value="">{t('familyZone.durationNone')}</option>
+                      {DURATION_OPTIONS.map((min) => (
+                        <option key={min} value={min}>{formatDurationLabel(min)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
               <div className="mb-4">
                 <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
                   {t('familyZone.memberLabel')}

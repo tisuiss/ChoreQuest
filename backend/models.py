@@ -474,6 +474,8 @@ class FamilyEvent(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    all_day: Mapped[bool] = mapped_column(Boolean, default=False)
     member_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
