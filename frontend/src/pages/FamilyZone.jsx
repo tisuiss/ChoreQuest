@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Swords, Loader2, ListChecks, ChevronLeft, ChevronRight, Plus, X,
   UtensilsCrossed, Star, Pencil, ArrowLeft, CalendarDays, Images,
-  ListTodo, Check, LayoutDashboard,
+  ListTodo, Check, LayoutDashboard, LogIn,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -983,6 +983,13 @@ export default function FamilyZone() {
             <Images size={14} />
             {t('familyZone.photoFrame')}
           </button>
+          <Link
+            to="/login"
+            className="game-btn !bg-surface !border !border-border text-muted hover:text-cream flex items-center gap-1.5 !text-xs"
+          >
+            <LogIn size={14} />
+            {t('kiosk.parentLogin')}
+          </Link>
         </div>
 
         {kidsSection}
@@ -1028,12 +1035,6 @@ export default function FamilyZone() {
             {sidebarView === 'todo' && todoByUserSection}
           </div>
         </div>
-
-        <p className="text-center mt-8 text-muted text-sm">
-          <Link to="/login" className="text-accent hover:text-accent-light font-medium transition-colors">
-            {t('kiosk.parentLogin')}
-          </Link>
-        </p>
       </div>
 
       {/* PIN entry overlay */}
