@@ -685,7 +685,7 @@ async def get_achievement_badge(
   <text x="140" y="125" font-family="sans-serif" font-size="12" fill="#95a5a6">{achievement.description}</text>
   <text x="140" y="155" font-family="sans-serif" font-size="11" fill="#7f8c8d">+{achievement.points_reward} XP</text>
   <text x="140" y="175" font-family="sans-serif" font-size="10" fill="#5d6d7e">{current_user.display_name} · {unlocked_date}</text>
-  <text x="370" y="185" text-anchor="end" font-family="sans-serif" font-size="9" fill="#34495e">ChoreQuest</text>
+  <text x="370" y="185" text-anchor="end" font-family="sans-serif" font-size="9" fill="#34495e">KidTasks</text>
 </svg>"""
 
     return HTMLResponse(content=svg, media_type="image/svg+xml")

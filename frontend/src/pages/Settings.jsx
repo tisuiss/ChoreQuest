@@ -20,6 +20,7 @@ import {
   Home,
   Palette,
   ShieldCheck,
+  Tv,
 } from 'lucide-react';
 import VacationSettings from '../components/VacationSettings';
 import KidVacationSettings from '../components/KidVacationSettings';
@@ -313,6 +314,52 @@ export default function Settings() {
                     <option key={tz} value={tz}>{tz}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Idle kiosk redirect */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Tv size={16} className="text-muted" />
+                  {t('settings.idleKioskTitle')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.idleKioskHint')}
+                </p>
+                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs mb-4">
+                  {[
+                    { id: 'kiosk', label: t('nav.kiosk') },
+                    { id: 'familyzone', label: t('nav.familyZone') },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => updateSetting('idle_kiosk_redirect', opt.id)}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        (settings.idle_kiosk_redirect ?? 'kiosk') === opt.id
+                          ? 'bg-surface-raised text-cream'
+                          : 'text-muted hover:text-cream'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <label className="block text-cream text-sm font-medium mb-1">
+                  {t('settings.idleKioskTimeout')}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={settings.idle_kiosk_timeout_minutes ?? 3}
+                    onChange={(e) => {
+                      const val = Math.min(60, Math.max(1, parseInt(e.target.value, 10) || 1));
+                      updateSetting('idle_kiosk_timeout_minutes', val);
+                    }}
+                    className="field-input max-w-[100px]"
+                  />
+                  <span className="text-muted text-xs">{t('settings.idleKioskTimeoutUnit')}</span>
+                </div>
               </div>
 
               {/* Admin link */}

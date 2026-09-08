@@ -1,0 +1,12 @@
+<svg width="900" height="620" viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(305,40) scale(1.45)">
+  <rect x="14" y="14" width="94" height="94" rx="26" fill="#FFC94D"></rect>
+  <rect x="52" y="52" width="94" height="94" rx="26" fill="#FF6B6B" stroke="#FFFFFF" stroke-width="9"></rect>
+  <rect x="90" y="90" width="94" height="94" rx="26" fill="#2FB3A8" stroke="#FFFFFF" stroke-width="9"></rect>
+  <path d="M112,138 L129,155 L163,116" fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"></path>
+  </g>
+  <text x="450" y="480" text-anchor="middle" font-family="Fredoka, 'Trebuchet MS', sans-serif" font-size="118" font-weight="700" letter-spacing="-2">
+    <tspan fill="#1C1B19">Kids</tspan><tspan fill="#2FB3A8">Tasks</tspan>
+  </text>
+  <text x="450" y="548" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="34" letter-spacing="2.7" fill="#8A8579">L'ORGANISATION EN FAMILLE, EN DOUCEUR</text>
+</svg>

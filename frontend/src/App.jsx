@@ -88,6 +88,32 @@ export default function App() {
     );
   }
 
+  // /kiosk and /familyzone are full-screen, no-sidebar experiences by design
+  // (meant for the shared kiosk display) — reachable this way regardless of
+  // auth state: a paired/unpaired device sees them per hasFamilyAccess below,
+  // and a logged-in parent can also jump here from the sidebar nav without
+  // losing their own session (Kiosk.jsx/FamilyZone.jsx show a way back).
+  if (location.pathname === '/kiosk' || location.pathname === '/familyzone') {
+    if (!hasFamilyAccess) {
+      return (
+        <Suspense fallback={<Loading />}>
+          <Routes>
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Suspense>
+      );
+    }
+    return (
+      <Suspense fallback={<Loading />}>
+        <UpdatePrompt />
+        <Routes>
+          <Route path="/kiosk" element={<Kiosk />} />
+          <Route path="/familyzone" element={<FamilyZone />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
   if (!user) {
     // A device pinned to one kid (/kiosk/<username>) self-heals here: if the
     // session was ever lost mid-use (token/cookie expiry after a reload),
@@ -103,14 +129,6 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route
-            path="/kiosk"
-            element={hasFamilyAccess ? <Kiosk /> : <Navigate to="/login" replace />}
-          />
-          <Route
-            path="/familyzone"
-            element={hasFamilyAccess ? <FamilyZone /> : <Navigate to="/login" replace />}
-          />
           <Route
             path="*"
             element={

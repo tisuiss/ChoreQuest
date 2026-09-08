@@ -1,11 +1,11 @@
 {
-  "name": "ChoreQuest",
-  "short_name": "ChoreQuest",
-  "description": "Gamified family quest board",
+  "name": "KidTasks",
+  "short_name": "KidTasks",
+  "description": "Gamified family task board",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0e1a",
-  "theme_color": "#3b82f6",
+  "theme_color": "#2FB3A8",
   "icons": [
     {
       "src": "/icon-192.png",

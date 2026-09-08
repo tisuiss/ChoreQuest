@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Swords } from 'lucide-react';
+import AppLogo from '../components/AppLogo';
 
 export default function Register() {
   const { t } = useTranslation();
@@ -67,9 +67,7 @@ export default function Register() {
       >
         {/* Logo */}
         <div className="flex items-center gap-2 mb-6">
-          <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center">
-            <Swords size={16} className="text-navy" />
-          </div>
+          <AppLogo size={32} />
           <h1 className="text-cream text-lg font-semibold">
             {t('register.createAccount')}
           </h1>

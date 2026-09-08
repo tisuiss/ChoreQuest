@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Swords, Loader2, XCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, XCircle, CheckCircle2 } from 'lucide-react';
 import { api, setDeviceToken } from '../api/client';
+import AppLogo from '../components/AppLogo';
 
 export default function PairDevice() {
   const { t } = useTranslation();
@@ -35,9 +36,7 @@ export default function PairDevice() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-navy">
       <div className="w-full max-w-sm text-center">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center">
-            <Swords size={16} className="text-navy" />
-          </div>
+          <AppLogo size={32} />
           <h1 className="text-cream text-lg font-semibold">{t('common.appName')}</h1>
         </div>
 

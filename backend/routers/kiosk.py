@@ -31,6 +31,8 @@ async def get_kiosk_settings(db: AsyncSession = Depends(get_db)):
                 "family_zone_default_view",
                 "family_zone_layout",
                 "calendar_colors",
+                "idle_kiosk_redirect",
+                "idle_kiosk_timeout_minutes",
             ])
         )
     )
@@ -42,6 +44,11 @@ async def get_kiosk_settings(db: AsyncSession = Depends(get_db)):
         # A JSON-stringified {"family"|"parents"|"kids"|"<user id>": "<color name>"}
         # map, set from the family settings page. "{}" (no overrides) by default.
         "calendar_colors": settings_map.get("calendar_colors", "{}"),
+        # Where an idle kiosk session (picked from /kiosk, or from a kid tile
+        # on /familyzone) lands after the inactivity timeout: "kiosk" or
+        # "familyzone". Read by useIdleKioskLogout on the frontend.
+        "idle_kiosk_redirect": settings_map.get("idle_kiosk_redirect", "kiosk"),
+        "idle_kiosk_timeout_minutes": settings_map.get("idle_kiosk_timeout_minutes", "3"),
     }
 
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Swords, Loader2, ListChecks, ChevronLeft, ChevronRight, Plus, X,
+  Loader2, ListChecks, ChevronLeft, ChevronRight, Plus, X,
   UtensilsCrossed, Star, Pencil, ArrowLeft, CalendarDays, Images,
   ListTodo, Check, LayoutDashboard, LogIn, Cake, CalendarPlus, Trash2,
 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import AvatarDisplay from '../components/AvatarDisplay';
+import AppLogo from '../components/AppLogo';
 
 // Fixed, theme-independent colors only (unlike "accent"/"sky", which shift
 // with the family's chosen color theme and could visually collide with one
@@ -87,7 +88,7 @@ function startOfWeek(d) {
 }
 export default function FamilyZone() {
   const { t, i18n } = useTranslation();
-  const { kioskLogin } = useAuth();
+  const { kioskLogin, user } = useAuth();
   const { applyDefaultIfUnset } = useLanguage();
   const navigate = useNavigate();
 
@@ -1327,9 +1328,7 @@ export default function FamilyZone() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 rounded-md bg-accent flex items-center justify-center flex-shrink-0">
-            <Swords size={17} className="text-navy" />
-          </div>
+          <AppLogo size={36} className="flex-shrink-0" />
           <div>
             <h1 className="text-cream text-base font-semibold leading-tight">{t('common.appName')}</h1>
             <p className="text-muted text-xs">{t('familyZone.subtitle')}</p>
@@ -1342,11 +1341,11 @@ export default function FamilyZone() {
             {t('familyZone.photoFrame')}
           </button>
           <Link
-            to="/login"
+            to={user ? '/' : '/login'}
             className="game-btn !bg-surface !border !border-border text-muted hover:text-cream flex items-center gap-1.5 !text-xs"
           >
             <LogIn size={14} />
-            {t('kiosk.parentLogin')}
+            {user ? t('kiosk.backToDashboard') : t('kiosk.parentLogin')}
           </Link>
         </div>
 

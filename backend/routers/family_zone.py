@@ -250,7 +250,7 @@ async def list_family_members(
 # Birthdays
 # ---------------------------------------------------------------------------
 # A free-form birthday book on the Family Zone screen -- any loved one, not
-# just people with a ChoreQuest account (grandparents, friends, etc.). Same
+# just people with a KidTasks account (grandparents, friends, etc.). Same
 # trust model as the rest of the screen (paired device or logged-in user).
 # Sorting by next occurrence (rather than the raw stored date) is done
 # client-side.

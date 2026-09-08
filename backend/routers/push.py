@@ -109,7 +109,7 @@ async def test_push(
 
     sent = await send_push_to_user(
         db, user.id,
-        title="ChoreQuest Test",
+        title="KidTasks Test",
         body="Push notifications are working!",
         url="/",
         tag="test",

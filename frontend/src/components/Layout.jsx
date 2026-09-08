@@ -25,9 +25,12 @@ import {
   LogOut,
   Star,
   History,
+  Tv,
+  LayoutGrid,
 } from 'lucide-react';
 import AvatarDisplay from './AvatarDisplay';
 import PointsHistoryModal from './PointsHistoryModal';
+import AppLogo from './AppLogo';
 
 const ALL_NAV_ITEMS = [
   { labelKey: 'nav.home', icon: Home, path: '/' },
@@ -37,6 +40,8 @@ const ALL_NAV_ITEMS = [
   { labelKey: 'nav.rewards', icon: Gift, path: '/rewards' },
   { labelKey: 'nav.calendar', icon: CalendarDays, path: '/calendar', mobileMore: true },
   { labelKey: 'nav.history', icon: History, path: '/history', parentOnly: true, mobileMore: true },
+  { labelKey: 'nav.kiosk', icon: Tv, path: '/kiosk', mobileMore: true },
+  { labelKey: 'nav.familyZone', icon: LayoutGrid, path: '/familyzone', mobileMore: true },
 ];
 
 function timeAgo(dateStr, t) {
@@ -205,9 +210,7 @@ export default function Layout({ children }) {
           className="flex items-center gap-2.5 px-4 py-4 cursor-pointer"
           onClick={() => navigate('/')}
         >
-          <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center">
-            <Swords size={14} className="text-navy" />
-          </div>
+          <AppLogo size={28} />
           <span className="text-cream text-[15px] font-semibold">{t('common.appName')}</span>
         </div>
 
@@ -284,9 +287,7 @@ export default function Layout({ children }) {
               className="flex items-center gap-2 cursor-pointer md:hidden"
               onClick={() => navigate('/')}
             >
-              <div className="w-6 h-6 rounded bg-accent flex items-center justify-center">
-                <Swords size={12} className="text-navy" />
-              </div>
+              <AppLogo size={22} />
               <span className="text-cream text-sm font-semibold">{t('common.appName')}</span>
             </div>
           </div>

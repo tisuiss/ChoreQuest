@@ -520,7 +520,7 @@ class FamilyTodo(Base):
 
 class FamilyBirthday(Base):
     """A birthday tracked on the Family Zone screen -- any loved one, not
-    just people with a ChoreQuest account (grandparents, friends, etc.).
+    just people with a KidTasks account (grandparents, friends, etc.).
     Stored as month/day (used to derive the yearly next occurrence) with an
     optional year -- the year is only needed to show an age, so it can be
     left out for a plain day/month reminder."""

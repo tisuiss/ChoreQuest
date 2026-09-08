@@ -301,7 +301,7 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="ChoreQuest", lifespan=lifespan)
+app = FastAPI(title="KidTasks", lifespan=lifespan)
 
 # CORS - configurable via CORS_ORIGINS env var (comma-separated), empty = no cross-origin
 _cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]

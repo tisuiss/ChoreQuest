@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { Swords, ArrowLeft, Loader2, ListChecks } from 'lucide-react';
+import { ArrowLeft, Loader2, ListChecks } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import AvatarDisplay from '../components/AvatarDisplay';
+import AppLogo from '../components/AppLogo';
 
 export default function Kiosk() {
   const { t } = useTranslation();
-  const { kioskLogin } = useAuth();
+  const { kioskLogin, user } = useAuth();
   const { applyDefaultIfUnset } = useLanguage();
   const navigate = useNavigate();
 
@@ -118,9 +119,7 @@ export default function Kiosk() {
     <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-navy">
       <div className="w-full max-w-2xl">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center">
-            <Swords size={16} className="text-navy" />
-          </div>
+          <AppLogo size={32} />
           <h1 className="text-cream text-lg font-semibold">{t('common.appName')}</h1>
         </div>
 
@@ -209,9 +208,15 @@ export default function Kiosk() {
         )}
 
         <p className="text-center mt-10 text-muted text-sm">
-          <Link to="/login" className="text-accent hover:text-accent-light font-medium transition-colors">
-            {t('kiosk.parentLogin')}
-          </Link>
+          {user ? (
+            <Link to="/" className="text-accent hover:text-accent-light font-medium transition-colors">
+              {t('kiosk.backToDashboard')}
+            </Link>
+          ) : (
+            <Link to="/login" className="text-accent hover:text-accent-light font-medium transition-colors">
+              {t('kiosk.parentLogin')}
+            </Link>
+          )}
         </p>
       </div>
     </div>

@@ -1,9 +1,6 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1024" height="1024" fill="#FFFFFF"></rect>
-  <g transform="translate(112,112) scale(4)">
+<svg width="680" height="680" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   <rect x="14" y="14" width="94" height="94" rx="26" fill="#FFC94D"></rect>
   <rect x="52" y="52" width="94" height="94" rx="26" fill="#FF6B6B" stroke="#FFFFFF" stroke-width="9"></rect>
   <rect x="90" y="90" width="94" height="94" rx="26" fill="#2FB3A8" stroke="#FFFFFF" stroke-width="9"></rect>
   <path d="M112,138 L129,155 L163,116" fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"></path>
-  </g>
 </svg>
