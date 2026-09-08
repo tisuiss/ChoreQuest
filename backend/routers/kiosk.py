@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.database import get_db
 from backend.models import User, UserRole, AuditLog, AppSetting, TrustedDevice, Chore, ChoreAssignment, AssignmentStatus
@@ -10,6 +11,7 @@ from backend.schemas import KioskKidResponse, KioskLoginRequest, AuthResponse
 from backend.auth import verify_pin, issue_tokens
 from backend.rate_limit import rate_limiter
 from backend.dependencies import require_family_access, require_device_token
+from backend.routers.vacation import is_vacation_day, load_chore_vacation_dates, load_kid_vacation_map
 
 router = APIRouter(prefix="/api/kiosk", tags=["kiosk"])
 
@@ -74,28 +76,52 @@ async def list_kiosk_kids(
     if kid_ids:
         today = date.today()
         # Matches exactly what the kid's own dashboard shows as "today's
-        # tasks" (KidDashboard.jsx reads GET /api/calendar's days[today]).
-        # Deliberately NOT "date <= today": some installs have a backlog of
-        # old pending rows from before the nightly not-done sweep existed
-        # (that sweep only ever closes out exactly "yesterday", so it can't
-        # retroactively clear a pre-existing backlog) -- counting those
-        # would wildly inflate this badge with assignments nobody is
-        # actually being shown or asked to do anymore.
-        count_result = await db.execute(
-            select(
-                ChoreAssignment.user_id,
-                func.count().label("cnt"),
-            )
+        # tasks" (KidDashboard.jsx reads GET /api/calendar's days[today],
+        # then filters by isWithinCategoryWindow) -- both the same vacation
+        # exclusions that view applies, AND the category display window: a
+        # row can still be `pending` in the DB (left alone so history stays
+        # intact) while being hidden from the kid because they/the chore are
+        # on vacation, or because its category's time window (e.g. "Morning
+        # routine") has already ended for today. Counting those here would
+        # over-count vs. what's actually shown.
+        now_time = datetime.now().time()
+        result_assignments = await db.execute(
+            select(ChoreAssignment)
             .join(Chore, ChoreAssignment.chore_id == Chore.id)
+            .options(selectinload(ChoreAssignment.chore).selectinload(Chore.category))
             .where(
                 ChoreAssignment.user_id.in_(kid_ids),
                 ChoreAssignment.date == today,
                 ChoreAssignment.status == AssignmentStatus.pending,
                 Chore.is_active == True,
             )
-            .group_by(ChoreAssignment.user_id)
         )
-        pending_counts = {row.user_id: row.cnt for row in count_result.all()}
+        todays_assignments = result_assignments.scalars().all()
+
+        family_vacation_today = await is_vacation_day(db, today)
+        kid_vacation_map = await load_kid_vacation_map(db, today, today)
+        chore_vacation_cache: dict[int, set[date]] = {}
+
+        for a in todays_assignments:
+            if today in kid_vacation_map.get(a.user_id, set()):
+                continue
+            if a.chore:
+                category = a.chore.category
+                if category and category.window_start and category.window_end:
+                    if not (category.window_start <= now_time <= category.window_end):
+                        continue
+
+                if a.chore.id not in chore_vacation_cache:
+                    chore_vacation_cache[a.chore.id] = await load_chore_vacation_dates(
+                        db, a.chore.id, today, today
+                    )
+                chore_paused = (
+                    (a.chore.pauses_during_vacation and family_vacation_today)
+                    or today in chore_vacation_cache[a.chore.id]
+                )
+                if chore_paused:
+                    continue
+            pending_counts[a.user_id] = pending_counts.get(a.user_id, 0) + 1
 
     return [
         KioskKidResponse(
