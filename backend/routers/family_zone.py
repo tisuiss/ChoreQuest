@@ -68,9 +68,16 @@ async def create_family_event(
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-events:{client_ip}", 30, 900)
 
-    if body.member_id is not None:
+    if body.target_group is not None and body.target_group not in ("parents", "kids"):
+        raise HTTPException(status_code=400, detail="target_group must be 'parents' or 'kids'")
+
+    # A generic group target (parents/kids) and a specific member are
+    # mutually exclusive -- the group wins if both were somehow sent.
+    member_id = None if body.target_group else body.member_id
+
+    if member_id is not None:
         member_result = await db.execute(
-            select(User).where(User.id == body.member_id, User.is_active == True)
+            select(User).where(User.id == member_id, User.is_active == True)
         )
         if member_result.scalar_one_or_none() is None:
             raise HTTPException(status_code=404, detail="Member not found")
@@ -83,7 +90,8 @@ async def create_family_event(
         time=None if body.all_day else body.time,
         duration_minutes=None if body.all_day else body.duration_minutes,
         all_day=body.all_day,
-        member_id=body.member_id,
+        member_id=member_id,
+        target_group=body.target_group,
     )
     db.add(event)
     await db.commit()
@@ -130,7 +138,14 @@ async def create_birthday(
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-birthdays:{client_ip}", 30, 900)
 
-    birthday = FamilyBirthday(name=body.name, date=body.date)
+    # Reject an impossible day/month combo (e.g. Feb 30) -- 2000 is a leap
+    # year so Feb 29 is accepted for a birthday with no year on file.
+    try:
+        date(2000, body.month, body.day)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid day for that month")
+
+    birthday = FamilyBirthday(name=body.name, month=body.month, day=body.day, year=body.year)
     db.add(birthday)
     await db.commit()
     await db.refresh(birthday)

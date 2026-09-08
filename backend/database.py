@@ -61,6 +61,10 @@ async def init_db():
             ("family_todos", "assignee_id", "INTEGER REFERENCES users(id)"),
             ("family_events", "duration_minutes", "INTEGER"),
             ("family_events", "all_day", "BOOLEAN DEFAULT 0"),
+            ("family_events", "target_group", "VARCHAR(10)"),
+            ("family_birthdays", "month", "INTEGER"),
+            ("family_birthdays", "day", "INTEGER"),
+            ("family_birthdays", "year", "INTEGER"),
         ]
         for table, col, typedef in _migrations:
             try:
@@ -69,6 +73,24 @@ async def init_db():
                 )
             except Exception:
                 pass  # column already exists
+
+        # family_birthdays used to store a single NOT NULL `date` column;
+        # backfill month/day/year from it for any pre-existing rows, then
+        # drop it so it stops requiring a value nothing sets anymore.
+        try:
+            await conn.exec_driver_sql(
+                "UPDATE family_birthdays SET "
+                "month = CAST(strftime('%m', date) AS INTEGER), "
+                "day = CAST(strftime('%d', date) AS INTEGER), "
+                "year = CAST(strftime('%Y', date) AS INTEGER) "
+                "WHERE month IS NULL AND date IS NOT NULL"
+            )
+        except Exception:
+            pass  # no `date` column left (already migrated) or table is empty
+        try:
+            await conn.exec_driver_sql("ALTER TABLE family_birthdays DROP COLUMN date")
+        except Exception:
+            pass  # already dropped, or SQLite too old to support DROP COLUMN
 
 
 async def get_db():

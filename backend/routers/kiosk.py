@@ -28,6 +28,7 @@ async def get_kiosk_settings(db: AsyncSession = Depends(get_db)):
                 "default_language",
                 "family_zone_default_view",
                 "family_zone_layout",
+                "calendar_colors",
             ])
         )
     )
@@ -36,6 +37,9 @@ async def get_kiosk_settings(db: AsyncSession = Depends(get_db)):
         "default_language": settings_map.get("default_language", "fr"),
         "family_zone_default_view": settings_map.get("family_zone_default_view", "week"),
         "family_zone_layout": settings_map.get("family_zone_layout", "grid"),
+        # A JSON-stringified {"family"|"parents"|"kids"|"<user id>": "<color name>"}
+        # map, set from the family settings page. "{}" (no overrides) by default.
+        "calendar_colors": settings_map.get("calendar_colors", "{}"),
     }
 
 

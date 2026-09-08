@@ -11,7 +11,10 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import AvatarDisplay from '../components/AvatarDisplay';
 
-const MEMBER_COLORS = ['accent', 'gold', 'purple', 'emerald', 'crimson'];
+// Fixed, theme-independent colors only (unlike "accent"/"sky", which shift
+// with the family's chosen color theme and could visually collide with one
+// of these) -- offered as the calendar color picker's palette.
+const MEMBER_COLORS = ['gold', 'purple', 'emerald', 'crimson', 'rose', 'cyan', 'amber', 'lime'];
 
 const SIDEBAR_ITEMS = [
   { id: 'dashboard', labelKey: 'familyZone.navDashboard', icon: LayoutDashboard },
@@ -51,12 +54,11 @@ function sameDate(a, b) {
 }
 function addDays(d, n) { const nd = new Date(d); nd.setDate(nd.getDate() + n); return nd; }
 function addMonths(d, n) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
-// Next occurrence (this year, or next if already passed) of a "YYYY-MM-DD"
-// birthday, relative to todayStart (a local midnight Date).
-function nextOccurrence(birthdayStr, todayStart) {
-  const [, mo, da] = birthdayStr.split('-').map(Number);
-  let occ = new Date(todayStart.getFullYear(), mo - 1, da);
-  if (occ < todayStart) occ = new Date(todayStart.getFullYear() + 1, mo - 1, da);
+// Next occurrence (this year, or next if already passed) of a birthday's
+// month/day, relative to todayStart (a local midnight Date).
+function nextOccurrence(birthday, todayStart) {
+  let occ = new Date(todayStart.getFullYear(), birthday.month - 1, birthday.day);
+  if (occ < todayStart) occ = new Date(todayStart.getFullYear() + 1, birthday.month - 1, birthday.day);
   return occ;
 }
 function startOfWeek(d) {
@@ -65,11 +67,6 @@ function startOfWeek(d) {
   nd.setHours(0, 0, 0, 0);
   return nd;
 }
-function colorForMember(memberId) {
-  if (memberId == null) return 'sky';
-  return MEMBER_COLORS[memberId % MEMBER_COLORS.length];
-}
-
 export default function FamilyZone() {
   const { t, i18n } = useTranslation();
   const { kioskLogin } = useAuth();
@@ -122,15 +119,41 @@ export default function FamilyZone() {
     return () => clearInterval(interval);
   }, [fetchKids]);
 
+  // {"family"|"parents"|"kids"|"<user id>": "<color name>"} overrides set
+  // from the family settings page -- entries with no override fall back to
+  // a fixed default (see colorForEntity below).
+  const [colorMap, setColorMap] = useState({});
+
   useEffect(() => {
     (async () => {
       try {
         const data = await api('/api/kiosk/settings');
         applyDefaultIfUnset(data?.default_language);
         if (data?.family_zone_default_view === 'month') setViewMode('month');
+        try {
+          setColorMap(JSON.parse(data?.calendar_colors || '{}') || {});
+        } catch { /* malformed setting -- keep defaults */ }
       } catch { /* non-critical */ }
     })();
   }, [applyDefaultIfUnset]);
+
+  // family: whole-family events (member_id and target_group both null).
+  // parents/kids: generic group targets. Anything else is a specific
+  // member's numeric id (as a string key). An explicit override from
+  // colorMap always wins; otherwise groups get a fixed default and
+  // individual members cycle through the fixed palette by id.
+  const GROUP_DEFAULT_COLORS = { family: 'sky', parents: 'purple', kids: 'emerald' };
+  const colorForEntity = (key) => {
+    if (colorMap[key]) return colorMap[key];
+    if (GROUP_DEFAULT_COLORS[key]) return GROUP_DEFAULT_COLORS[key];
+    const id = Number(key);
+    return MEMBER_COLORS[Number.isFinite(id) ? id % MEMBER_COLORS.length : 0];
+  };
+  const colorForEvent = (e) => {
+    if (e.target_group) return colorForEntity(e.target_group);
+    if (e.member_id == null) return colorForEntity('family');
+    return colorForEntity(String(e.member_id));
+  };
 
   const resetPinEntry = () => {
     setSelectedKid(null);
@@ -217,7 +240,7 @@ export default function FamilyZone() {
   const [birthdays, setBirthdays] = useState([]);
   const [birthdaysError, setBirthdaysError] = useState('');
   const [showBirthdayModal, setShowBirthdayModal] = useState(false);
-  const [birthdayForm, setBirthdayForm] = useState({ name: '', date: '' });
+  const [birthdayForm, setBirthdayForm] = useState({ name: '', day: '', month: '', year: '' });
   const [savingBirthday, setSavingBirthday] = useState(false);
   const [deletingBirthdayId, setDeletingBirthdayId] = useState(null);
   const [addingBirthdayId, setAddingBirthdayId] = useState(null);
@@ -236,18 +259,23 @@ export default function FamilyZone() {
   useEffect(() => { fetchBirthdays(); }, [fetchBirthdays]);
 
   const openBirthdayModal = () => {
-    setBirthdayForm({ name: '', date: '' });
+    setBirthdayForm({ name: '', day: '', month: '', year: '' });
     setShowBirthdayModal(true);
   };
 
   const submitBirthday = async (e) => {
     e.preventDefault();
-    if (!birthdayForm.name.trim() || !birthdayForm.date) return;
+    if (!birthdayForm.name.trim() || !birthdayForm.day || !birthdayForm.month) return;
     setSavingBirthday(true);
     try {
       await api('/api/family-zone/birthdays', {
         method: 'POST',
-        body: { name: birthdayForm.name.trim(), date: birthdayForm.date },
+        body: {
+          name: birthdayForm.name.trim(),
+          day: Number(birthdayForm.day),
+          month: Number(birthdayForm.month),
+          year: birthdayForm.year ? Number(birthdayForm.year) : null,
+        },
       });
       setShowBirthdayModal(false);
       await fetchBirthdays();
@@ -340,6 +368,9 @@ export default function FamilyZone() {
     e.preventDefault();
     if (!eventForm.title.trim() || !eventForm.date) return;
     setSavingEvent(true);
+    // eventForm.member_id doubles as the "for" selection: '' (whole family),
+    // 'parents' / 'kids' (generic group), or a member's numeric id as a string.
+    const isGroup = eventForm.member_id === 'parents' || eventForm.member_id === 'kids';
     try {
       await api('/api/family-zone/events', {
         method: 'POST',
@@ -349,7 +380,8 @@ export default function FamilyZone() {
           all_day: eventForm.all_day,
           time: eventForm.all_day ? null : (eventForm.time || null),
           duration_minutes: eventForm.all_day || !eventForm.duration_minutes ? null : Number(eventForm.duration_minutes),
-          member_id: eventForm.member_id ? Number(eventForm.member_id) : null,
+          target_group: isGroup ? eventForm.member_id : null,
+          member_id: !isGroup && eventForm.member_id ? Number(eventForm.member_id) : null,
         },
       });
       const d = new Date(`${eventForm.date}T00:00:00`);
@@ -661,12 +693,24 @@ export default function FamilyZone() {
       {members.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 px-0.5">
           <span className="flex items-center gap-1.5 text-muted text-[10.5px]">
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForMember(null)})` }} />
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForEntity('family')})` }} />
             {t('familyZone.wholeFamily')}
           </span>
+          {parentMembers.length > 0 && (
+            <span className="flex items-center gap-1.5 text-muted text-[10.5px]">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForEntity('parents')})` }} />
+              {t('familyZone.parentsGroup')}
+            </span>
+          )}
+          {kidMembers.length > 0 && (
+            <span className="flex items-center gap-1.5 text-muted text-[10.5px]">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForEntity('kids')})` }} />
+              {t('familyZone.kidsGroup')}
+            </span>
+          )}
           {members.map((m) => (
             <span key={m.id} className="flex items-center gap-1.5 text-muted text-[10.5px]">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForMember(m.id)})` }} />
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForEntity(String(m.id))})` }} />
               {m.display_name}
             </span>
           ))}
@@ -711,7 +755,7 @@ export default function FamilyZone() {
                   </div>
                 )}
                 {dayEvts.map((e) => (
-                  <div key={e.id} className="rounded bg-surface-raised px-1.5 py-1 text-[10.5px] leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}>
+                  <div key={e.id} className="rounded bg-surface-raised px-1.5 py-1 text-[10.5px] leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForEvent(e)})` }}>
                     {e.all_day ? (
                       <span className="block font-mono text-accent-light text-[9px]">{t('familyZone.allDay')}</span>
                     ) : e.time && (
@@ -761,7 +805,7 @@ export default function FamilyZone() {
                   </div>
                 )}
                 {shown.map((e) => (
-                  <div key={e.id} className="hidden sm:block rounded bg-surface-raised px-1 py-[1px] text-[9px] leading-tight truncate border-l-2" style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}>
+                  <div key={e.id} className="hidden sm:block rounded bg-surface-raised px-1 py-[1px] text-[9px] leading-tight truncate border-l-2" style={{ borderColor: `var(--color-${colorForEvent(e)})` }}>
                     {e.title}
                   </div>
                 ))}
@@ -814,7 +858,7 @@ export default function FamilyZone() {
                   <div
                     key={e.id}
                     className="flex-1 min-w-0 rounded-md bg-surface-raised px-3 py-2 border-l-2"
-                    style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}
+                    style={{ borderColor: `var(--color-${colorForEvent(e)})` }}
                   >
                     {e.all_day ? (
                       <span className="block font-mono text-accent-light text-xs mb-0.5">{t('familyZone.allDay')}</span>
@@ -1060,7 +1104,7 @@ export default function FamilyZone() {
     setAddingBirthdayId(birthday.id);
     setBirthdayMsg('');
     try {
-      const occ = nextOccurrence(birthday.date, todayStart);
+      const occ = nextOccurrence(birthday, todayStart);
       await api('/api/family-zone/events', {
         method: 'POST',
         body: {
@@ -1078,9 +1122,9 @@ export default function FamilyZone() {
     }
   };
 
-  // Sorted by next upcoming occurrence, not the raw stored date.
+  // Sorted by next upcoming occurrence, not the raw stored month/day.
   const sortedBirthdays = [...birthdays].sort(
-    (a, b) => nextOccurrence(a.date, todayStart) - nextOccurrence(b.date, todayStart)
+    (a, b) => nextOccurrence(a, todayStart) - nextOccurrence(b, todayStart)
   );
 
   const birthdaysSection = (
@@ -1111,13 +1155,15 @@ export default function FamilyZone() {
       ) : (
         <div className="flex flex-col gap-2">
           {sortedBirthdays.map((b) => {
-            const occ = nextOccurrence(b.date, todayStart);
-            const age = occ.getFullYear() - Number(b.date.slice(0, 4));
+            const occ = nextOccurrence(b, todayStart);
+            const age = b.year != null ? occ.getFullYear() - b.year : null;
             return (
               <div key={b.id} className="flex items-center gap-2.5 flex-wrap py-1.5 border-t border-border first:border-t-0 group">
                 <span className="text-sm text-cream flex-1 min-w-[100px] truncate">{b.name}</span>
                 <span className="text-muted text-xs flex-shrink-0">
-                  {t('familyZone.birthdayNext', { date: shortDateFmt.format(occ), age })}
+                  {age != null
+                    ? t('familyZone.birthdayNext', { date: shortDateFmt.format(occ), age })
+                    : t('familyZone.birthdayNextNoAge', { date: shortDateFmt.format(occ) })}
                 </span>
                 <button
                   onClick={() => addBirthdayToCalendar(b)}
@@ -1383,6 +1429,7 @@ export default function FamilyZone() {
                   <option value="">{t('familyZone.wholeFamily')}</option>
                   {parentMembers.length > 0 && (
                     <optgroup label={t('familyZone.parentsGroup')}>
+                      <option value="parents">{t('familyZone.allParents')}</option>
                       {parentMembers.map((m) => (
                         <option key={m.id} value={m.id}>{m.display_name}</option>
                       ))}
@@ -1390,6 +1437,7 @@ export default function FamilyZone() {
                   )}
                   {kidMembers.length > 0 && (
                     <optgroup label={t('familyZone.kidsGroup')}>
+                      <option value="kids">{t('familyZone.allKids')}</option>
                       {kidMembers.map((m) => (
                         <option key={m.id} value={m.id}>{m.display_name}</option>
                       ))}
@@ -1435,18 +1483,55 @@ export default function FamilyZone() {
                   maxLength={100}
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
-                  {t('familyZone.dateLabel')}
-                </label>
-                <input
-                  type="date"
-                  className="field-input"
-                  value={birthdayForm.date}
-                  onChange={(e) => setBirthdayForm((f) => ({ ...f, date: e.target.value }))}
-                  required
-                />
+              <div className="flex gap-2.5 mb-1">
+                <div className="w-16 flex-shrink-0">
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                    {t('familyZone.birthdayDayLabel')}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    className="field-input"
+                    value={birthdayForm.day}
+                    onChange={(e) => setBirthdayForm((f) => ({ ...f, day: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                    {t('familyZone.birthdayMonthLabel')}
+                  </label>
+                  <select
+                    className="field-input"
+                    value={birthdayForm.month}
+                    onChange={(e) => setBirthdayForm((f) => ({ ...f, month: e.target.value }))}
+                    required
+                  >
+                    <option value="">—</option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <option key={m} value={m} className="capitalize">
+                        {monthFmt.format(new Date(2000, m - 1, 1))}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-24 flex-shrink-0">
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                    {t('familyZone.birthdayYearLabel')}
+                  </label>
+                  <input
+                    type="number"
+                    min={1900}
+                    max={2100}
+                    className="field-input"
+                    value={birthdayForm.year}
+                    onChange={(e) => setBirthdayForm((f) => ({ ...f, year: e.target.value }))}
+                    placeholder={t('familyZone.birthdayYearPlaceholder')}
+                  />
+                </div>
               </div>
+              <p className="text-muted text-xs mb-4">{t('familyZone.birthdayYearHint')}</p>
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setShowBirthdayModal(false)} className="game-btn !bg-transparent !border !border-border text-muted hover:text-cream">
                   {t('familyZone.cancel')}

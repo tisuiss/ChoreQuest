@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
   ListChecks,
   Home,
+  Palette,
 } from 'lucide-react';
 import VacationSettings from '../components/VacationSettings';
 import KidVacationSettings from '../components/KidVacationSettings';
@@ -46,6 +47,12 @@ const TABS = [
   { id: 'tasks', labelKey: 'settings.tabTasks', icon: ListChecks },
   { id: 'familyzone', labelKey: 'settings.tabFamilyZone', icon: Home },
 ];
+
+// Fixed, theme-independent colors -- must match the palette FamilyZone.jsx
+// picks defaults from, so a manual override here actually looks distinct
+// from the cyclic default it's replacing.
+const CALENDAR_COLOR_OPTIONS = ['gold', 'purple', 'emerald', 'crimson', 'rose', 'cyan', 'amber', 'lime', 'sky'];
+const CALENDAR_COLOR_DEFAULTS = { family: 'sky', parents: 'purple', kids: 'emerald' };
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -116,15 +123,25 @@ export default function Settings() {
     }
   }, []);
 
+  // Family Zone calendar colors
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const fetchFamilyMembers = useCallback(async () => {
+    try {
+      const data = await api('/api/family-zone/members');
+      setFamilyMembers(Array.isArray(data) ? data : []);
+    } catch { /* the color picker just shows no members */ }
+  }, []);
+
   useEffect(() => {
     if (isParentOrAdmin) {
       fetchSettings();
       fetchAchievements();
+      fetchFamilyMembers();
     } else {
       setLoading(false);
       setError(t('settings.accessDenied'));
     }
-  }, [isParentOrAdmin, fetchSettings, fetchAchievements, t]);
+  }, [isParentOrAdmin, fetchSettings, fetchAchievements, fetchFamilyMembers, t]);
 
   const updateSetting = (key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -647,35 +664,6 @@ export default function Settings() {
 
           {activeTab === 'familyzone' && (
             <>
-              {/* Screen layout */}
-              <div className="game-panel p-4">
-                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
-                  <SlidersHorizontal size={16} className="text-muted" />
-                  {t('settings.familyZoneLayout')}
-                </h2>
-                <p className="text-muted text-xs mb-3">
-                  {t('settings.familyZoneLayoutHint')}
-                </p>
-                <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 max-w-xs">
-                  {[
-                    { id: 'grid', label: t('settings.familyZoneLayoutGrid') },
-                    { id: 'tabs', label: t('settings.familyZoneLayoutTabs') },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() => updateSetting('family_zone_layout', opt.id)}
-                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                        (settings.family_zone_layout ?? 'grid') === opt.id
-                          ? 'bg-surface-raised text-cream'
-                          : 'text-muted hover:text-cream'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Default calendar view */}
               <div className="game-panel p-4">
                 <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
@@ -703,6 +691,57 @@ export default function Settings() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Calendar colors */}
+              <div className="game-panel p-4">
+                <h2 className="text-cream text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Palette size={16} className="text-muted" />
+                  {t('settings.calendarColors')}
+                </h2>
+                <p className="text-muted text-xs mb-3">
+                  {t('settings.calendarColorsHint')}
+                </p>
+                {(() => {
+                  let colorMap = {};
+                  try { colorMap = JSON.parse(settings.calendar_colors || '{}') || {}; } catch { /* ignore malformed value */ }
+                  const setColor = (key, color) => {
+                    updateSetting('calendar_colors', JSON.stringify({ ...colorMap, [key]: color }));
+                  };
+                  const rows = [
+                    { key: 'family', label: t('familyZone.wholeFamily') },
+                    { key: 'parents', label: t('familyZone.parentsGroup') },
+                    { key: 'kids', label: t('familyZone.kidsGroup') },
+                    ...familyMembers.map((m) => ({ key: String(m.id), label: m.display_name })),
+                  ];
+                  return (
+                    <div className="space-y-3">
+                      {rows.map((row) => {
+                        const active = colorMap[row.key] || CALENDAR_COLOR_DEFAULTS[row.key] || CALENDAR_COLOR_OPTIONS[0];
+                        return (
+                          <div key={row.key} className="flex items-center gap-3 flex-wrap">
+                            <span className="text-cream text-sm w-28 flex-shrink-0 truncate">{row.label}</span>
+                            <div className="flex items-center gap-1.5">
+                              {CALENDAR_COLOR_OPTIONS.map((color) => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  onClick={() => setColor(row.key, color)}
+                                  className={`w-6 h-6 rounded-full flex-shrink-0 transition-transform ${
+                                    active === color ? 'ring-2 ring-offset-2 ring-offset-surface ring-cream scale-110' : 'hover:scale-110'
+                                  }`}
+                                  style={{ background: `var(--color-${color})` }}
+                                  aria-label={color}
+                                  title={color}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Photo-frame source */}

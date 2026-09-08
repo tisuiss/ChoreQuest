@@ -468,7 +468,9 @@ class ChoreVacationPeriod(Base):
 class FamilyEvent(Base):
     """A family-wide calendar entry shown on the Family Zone screen —
     independent of chore assignments (e.g. an appointment, birthday, outing).
-    member_id is null for an event that concerns the whole family."""
+    member_id is null for an event that concerns the whole family, or for one
+    targeting a generic group (target_group = "parents" | "kids") instead of
+    a specific person."""
     __tablename__ = "family_events"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -477,6 +479,7 @@ class FamilyEvent(Base):
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     all_day: Mapped[bool] = mapped_column(Boolean, default=False)
     member_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    target_group: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     member = relationship("User")
@@ -518,12 +521,15 @@ class FamilyTodo(Base):
 class FamilyBirthday(Base):
     """A birthday tracked on the Family Zone screen -- any loved one, not
     just people with a ChoreQuest account (grandparents, friends, etc.).
-    `date` is the actual birth date, used both to compute age and to derive
-    the yearly month/day for the next occurrence."""
+    Stored as month/day (used to derive the yearly next occurrence) with an
+    optional year -- the year is only needed to show an age, so it can be
+    left out for a plain day/month reminder."""
     __tablename__ = "family_birthdays"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    date: Mapped[date] = mapped_column(Date, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    day: Mapped[int] = mapped_column(Integer, nullable=False)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
