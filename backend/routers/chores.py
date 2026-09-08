@@ -82,7 +82,7 @@ async def _get_chore_or_404(
     result = await db.execute(stmt)
     chore = result.scalar_one_or_none()
     if chore is None:
-        raise HTTPException(status_code=404, detail="Chore not found")
+        raise HTTPException(status_code=404, detail="Task not found")
     return chore
 
 
@@ -200,7 +200,7 @@ async def delete_category(
     if in_use_result.scalar() > 0:
         raise HTTPException(
             status_code=400,
-            detail="Cannot delete a category that still has chores assigned to it",
+            detail="Cannot delete a category that still has tasks assigned to it",
         )
 
     await db.delete(category)
@@ -1074,7 +1074,7 @@ async def complete_chore(
     if assignment is None:
         raise HTTPException(
             status_code=404,
-            detail="No pending assignment found for this chore today",
+            detail="No pending assignment found for this task today",
         )
 
     chore = assignment.chore
@@ -1221,7 +1221,7 @@ async def decline_chore(
     if assignment is None:
         raise HTTPException(
             status_code=404,
-            detail="No pending assignment found for this chore today",
+            detail="No pending assignment found for this task today",
         )
 
     chore = assignment.chore
@@ -1415,7 +1415,7 @@ async def verify_chore(
     if assignment is None:
         raise HTTPException(
             status_code=404,
-            detail="No completed assignment found to verify for this chore today",
+            detail="No completed assignment found to verify for this task today",
         )
 
     await _finalize_verification(db, assignment, assignment.chore, verified_by=user.id)
@@ -1523,7 +1523,7 @@ async def uncomplete_chore(
     if assignment is None:
         raise HTTPException(
             status_code=404,
-            detail="No completed assignment found to undo for this chore today",
+            detail="No completed assignment found to undo for this task today",
         )
 
     await _undo_assignment(db, assignment)
@@ -1587,7 +1587,7 @@ async def skip_chore(
     if assignment is None:
         raise HTTPException(
             status_code=404,
-            detail="No pending assignment found to skip for this chore today",
+            detail="No pending assignment found to skip for this task today",
         )
 
     assignment.status = AssignmentStatus.skipped

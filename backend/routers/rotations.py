@@ -42,7 +42,7 @@ async def create_rotation(
     )
     existing = result.scalar_one_or_none()
     if existing is not None:
-        raise HTTPException(status_code=409, detail="A rotation already exists for this chore")
+        raise HTTPException(status_code=409, detail="A rotation already exists for this task")
 
     rotation = ChoreRotation(
         chore_id=body.chore_id,

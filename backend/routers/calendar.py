@@ -286,11 +286,11 @@ async def propose_trade(
     if data.target_user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot trade with yourself")
 
-    chore_title = assignment.chore.title if assignment.chore else "a chore"
+    chore_title = assignment.chore.title if assignment.chore else "a task"
     notification = Notification(
         user_id=data.target_user_id,
         type=NotificationType.trade_proposed,
-        title="Chore Trade Proposed",
+        title="Task Trade Proposed",
         message=f"{current_user.display_name} wants to trade '{chore_title}' with you.",
         params={
             "key": "trade_proposed",
@@ -339,7 +339,7 @@ async def accept_trade(
     assignment.user_id = current_user.id
     notification.is_read = True
 
-    chore_title = assignment.chore.title if assignment.chore else "a chore"
+    chore_title = assignment.chore.title if assignment.chore else "a task"
     proposer_notification = Notification(
         user_id=proposer_id,
         type=NotificationType.trade_accepted,
@@ -401,7 +401,7 @@ async def deny_trade(
     proposer_id = assignment.user_id
     notification.is_read = True
 
-    chore_title = assignment.chore.title if assignment.chore else "a chore"
+    chore_title = assignment.chore.title if assignment.chore else "a task"
     proposer_notification = Notification(
         user_id=proposer_id,
         type=NotificationType.trade_denied,

@@ -19,6 +19,7 @@ import {
   ListChecks,
   Home,
   Palette,
+  ShieldCheck,
 } from 'lucide-react';
 import VacationSettings from '../components/VacationSettings';
 import KidVacationSettings from '../components/KidVacationSettings';
@@ -45,6 +46,7 @@ const TIMEZONE_OPTIONS = [
 
 const TABS = [
   { id: 'general', labelKey: 'settings.tabGeneral', icon: SlidersHorizontal },
+  { id: 'security', labelKey: 'settings.tabSecurity', icon: ShieldCheck },
   { id: 'tasks', labelKey: 'settings.tabTasks', icon: ListChecks },
   { id: 'familyzone', labelKey: 'settings.tabFamilyZone', icon: Home },
 ];
@@ -750,7 +752,11 @@ export default function Settings() {
 
               {/* Photo-frame source */}
               <FamilyPhotoSettings />
+            </>
+          )}
 
+          {activeTab === 'security' && (
+            <>
               {/* Trusted kiosk device pairing */}
               <TrustedDeviceSettings paired={!!settings.kiosk_device_token} />
             </>

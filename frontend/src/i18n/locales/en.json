@@ -54,7 +54,7 @@
   },
   "nav": {
     "home": "Home",
-    "quests": "Chores",
+    "quests": "Tasks",
     "party": "Party",
     "leaderboard": "Leaderboard",
     "rewards": "Rewards",
@@ -82,8 +82,8 @@
     "parentLogin": "Parent login",
     "directLoginError": "Could not open this kid's kiosk. Check the link or the kid's account.",
     "backToPicker": "Back to kid selection",
-    "pendingChores_one": "{{count}} chore to do",
-    "pendingChores_other": "{{count}} chores to do"
+    "pendingChores_one": "{{count}} task to do",
+    "pendingChores_other": "{{count}} tasks to do"
   },
   "familyZone": {
     "subtitle": "Family screen",
@@ -215,16 +215,16 @@
     "deleteEntry": "Delete this entry",
     "deleteConfirm": "Delete \"{{description}}\" ({{amount}} stars)? The kid's balance will be adjusted accordingly.",
     "deleteError": "Failed to delete this entry",
-    "tabTasks": "Chores",
+    "tabTasks": "Tasks",
     "tabTransactions": "Stars",
     "previousDay": "Previous day",
     "nextDay": "Next day",
-    "noTasksThisDay": "No chores scheduled this day.",
+    "noTasksThisDay": "No tasks scheduled this day.",
     "statusToDo": "To do",
     "statusDone": "Done",
     "statusNotDone": "Not done",
     "statusSkip": "Skip",
-    "statusError": "Failed to change this chore's status"
+    "statusError": "Failed to change this task's status"
   },
   "settings": {
     "profile": "Profile",
@@ -233,7 +233,8 @@
     "accessDeniedHint": "Only parents and admins can change settings.",
     "loadError": "Failed to load settings",
     "tabGeneral": "General",
-    "tabTasks": "Chores",
+    "tabSecurity": "Security",
+    "tabTasks": "Tasks",
     "tabFamilyZone": "Family Zone",
     "familyZoneDefaultView": "Default calendar view",
     "familyZoneDefaultViewHint": "The view shown by default when the Family Zone screen loads -- anyone can still switch views there.",
@@ -246,7 +247,7 @@
     "toggle": "Toggle",
     "featureToggles": "Feature Toggles",
     "leaderboard": "Leaderboard",
-    "choreTrading": "Chore Trading",
+    "choreTrading": "Task Trading",
     "achievements": "Achievements",
     "autoApproveChores": "Auto-approve quests (skip parent approval)",
     "keepValidatedVisible": "Keep validated quests visible for the kid (otherwise they disappear once done)",
@@ -257,17 +258,17 @@
     "declineModeNone": "No incidence",
     "declineModeMalus": "Malus (loses the stars they would have earned)",
     "declineMalusExtra": "Additional malus (stars)",
-    "declineMalusExtraHint": "Extra stars deducted on top of what the chore was worth, whenever a malus applies. 0 = no extra penalty.",
+    "declineMalusExtraHint": "Extra stars deducted on top of what the task was worth, whenever a malus applies. 0 = no extra penalty.",
     "defaultLanguage": "Family Default Language",
     "defaultLanguageHint": "Language shown on the kiosk screen before a kid is selected.",
     "timezone": "Family Timezone",
-    "timezoneHint": "Used to determine \"today\" for streaks, chore reset, and the calendar. Applies immediately, no restart needed.",
+    "timezoneHint": "Used to determine \"today\" for streaks, task reset, and the calendar. Applies immediately, no restart needed.",
     "weekStartDay": "Week start day",
     "weekStartDayHint": "First day of the columns in the calendar's month view.",
     "dailyResetHour": "Daily Reset Hour",
-    "dailyResetHourHint": "Hour of day (0-23) when daily chores reset.",
-    "choreWindowEnforcement": "Chore time window enforcement",
-    "choreWindowEnforcementHint": "Indicative: the time window is shown for information only, the chore can still be validated at any time. Strict: it can't be validated before the start time or after the end time (parents can always validate on the kid's behalf).",
+    "dailyResetHourHint": "Hour of day (0-23) when daily tasks reset.",
+    "choreWindowEnforcement": "Task time window enforcement",
+    "choreWindowEnforcementHint": "Indicative: the time window is shown for information only, the task can still be validated at any time. Strict: it can't be validated before the start time or after the end time (parents can always validate on the kid's behalf).",
     "enforcementIndicative": "Indicative",
     "enforcementStrict": "Strict",
     "pointsReset": "Periodic stars reset",
@@ -294,27 +295,27 @@
       "message": "You earned '{{title}}' — +{{points}} stars!"
     },
     "chore_assigned": {
-      "title": "New Chore Assigned!",
-      "message": "You've been given a new chore: '{{title}}' (+{{points}} stars)"
+      "title": "New Task Assigned!",
+      "message": "You've been given a new task: '{{title}}' (+{{points}} stars)"
     },
     "chore_completed": {
-      "title": "Chore Awaiting Approval",
+      "title": "Task Awaiting Approval",
       "message": "{{kidName}} completed '{{title}}' - tap to approve (+{{points}} stars)"
     },
     "streak_milestone": {
       "title": "{{streak}}-Day Streak!",
-      "message": "You've completed chores {{streak}} days in a row! Keep it up!"
+      "message": "You've completed tasks {{streak}} days in a row! Keep it up!"
     },
     "chore_verified": {
-      "title": "Chore Approved!",
+      "title": "Task Approved!",
       "message": "'{{title}}' was approved! You earned {{points}} stars!"
     },
     "quest_feedback": {
-      "title": "Chore Feedback",
+      "title": "Task Feedback",
       "message": "{{kidName}} left feedback on \"{{title}}\": {{feedback}}"
     },
     "trade_proposed": {
-      "title": "Chore Trade Proposed",
+      "title": "Task Trade Proposed",
       "message": "{{proposerName}} wants to trade '{{title}}' with you."
     },
     "trade_accepted": {
@@ -418,8 +419,8 @@
     "adminDashboardDesc": "Users, keys & audit log",
     "push": {
       "title": "Push Notifications",
-      "subtitle": "Get notified about chores, rewards & achievements",
-      "subtitleShort": "Get notified about chores & rewards",
+      "subtitle": "Get notified about tasks, rewards & achievements",
+      "subtitleShort": "Get notified about tasks & rewards",
       "needsHttps": "Push notifications require HTTPS.",
       "needsInstall": "Add ChoreQuest to your Home Screen to enable notifications.",
       "unsupported": "Your browser does not support push notifications.",
@@ -448,8 +449,8 @@
     "disabled": "Leaderboard Disabled",
     "disabledHint": "The leaderboard has been turned off in family settings.",
     "noneYet": "No stars earned this week yet.",
-    "quests_one": "{{count}} chore",
-    "quests_other": "{{count}} chores",
+    "quests_one": "{{count}} task",
+    "quests_other": "{{count}} tasks",
     "streakDays": "{{count}}d",
     "totalStars": "{{count}} total",
     "starsThisWeek": "{{count}} stars this week"
@@ -471,19 +472,19 @@
     "highFive": "High Five"
   },
   "progressCharts": {
-    "noData": "No progress data yet. Complete some chores!",
+    "noData": "No progress data yet. Complete some tasks!",
     "starsEarned": "Stars Earned",
-    "choresDone": "Chores Done",
+    "choresDone": "Tasks Done",
     "completion": "Completion",
     "starsEarned30d": "Stars Earned (30 days)",
-    "dailyChoresCompleted": "Daily Chores Completed",
+    "dailyChoresCompleted": "Daily Tasks Completed",
     "completionRate": "Completion Rate",
     "avg": "Avg: {{pct}}%"
   },
   "vacation": {
     "title": "Vacation Mode",
     "schedule": "Schedule",
-    "description": "During vacation, recurring chores are paused and streaks are preserved.",
+    "description": "During vacation, recurring tasks are paused and streaks are preserved.",
     "start": "Start",
     "end": "End",
     "scheduleVacation": "Schedule Vacation",
@@ -493,19 +494,19 @@
     "createError": "Failed to create vacation"
   },
   "choreVacation": {
-    "title": "Pauses specific to this chore",
-    "description": "On top of family vacations, you can set periods during which this particular chore is paused, without affecting other chores."
+    "title": "Pauses specific to this task",
+    "description": "On top of family vacations, you can set periods during which this particular task is paused, without affecting other tasks."
   },
   "kidVacation": {
     "title": "Per-child vacations",
-    "description": "Schedule each child's time off. Rotating chores skip the child who's away and pass to an available sibling; their solo chores are paused. No malus or streak break on those days.",
+    "description": "Schedule each child's time off. Rotating tasks skip the child who's away and pass to an available sibling; their solo tasks are paused. No malus or streak break on those days.",
     "child": "Child"
   },
   "shoutouts": {
     "title": "Shoutouts",
     "give": "+ Give Shoutout",
     "whoDeserves": "Who deserves a shoutout?",
-    "placeholder": "Great job on your chores!",
+    "placeholder": "Great job on your tasks!",
     "send": "Send",
     "none": "No shoutouts yet. Be the first!"
   },
@@ -640,11 +641,11 @@
   },
   "kidDashboard": {
     "loadError": "Failed to load quest data",
-    "title": "Today's Chores",
+    "title": "Today's Tasks",
     "todaysProgress": "Today's Progress",
     "malusToday": "Today's Malus",
-    "noneToday": "No chores for today. Take a break!",
-    "allComplete": "All chores complete! Great job!",
+    "noneToday": "No tasks for today. Take a break!",
+    "allComplete": "All tasks complete! Great job!",
     "validated": "Validated!",
     "declined": "Not done",
     "declineMalusHint": "Marking this as not done will cost {{points}} stars",
@@ -657,22 +658,22 @@
     "streakFreezeHint": "Your streak will be saved once if you miss a day this month"
   },
   "questCreate": {
-    "nameRequired": "Every chore needs a name!",
+    "nameRequired": "Every task needs a name!",
     "rewardMin": "The number of stars can't be negative.",
-    "categoryRequired": "Please select a category for this chore.",
-    "saveError": "The chore could not be saved.",
+    "categoryRequired": "Please select a category for this task.",
+    "saveError": "The task could not be saved.",
     "otherCategory": "Other",
-    "editTitle": "Edit Chore",
-    "newTitle": "New Chore",
-    "updateQuest": "Update Chore",
-    "createQuest": "Create Chore",
+    "editTitle": "Edit Task",
+    "newTitle": "New Task",
+    "updateQuest": "Update Task",
+    "createQuest": "Create Task",
     "hideTemplates": "Hide templates",
-    "chooseTemplate": "Choose from Chore Templates",
+    "chooseTemplate": "Choose from Task Templates",
     "noTemplates": "No templates available yet.",
-    "questName": "Chore Name",
+    "questName": "Task Name",
     "questNamePlaceholder": "Defeat the Dust Bunnies",
     "description": "Description",
-    "descriptionPlaceholder": "Describe the chore details...",
+    "descriptionPlaceholder": "Describe the task details...",
     "starsReward": "Star Reward",
     "difficulty": "Difficulty",
     "category": "Category",
@@ -681,12 +682,12 @@
     "assignTo": "Assign to",
     "sortOrder": "Display order",
     "sortOrderHint": "Lower numbers show first — use this to build a routine sequence for the kid (e.g. wake up = 1, breakfast = 2, get dressed = 3).",
-    "recurrenceEditHint": "To change the frequency, days, or assigned kids, use the \"Manage\" button on the chore's card.",
+    "recurrenceEditHint": "To change the frequency, days, or assigned kids, use the \"Manage\" button on the task's card.",
     "windowStart": "Time window — start (optional)",
     "windowEnd": "Time window — end (optional)",
-    "malusOverride": "Malus for this chore",
+    "malusOverride": "Malus for this task",
     "malusOverrideInherit": "Family setting",
-    "malusOverrideHint": "Overrides the family's \"handling of tasks marked not done\" setting for this chore only.",
+    "malusOverrideHint": "Overrides the family's \"handling of tasks marked not done\" setting for this task only.",
     "windowBothRequired": "Fill in both times for the window, or leave both empty.",
     "pausesDuringVacation": "Follows family vacations",
     "photo": "Photo (optional)",
@@ -699,7 +700,7 @@
     "title": "The Party",
     "familyStreak_one": "Family Streak: {{count}} day",
     "familyStreak_other": "Family Streak: {{count}} days",
-    "everyoneCompleted": "Everyone completed at least one chore!",
+    "everyoneCompleted": "Everyone completed at least one task!",
     "heroes": "Heroes",
     "todayProgress": "{{completed}}/{{total}} today",
     "bulletinBoard": "Bulletin Board",
@@ -710,12 +711,12 @@
     "pinToTop": "Pin to top",
     "noAnnouncements": "No announcements yet.",
     "recentActivity": "Recent Activity",
-    "noActivity": "No activity yet. Complete some chores!"
+    "noActivity": "No activity yet. Complete some tasks!"
   },
   "parentDashboard": {
     "loadError": "Failed to load family data",
-    "verifyError": "Failed to verify chore",
-    "rejectError": "Failed to reject chore",
+    "verifyError": "Failed to verify task",
+    "rejectError": "Failed to reject task",
     "selectKid": "Select a kid",
     "enterPositiveAmount": "Enter a positive star amount",
     "enterReason": "Enter a reason",
@@ -727,13 +728,13 @@
     "noKids": "No kids in your family yet.",
     "questsCount": "{{completed}}/{{total}} quests",
     "pendingVerifications": "Pending Verifications",
-    "chore": "Chore",
+    "chore": "Task",
     "kid": "Kid",
     "by": "by {{name}}",
     "leaveFeedback": "Leave feedback...",
     "sendFeedback": "Send feedback",
     "feedbackLabel": "Feedback: {{feedback}}",
-    "createQuest": "Create Chore",
+    "createQuest": "Create Task",
     "awardDeductStars": "Award / Deduct Stars",
     "deductStars": "Deduct Stars",
     "awardBonusStars": "Award Bonus Stars",
@@ -831,7 +832,7 @@
       "sat": "Sat"
     },
     "allKids": "All kids",
-    "allChores": "All chores",
+    "allChores": "All tasks",
     "viewDay": "Day",
     "viewWeek": "Week",
     "viewMonth": "Month",
@@ -896,13 +897,13 @@
     "startsWithHint": "This hero gets the quest first, then it rotates."
   },
   "choreManage": {
-    "title": "Manage Chore",
+    "title": "Manage Task",
     "tabInfo": "Info",
     "tabAssign": "Assignment",
     "tabHistory": "History",
     "tabVacation": "Vacations",
     "saved": "Saved!",
-    "createThenAssign": "Create the chore, then set kids, rotation and vacations in the tabs."
+    "createThenAssign": "Create the task, then set kids, rotation and vacations in the tabs."
   },
   "choreDetail": {
     "backToBoard": "Back to Quest Board",
@@ -1187,7 +1188,7 @@
     "saveError": "Failed to create category.",
     "deleteError": "Failed to delete category.",
     "editCategory": "Edit category",
-    "scheduleWindow": "Display window — chores in this category only show on the kid's dashboard during this window. Leave empty to show at any time.",
+    "scheduleWindow": "Display window — tasks in this category only show on the kid's dashboard during this window. Leave empty to show at any time.",
     "windowStart": "Start",
     "windowEnd": "End",
     "windowBothRequired": "Fill in both times for the window, or leave both empty."
