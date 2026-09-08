@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Swords, Loader2, ListChecks, ChevronLeft, ChevronRight, Plus, X,
   UtensilsCrossed, Star, Pencil, ArrowLeft, CalendarDays, Images,
-  ListTodo, Check, LayoutDashboard, LogIn,
+  ListTodo, Check, LayoutDashboard, LogIn, Cake, CalendarPlus,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -17,6 +17,7 @@ const SIDEBAR_ITEMS = [
   { id: 'dashboard', labelKey: 'familyZone.navDashboard', icon: LayoutDashboard },
   { id: 'menu', labelKey: 'familyZone.navMenu', icon: UtensilsCrossed },
   { id: 'todo', labelKey: 'familyZone.navTodo', icon: ListTodo },
+  { id: 'birthdays', labelKey: 'familyZone.navBirthdays', icon: Cake },
 ];
 
 // Duration presets (minutes) offered on the add-event form.
@@ -50,6 +51,14 @@ function sameDate(a, b) {
 }
 function addDays(d, n) { const nd = new Date(d); nd.setDate(nd.getDate() + n); return nd; }
 function addMonths(d, n) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
+// Next occurrence (this year, or next if already passed) of a "YYYY-MM-DD"
+// birthday, relative to todayStart (a local midnight Date).
+function nextOccurrence(birthdayStr, todayStart) {
+  const [, mo, da] = birthdayStr.split('-').map(Number);
+  let occ = new Date(todayStart.getFullYear(), mo - 1, da);
+  if (occ < todayStart) occ = new Date(todayStart.getFullYear() + 1, mo - 1, da);
+  return occ;
+}
 function startOfWeek(d) {
   const nd = new Date(d);
   nd.setDate(nd.getDate() - ((nd.getDay() + 6) % 7));
@@ -178,6 +187,10 @@ export default function FamilyZone() {
   // ---------------------------------------------------------------------
   const [viewMode, setViewMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+  // Day shown in the "day detail" panel next to the calendar -- defaults to
+  // today, but clicking any day cell (week or month view) shows that day
+  // there instead.
+  const [selectedDay, setSelectedDay] = useState(() => new Date());
   const [monthCursor, setMonthCursor] = useState(() => {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
@@ -189,14 +202,35 @@ export default function FamilyZone() {
   const [savingEvent, setSavingEvent] = useState(false);
   const [members, setMembers] = useState([]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await api('/api/family-zone/members');
-        setMembers(Array.isArray(data) ? data : []);
-      } catch { /* the "for" dropdown just falls back to empty */ }
-    })();
+  const fetchMembers = useCallback(async () => {
+    try {
+      const data = await api('/api/family-zone/members');
+      setMembers(Array.isArray(data) ? data : []);
+    } catch { /* the "for" dropdown just falls back to empty */ }
   }, []);
+
+  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+
+  // ---------------------------------------------------------------------
+  // Birthdays
+  // ---------------------------------------------------------------------
+  const [savingBirthdayId, setSavingBirthdayId] = useState(null);
+  const [addingBirthdayId, setAddingBirthdayId] = useState(null);
+  const [birthdayMsg, setBirthdayMsg] = useState('');
+
+  const saveBirthday = async (memberId, value) => {
+    setSavingBirthdayId(memberId);
+    try {
+      await api(`/api/family-zone/members/${memberId}/birthday`, {
+        method: 'PUT',
+        body: { birthday: value || null },
+      });
+      await fetchMembers();
+    } catch { /* the field just keeps its previous value */ }
+    finally {
+      setSavingBirthdayId(null);
+    }
+  };
 
   const parentMembers = members.filter((m) => m.role === 'parent' || m.role === 'admin');
   const kidMembers = members.filter((m) => m.role === 'kid');
@@ -258,8 +292,9 @@ export default function FamilyZone() {
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   const openEventModal = () => {
-    const refDate = viewMode === 'week' ? today : monthCursor;
-    setEventForm({ title: '', date: ymd(refDate), time: '', duration_minutes: '60', all_day: false, member_id: '' });
+    // Defaults to the selected day (itself defaulting to today), not the
+    // 1st of whatever month is being browsed in month view.
+    setEventForm({ title: '', date: ymd(selectedDay), time: '', duration_minutes: '60', all_day: false, member_id: '' });
     setShowEventModal(true);
   };
 
@@ -385,22 +420,6 @@ export default function FamilyZone() {
   }, [fetchStars]);
 
   const topStars = stars.length > 0 ? Math.max(...stars.map((k) => k.points_balance), 1) : 1;
-
-  // Today's dinner, fetched independently of the (navigable) menu panel above
-  // so the recap panel always shows the real current day's dish regardless
-  // of which week the menu panel is currently browsing.
-  const [todayDish, setTodayDish] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const realToday = new Date();
-        const data = await api(`/api/family-zone/menu?week_start=${ymd(startOfWeek(realToday))}`);
-        const entry = Array.isArray(data) ? data.find((m) => m.date === ymd(realToday)) : null;
-        setTodayDish(entry?.dish || '');
-      } catch { /* recap panel just omits the menu line */ }
-    })();
-  }, []);
 
   // ---------------------------------------------------------------------
   // To-do list
@@ -611,14 +630,17 @@ export default function FamilyZone() {
           {weekDays.map((d) => {
             const dStr = ymd(d);
             const isToday = sameDate(d, today);
+            const isSelected = sameDate(d, selectedDay);
             const dayEvts = eventsFor(dStr);
             const dish = dishForCalendar(dStr);
             return (
-              <div
+              <button
                 key={dStr}
-                className={`rounded-md border p-2 min-h-[150px] flex flex-col gap-1.5 ${
-                  isToday ? 'border-accent bg-accent/5' : 'border-border bg-navy'
-                }`}
+                type="button"
+                onClick={() => setSelectedDay(d)}
+                className={`text-left rounded-md border p-2 min-h-[150px] flex flex-col gap-1.5 transition-colors hover:border-accent/60 ${
+                  isSelected ? 'ring-1 ring-accent' : ''
+                } ${isToday ? 'border-accent bg-accent/5' : 'border-border bg-navy'}`}
               >
                 <div className="flex items-baseline justify-between">
                   <span className={`text-[10px] font-bold uppercase tracking-wide ${isToday ? 'text-accent-light' : 'text-muted'}`}>
@@ -644,7 +666,7 @@ export default function FamilyZone() {
                     <span className="text-cream font-medium">{e.title}</span>
                   </div>
                 ))}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -659,17 +681,20 @@ export default function FamilyZone() {
             const dStr = ymd(d);
             const outside = d.getMonth() !== monthCursor.getMonth();
             const isToday = sameDate(d, today);
+            const isSelected = sameDate(d, selectedDay);
             const isPast = d < todayStart;
             const dayEvts = eventsFor(dStr);
             const shown = dayEvts.slice(0, 2);
             const rest = dayEvts.length - shown.length;
             const dish = dishForCalendar(dStr);
             return (
-              <div
+              <button
                 key={dStr}
-                className={`relative rounded-md border p-1 min-h-[64px] sm:min-h-[76px] flex flex-col gap-0.5 ${
+                type="button"
+                onClick={() => setSelectedDay(d)}
+                className={`relative text-left rounded-md border p-1 min-h-[64px] sm:min-h-[76px] flex flex-col gap-0.5 transition-colors hover:border-accent/60 ${
                   outside ? 'opacity-35' : ''
-                } ${isToday ? 'border-accent bg-accent/5' : 'border-border bg-navy'}`}
+                } ${isSelected ? 'ring-1 ring-accent' : ''} ${isToday ? 'border-accent bg-accent/5' : 'border-border bg-navy'}`}
               >
                 {isPast && (
                   <X size={36} strokeWidth={2.5} className="absolute inset-0 m-auto text-crimson/35 pointer-events-none" />
@@ -687,7 +712,7 @@ export default function FamilyZone() {
                   </div>
                 ))}
                 {rest > 0 && <span className="hidden sm:block text-[9px] text-muted pl-0.5">+{rest}</span>}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -695,38 +720,56 @@ export default function FamilyZone() {
     </div>
   );
 
+  const isSelectedToday = sameDate(selectedDay, today);
   const todayDetailSection = (
     <div className="game-panel p-4">
       <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-1">
         <CalendarDays size={15} className="text-accent" />
-        {t('familyZone.todayDetailTitle')}
+        {isSelectedToday ? t('familyZone.todayDetailTitle') : t('familyZone.selectedDayTitle')}
       </p>
-      <p className="text-muted text-xs mb-3 capitalize">{fullDateFmt.format(today)}</p>
-      {todayDish && (
+      <p className="text-muted text-xs mb-3 capitalize">{fullDateFmt.format(selectedDay)}</p>
+      {dishForCalendar(ymd(selectedDay)) && (
         <div className="flex items-center gap-2 text-sm mb-3 pb-3 border-b border-border">
           <UtensilsCrossed size={14} className="text-accent flex-shrink-0" />
-          <span className="text-cream">{todayDish}</span>
+          <span className="text-cream">{dishForCalendar(ymd(selectedDay))}</span>
         </div>
       )}
       {(() => {
-        const todayEvts = eventsFor(ymd(today));
-        if (todayEvts.length === 0) {
+        const dayEvts = eventsFor(ymd(selectedDay));
+        if (dayEvts.length === 0) {
           return <p className="text-muted text-sm">{t('familyZone.todayDetailEmpty')}</p>;
         }
+        // All-day events first, then by start time -- entries sharing the
+        // same start time (or all-day together) are grouped side by side.
+        const sorted = [...dayEvts].sort((a, b) => {
+          if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
+          return (a.time || '99:99').localeCompare(b.time || '99:99');
+        });
+        const groups = [];
+        sorted.forEach((e) => {
+          const key = e.all_day ? 'allday' : (e.time || 'none');
+          const last = groups[groups.length - 1];
+          if (last && last.key === key) last.items.push(e);
+          else groups.push({ key, items: [e] });
+        });
         return (
           <div className="flex flex-col gap-2">
-            {todayEvts.map((e) => (
-              <div
-                key={e.id}
-                className="rounded-md bg-surface-raised px-3 py-2 border-l-2"
-                style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}
-              >
-                {e.all_day ? (
-                  <span className="block font-mono text-accent-light text-xs mb-0.5">{t('familyZone.allDay')}</span>
-                ) : e.time && (
-                  <span className="block font-mono text-muted text-xs mb-0.5">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
-                )}
-                <span className="text-cream text-sm font-medium">{e.title}</span>
+            {groups.map((g, gi) => (
+              <div key={gi} className="flex gap-2">
+                {g.items.map((e) => (
+                  <div
+                    key={e.id}
+                    className="flex-1 min-w-0 rounded-md bg-surface-raised px-3 py-2 border-l-2"
+                    style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}
+                  >
+                    {e.all_day ? (
+                      <span className="block font-mono text-accent-light text-xs mb-0.5">{t('familyZone.allDay')}</span>
+                    ) : e.time && (
+                      <span className="block font-mono text-muted text-xs mb-0.5">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
+                    )}
+                    <span className="text-cream text-sm font-medium truncate block">{e.title}</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -959,6 +1002,85 @@ export default function FamilyZone() {
     </div>
   );
 
+  const addBirthdayToCalendar = async (member) => {
+    if (!member.birthday) return;
+    setAddingBirthdayId(member.id);
+    setBirthdayMsg('');
+    try {
+      const occ = nextOccurrence(member.birthday, todayStart);
+      await api('/api/family-zone/events', {
+        method: 'POST',
+        body: {
+          title: t('familyZone.birthdayEventTitle', { name: member.display_name }),
+          date: ymd(occ),
+          all_day: true,
+          member_id: member.id,
+        },
+      });
+      setBirthdayMsg(t('familyZone.birthdayAdded', { name: member.display_name }));
+      await fetchEvents();
+    } catch (err) {
+      setBirthdayMsg(err.message || t('familyZone.addEventError'));
+    } finally {
+      setAddingBirthdayId(null);
+    }
+  };
+
+  const birthdaysSection = (
+    <div className="game-panel p-4">
+      <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-1">
+        <Cake size={15} className="text-accent" />
+        {t('familyZone.navBirthdays')}
+      </p>
+      <p className="text-muted text-xs mb-3">{t('familyZone.birthdaysHint')}</p>
+      {birthdayMsg && (
+        <div className="mb-3 p-2 rounded-md border border-accent/30 bg-accent/10 text-accent text-xs">
+          {birthdayMsg}
+        </div>
+      )}
+      {members.length === 0 ? (
+        <p className="text-muted text-xs">{t('familyZone.noKidsYet')}</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {members.map((m) => {
+            const occ = m.birthday ? nextOccurrence(m.birthday, todayStart) : null;
+            const age = occ && m.birthday ? occ.getFullYear() - Number(m.birthday.slice(0, 4)) : null;
+            return (
+              <div key={m.id} className="flex items-center gap-2.5 flex-wrap">
+                <AvatarDisplay config={m.avatar_config} photoUrl={m.avatar_photo_url} size="sm" name={m.display_name} />
+                <span className="text-sm text-cream w-24 flex-shrink-0 truncate">{m.display_name}</span>
+                <input
+                  type="date"
+                  className="field-input !py-1 !text-xs !w-auto flex-shrink-0"
+                  defaultValue={m.birthday || ''}
+                  disabled={savingBirthdayId === m.id}
+                  onBlur={(e) => {
+                    if (e.target.value !== (m.birthday || '')) saveBirthday(m.id, e.target.value);
+                  }}
+                />
+                {occ && (
+                  <span className="text-muted text-xs flex-shrink-0">
+                    {t('familyZone.birthdayNext', { date: shortDateFmt.format(occ), age })}
+                  </span>
+                )}
+                {m.birthday && (
+                  <button
+                    onClick={() => addBirthdayToCalendar(m)}
+                    disabled={addingBirthdayId === m.id}
+                    className="game-btn !bg-surface !border !border-border text-muted hover:text-cream !py-1 !px-2 !text-xs flex items-center gap-1 flex-shrink-0 ml-auto"
+                  >
+                    {addingBirthdayId === m.id ? <Loader2 size={11} className="animate-spin" /> : <CalendarPlus size={11} />}
+                    {t('familyZone.addToCalendar')}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   const starsSection = (
     <div className="game-panel p-4">
       <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-3">
@@ -1067,6 +1189,7 @@ export default function FamilyZone() {
             )}
             {sidebarView === 'menu' && menuSection}
             {sidebarView === 'todo' && todoByUserSection}
+            {sidebarView === 'birthdays' && birthdaysSection}
           </div>
         </div>
       </div>

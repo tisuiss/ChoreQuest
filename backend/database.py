@@ -61,6 +61,7 @@ async def init_db():
             ("family_todos", "assignee_id", "INTEGER REFERENCES users(id)"),
             ("family_events", "duration_minutes", "INTEGER"),
             ("family_events", "all_day", "BOOLEAN DEFAULT 0"),
+            ("users", "birthday", "DATE"),
         ]
         for table, col, typedef in _migrations:
             try:

@@ -105,6 +105,7 @@ class User(Base):
     streak_freeze_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     avatar_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     avatar_photo_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    birthday: Mapped[date | None] = mapped_column(Date, nullable=True)
     language: Mapped[str | None] = mapped_column(String(5), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -16,6 +16,7 @@ from backend.schemas import (
     FamilyPhotoCreate,
     FamilyPhotoResponse,
     FamilyMemberResponse,
+    FamilyMemberBirthdayUpdate,
     FamilyTodoCreate,
     FamilyTodoUpdate,
     FamilyTodoResponse,
@@ -99,6 +100,33 @@ async def list_family_members(db: AsyncSession = Depends(get_db)):
         select(User).where(User.is_active == True).order_by(User.display_name)
     )
     return result.scalars().all()
+
+
+# ---------- PUT /members/{id}/birthday ----------
+@router.put("/members/{member_id}/birthday", response_model=FamilyMemberResponse)
+async def set_member_birthday(
+    member_id: int,
+    body: FamilyMemberBirthdayUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: set (or clear) a family member's birthday, same trust model
+    as the rest of the Family Zone screen -- powers the Birthdays sidebar,
+    which lists upcoming birthdays to add to the calendar."""
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limiter.check(f"family-zone-birthday:{client_ip}", 30, 900)
+
+    result = await db.execute(
+        select(User).where(User.id == member_id, User.is_active == True)
+    )
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    member.birthday = body.birthday
+    await db.commit()
+    await db.refresh(member)
+    return member
 
 
 # ---------- GET /menu ----------

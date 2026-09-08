@@ -103,8 +103,13 @@ class FamilyMemberResponse(BaseModel):
     role: UserRole
     avatar_config: dict | None = None
     avatar_photo_url: str | None = None
+    birthday: date | None = None
 
     model_config = {"from_attributes": True}
+
+
+class FamilyMemberBirthdayUpdate(BaseModel):
+    birthday: date | None = None
 
 
 class FamilyTodoCreate(BaseModel):
