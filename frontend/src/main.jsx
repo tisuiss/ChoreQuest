@@ -27,13 +27,32 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
 // Register service worker with auto-update detection
 if ('serviceWorker' in navigator) {
+  // Unattended, always-on screens (kiosk kid-selection/dashboard, the
+  // family wall display) have nobody around to click the "update
+  // available" prompt -- left stuck on an old cached bundle indefinitely,
+  // they'd keep running whatever bugs shipped before the last time someone
+  // happened to walk by and tap it. These apply a new build immediately
+  // (a brief auto-reload) instead of waiting for a click.
+  const isUnattendedScreen = () => {
+    const p = window.location.pathname;
+    return p.startsWith('/kiosk') || p.startsWith('/familyzone');
+  };
+
+  const applyUpdate = (reg) => {
+    if (isUnattendedScreen() && reg.waiting) {
+      reg.waiting.postMessage('SKIP_WAITING');
+    } else {
+      window.dispatchEvent(new CustomEvent('sw:update-available', { detail: reg }));
+    }
+  };
+
   window.addEventListener('load', async () => {
     try {
       const reg = await navigator.serviceWorker.register('/sw.js');
 
       // If a new SW is already waiting (e.g. installed while tab was idle)
       if (reg.waiting) {
-        window.dispatchEvent(new CustomEvent('sw:update-available', { detail: reg }));
+        applyUpdate(reg);
       }
 
       // Detect newly installed SW entering the waiting state
@@ -42,7 +61,7 @@ if ('serviceWorker' in navigator) {
         if (!newWorker) return;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            window.dispatchEvent(new CustomEvent('sw:update-available', { detail: reg }));
+            applyUpdate(reg);
           }
         });
       });
