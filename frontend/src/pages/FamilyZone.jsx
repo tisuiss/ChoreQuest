@@ -58,9 +58,27 @@ export default function FamilyZone() {
   );
 
   // ---------------------------------------------------------------------
+  // Responsive layout
+  // ---------------------------------------------------------------------
+  // The 2-column "grid" layout (calendar + stacked menu/todo/stars) needs
+  // real width to breathe -- below the same breakpoint used for that grid
+  // split (Tailwind's lg, 1024px) it's cramped, so narrow windows always
+  // fall back to the one-section-at-a-time "tabs" layout regardless of
+  // what's configured in kiosk settings. Wide windows keep the configured
+  // preference.
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const isNarrowWindow = windowWidth < 1024;
+
+  // ---------------------------------------------------------------------
   // Kids quick access
   // ---------------------------------------------------------------------
   const [layoutMode, setLayoutMode] = useState('grid');
+  const effectiveLayoutMode = isNarrowWindow ? 'tabs' : layoutMode;
   const [activeSection, setActiveSection] = useState('calendar');
   const [kids, setKids] = useState([]);
   const [kidsError, setKidsError] = useState('');
@@ -862,7 +880,7 @@ export default function FamilyZone() {
           </button>
         </div>
 
-        {layoutMode === 'tabs' ? (
+        {effectiveLayoutMode === 'tabs' ? (
           <>
             {kidsSection}
             <div className="flex items-center gap-0.5 bg-navy/60 rounded-md p-0.5 mb-5 overflow-x-auto">
