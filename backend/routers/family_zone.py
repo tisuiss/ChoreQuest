@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import User, UserRole, FamilyEvent, WeeklyMenuEntry, FamilyPhoto, FamilyTodo
+from backend.models import User, UserRole, FamilyEvent, WeeklyMenuEntry, FamilyPhoto, FamilyTodo, FamilyBirthday
 from backend.schemas import (
     FamilyEventCreate,
     FamilyEventResponse,
@@ -16,7 +16,8 @@ from backend.schemas import (
     FamilyPhotoCreate,
     FamilyPhotoResponse,
     FamilyMemberResponse,
-    FamilyMemberBirthdayUpdate,
+    FamilyBirthdayCreate,
+    FamilyBirthdayResponse,
     FamilyTodoCreate,
     FamilyTodoUpdate,
     FamilyTodoResponse,
@@ -102,31 +103,54 @@ async def list_family_members(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 
-# ---------- PUT /members/{id}/birthday ----------
-@router.put("/members/{member_id}/birthday", response_model=FamilyMemberResponse)
-async def set_member_birthday(
-    member_id: int,
-    body: FamilyMemberBirthdayUpdate,
+# ---------------------------------------------------------------------------
+# Birthdays
+# ---------------------------------------------------------------------------
+# A free-form birthday book on the Family Zone screen -- any loved one, not
+# just people with a ChoreQuest account (grandparents, friends, etc.). Public
+# read/write, same trust model as the rest of the screen. Sorting by next
+# occurrence (rather than the raw stored date) is done client-side.
+
+# ---------- GET /birthdays ----------
+@router.get("/birthdays", response_model=list[FamilyBirthdayResponse])
+async def list_birthdays(db: AsyncSession = Depends(get_db)):
+    """Public: every tracked birthday."""
+    result = await db.execute(select(FamilyBirthday).order_by(FamilyBirthday.name))
+    return result.scalars().all()
+
+
+# ---------- POST /birthdays ----------
+@router.post("/birthdays", response_model=FamilyBirthdayResponse, status_code=201)
+async def create_birthday(
+    body: FamilyBirthdayCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Public: set (or clear) a family member's birthday, same trust model
-    as the rest of the Family Zone screen -- powers the Birthdays sidebar,
-    which lists upcoming birthdays to add to the calendar."""
+    """Public: add a birthday to track."""
     client_ip = request.client.host if request.client else "unknown"
-    rate_limiter.check(f"family-zone-birthday:{client_ip}", 30, 900)
+    rate_limiter.check(f"family-zone-birthdays:{client_ip}", 30, 900)
 
-    result = await db.execute(
-        select(User).where(User.id == member_id, User.is_active == True)
-    )
-    member = result.scalar_one_or_none()
-    if member is None:
-        raise HTTPException(status_code=404, detail="Member not found")
-
-    member.birthday = body.birthday
+    birthday = FamilyBirthday(name=body.name, date=body.date)
+    db.add(birthday)
     await db.commit()
-    await db.refresh(member)
-    return member
+    await db.refresh(birthday)
+    return birthday
+
+
+# ---------- DELETE /birthdays/{id} ----------
+@router.delete("/birthdays/{birthday_id}", status_code=204)
+async def delete_birthday(
+    birthday_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: remove a tracked birthday."""
+    result = await db.execute(select(FamilyBirthday).where(FamilyBirthday.id == birthday_id))
+    birthday = result.scalar_one_or_none()
+    if birthday is None:
+        raise HTTPException(status_code=404, detail="Birthday not found")
+    await db.delete(birthday)
+    await db.commit()
+    return None
 
 
 # ---------- GET /menu ----------

@@ -105,7 +105,6 @@ class User(Base):
     streak_freeze_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     avatar_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     avatar_photo_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    birthday: Mapped[date | None] = mapped_column(Date, nullable=True)
     language: Mapped[str | None] = mapped_column(String(5), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -514,6 +513,18 @@ class FamilyTodo(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     assignee = relationship("User")
+
+
+class FamilyBirthday(Base):
+    """A birthday tracked on the Family Zone screen -- any loved one, not
+    just people with a ChoreQuest account (grandparents, friends, etc.).
+    `date` is the actual birth date, used both to compute age and to derive
+    the yearly month/day for the next occurrence."""
+    __tablename__ = "family_birthdays"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class KidVacationPeriod(Base):

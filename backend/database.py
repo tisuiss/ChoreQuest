@@ -27,7 +27,7 @@ async def init_db():
             Notification, ApiKey, AuditLog, AppSetting,
             InviteCode, RefreshToken, PushSubscription,
             Shoutout, VacationPeriod, ChoreVacationPeriod, KidVacationPeriod,
-            FamilyEvent, WeeklyMenuEntry, FamilyPhoto, FamilyTodo,
+            FamilyEvent, WeeklyMenuEntry, FamilyPhoto, FamilyTodo, FamilyBirthday,
         )
         await conn.run_sync(Base.metadata.create_all)
 
@@ -61,7 +61,6 @@ async def init_db():
             ("family_todos", "assignee_id", "INTEGER REFERENCES users(id)"),
             ("family_events", "duration_minutes", "INTEGER"),
             ("family_events", "all_day", "BOOLEAN DEFAULT 0"),
-            ("users", "birthday", "DATE"),
         ]
         for table, col, typedef in _migrations:
             try:

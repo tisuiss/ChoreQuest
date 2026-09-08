@@ -212,23 +212,61 @@ export default function FamilyZone() {
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
   // ---------------------------------------------------------------------
-  // Birthdays
+  // Birthdays -- a free-form list (any loved one, not just app members)
   // ---------------------------------------------------------------------
-  const [savingBirthdayId, setSavingBirthdayId] = useState(null);
+  const [birthdays, setBirthdays] = useState([]);
+  const [birthdaysError, setBirthdaysError] = useState('');
+  const [showBirthdayModal, setShowBirthdayModal] = useState(false);
+  const [birthdayForm, setBirthdayForm] = useState({ name: '', date: '' });
+  const [savingBirthday, setSavingBirthday] = useState(false);
+  const [deletingBirthdayId, setDeletingBirthdayId] = useState(null);
   const [addingBirthdayId, setAddingBirthdayId] = useState(null);
   const [birthdayMsg, setBirthdayMsg] = useState('');
 
-  const saveBirthday = async (memberId, value) => {
-    setSavingBirthdayId(memberId);
+  const fetchBirthdays = useCallback(async () => {
     try {
-      await api(`/api/family-zone/members/${memberId}/birthday`, {
-        method: 'PUT',
-        body: { birthday: value || null },
+      const data = await api('/api/family-zone/birthdays');
+      setBirthdays(Array.isArray(data) ? data : []);
+      setBirthdaysError('');
+    } catch (err) {
+      setBirthdaysError(err.message || t('familyZone.birthdaysLoadError'));
+    }
+  }, [t]);
+
+  useEffect(() => { fetchBirthdays(); }, [fetchBirthdays]);
+
+  const openBirthdayModal = () => {
+    setBirthdayForm({ name: '', date: '' });
+    setShowBirthdayModal(true);
+  };
+
+  const submitBirthday = async (e) => {
+    e.preventDefault();
+    if (!birthdayForm.name.trim() || !birthdayForm.date) return;
+    setSavingBirthday(true);
+    try {
+      await api('/api/family-zone/birthdays', {
+        method: 'POST',
+        body: { name: birthdayForm.name.trim(), date: birthdayForm.date },
       });
-      await fetchMembers();
-    } catch { /* the field just keeps its previous value */ }
-    finally {
-      setSavingBirthdayId(null);
+      setShowBirthdayModal(false);
+      await fetchBirthdays();
+    } catch (err) {
+      setBirthdaysError(err.message || t('familyZone.birthdaySaveError'));
+    } finally {
+      setSavingBirthday(false);
+    }
+  };
+
+  const removeBirthday = async (id) => {
+    setDeletingBirthdayId(id);
+    try {
+      await api(`/api/family-zone/birthdays/${id}`, { method: 'DELETE' });
+      setBirthdays((prev) => prev.filter((b) => b.id !== id));
+    } catch (err) {
+      setBirthdaysError(err.message || t('familyZone.birthdayRemoveError'));
+    } finally {
+      setDeletingBirthdayId(null);
     }
   };
 
@@ -619,6 +657,22 @@ export default function FamilyZone() {
         </div>
       </div>
 
+      {/* Legend -- which color on the calendar belongs to whom */}
+      {members.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 px-0.5">
+          <span className="flex items-center gap-1.5 text-muted text-[10.5px]">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForMember(null)})` }} />
+            {t('familyZone.wholeFamily')}
+          </span>
+          {members.map((m) => (
+            <span key={m.id} className="flex items-center gap-1.5 text-muted text-[10.5px]">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForMember(m.id)})` }} />
+              {m.display_name}
+            </span>
+          ))}
+        </div>
+      )}
+
       {eventsError && (
         <div className="mb-3 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
           {eventsError}
@@ -1002,22 +1056,20 @@ export default function FamilyZone() {
     </div>
   );
 
-  const addBirthdayToCalendar = async (member) => {
-    if (!member.birthday) return;
-    setAddingBirthdayId(member.id);
+  const addBirthdayToCalendar = async (birthday) => {
+    setAddingBirthdayId(birthday.id);
     setBirthdayMsg('');
     try {
-      const occ = nextOccurrence(member.birthday, todayStart);
+      const occ = nextOccurrence(birthday.date, todayStart);
       await api('/api/family-zone/events', {
         method: 'POST',
         body: {
-          title: t('familyZone.birthdayEventTitle', { name: member.display_name }),
+          title: t('familyZone.birthdayEventTitle', { name: birthday.name }),
           date: ymd(occ),
           all_day: true,
-          member_id: member.id,
         },
       });
-      setBirthdayMsg(t('familyZone.birthdayAdded', { name: member.display_name }));
+      setBirthdayMsg(t('familyZone.birthdayAdded', { name: birthday.name }));
       await fetchEvents();
     } catch (err) {
       setBirthdayMsg(err.message || t('familyZone.addEventError'));
@@ -1026,53 +1078,63 @@ export default function FamilyZone() {
     }
   };
 
+  // Sorted by next upcoming occurrence, not the raw stored date.
+  const sortedBirthdays = [...birthdays].sort(
+    (a, b) => nextOccurrence(a.date, todayStart) - nextOccurrence(b.date, todayStart)
+  );
+
   const birthdaysSection = (
     <div className="game-panel p-4">
-      <p className="text-cream text-sm font-bold flex items-center gap-1.5 mb-1">
-        <Cake size={15} className="text-accent" />
-        {t('familyZone.navBirthdays')}
-      </p>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <p className="text-cream text-sm font-bold flex items-center gap-1.5">
+          <Cake size={15} className="text-accent" />
+          {t('familyZone.navBirthdays')}
+        </p>
+        <button onClick={openBirthdayModal} className="game-btn game-btn-blue !py-1.5 !px-3 flex items-center gap-1.5 !text-xs flex-shrink-0">
+          <Plus size={13} />
+          {t('familyZone.addBirthday')}
+        </button>
+      </div>
       <p className="text-muted text-xs mb-3">{t('familyZone.birthdaysHint')}</p>
+      {birthdaysError && (
+        <div className="mb-3 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
+          {birthdaysError}
+        </div>
+      )}
       {birthdayMsg && (
         <div className="mb-3 p-2 rounded-md border border-accent/30 bg-accent/10 text-accent text-xs">
           {birthdayMsg}
         </div>
       )}
-      {members.length === 0 ? (
-        <p className="text-muted text-xs">{t('familyZone.noKidsYet')}</p>
+      {sortedBirthdays.length === 0 ? (
+        <p className="text-muted text-xs">{t('familyZone.birthdaysEmpty')}</p>
       ) : (
-        <div className="flex flex-col gap-3">
-          {members.map((m) => {
-            const occ = m.birthday ? nextOccurrence(m.birthday, todayStart) : null;
-            const age = occ && m.birthday ? occ.getFullYear() - Number(m.birthday.slice(0, 4)) : null;
+        <div className="flex flex-col gap-2">
+          {sortedBirthdays.map((b) => {
+            const occ = nextOccurrence(b.date, todayStart);
+            const age = occ.getFullYear() - Number(b.date.slice(0, 4));
             return (
-              <div key={m.id} className="flex items-center gap-2.5 flex-wrap">
-                <AvatarDisplay config={m.avatar_config} photoUrl={m.avatar_photo_url} size="sm" name={m.display_name} />
-                <span className="text-sm text-cream w-24 flex-shrink-0 truncate">{m.display_name}</span>
-                <input
-                  type="date"
-                  className="field-input !py-1 !text-xs !w-auto flex-shrink-0"
-                  defaultValue={m.birthday || ''}
-                  disabled={savingBirthdayId === m.id}
-                  onBlur={(e) => {
-                    if (e.target.value !== (m.birthday || '')) saveBirthday(m.id, e.target.value);
-                  }}
-                />
-                {occ && (
-                  <span className="text-muted text-xs flex-shrink-0">
-                    {t('familyZone.birthdayNext', { date: shortDateFmt.format(occ), age })}
-                  </span>
-                )}
-                {m.birthday && (
-                  <button
-                    onClick={() => addBirthdayToCalendar(m)}
-                    disabled={addingBirthdayId === m.id}
-                    className="game-btn !bg-surface !border !border-border text-muted hover:text-cream !py-1 !px-2 !text-xs flex items-center gap-1 flex-shrink-0 ml-auto"
-                  >
-                    {addingBirthdayId === m.id ? <Loader2 size={11} className="animate-spin" /> : <CalendarPlus size={11} />}
-                    {t('familyZone.addToCalendar')}
-                  </button>
-                )}
+              <div key={b.id} className="flex items-center gap-2.5 flex-wrap py-1.5 border-t border-border first:border-t-0 group">
+                <span className="text-sm text-cream flex-1 min-w-[100px] truncate">{b.name}</span>
+                <span className="text-muted text-xs flex-shrink-0">
+                  {t('familyZone.birthdayNext', { date: shortDateFmt.format(occ), age })}
+                </span>
+                <button
+                  onClick={() => addBirthdayToCalendar(b)}
+                  disabled={addingBirthdayId === b.id}
+                  className="game-btn !bg-surface !border !border-border text-muted hover:text-cream !py-1 !px-2 !text-xs flex items-center gap-1 flex-shrink-0"
+                >
+                  {addingBirthdayId === b.id ? <Loader2 size={11} className="animate-spin" /> : <CalendarPlus size={11} />}
+                  {t('familyZone.addToCalendar')}
+                </button>
+                <button
+                  onClick={() => removeBirthday(b.id)}
+                  disabled={deletingBirthdayId === b.id}
+                  className="text-muted hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  aria-label={t('common.delete')}
+                >
+                  {deletingBirthdayId === b.id ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                </button>
               </div>
             );
           })}
@@ -1341,6 +1403,56 @@ export default function FamilyZone() {
                 </button>
                 <button type="submit" disabled={savingEvent} className="game-btn game-btn-blue flex items-center gap-1.5">
                   {savingEvent && <Loader2 size={13} className="animate-spin" />}
+                  {t('familyZone.add')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add birthday modal */}
+      {showBirthdayModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowBirthdayModal(false); }}>
+          <div className="game-panel w-full max-w-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-cream text-sm font-bold">{t('familyZone.addBirthdayTitle')}</p>
+              <button onClick={() => setShowBirthdayModal(false)} className="text-muted hover:text-cream">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={submitBirthday}>
+              <div className="mb-3">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                  {t('familyZone.birthdayNameLabel')}
+                </label>
+                <input
+                  className="field-input"
+                  value={birthdayForm.name}
+                  onChange={(e) => setBirthdayForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder={t('familyZone.birthdayNamePlaceholder')}
+                  required
+                  maxLength={100}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                  {t('familyZone.dateLabel')}
+                </label>
+                <input
+                  type="date"
+                  className="field-input"
+                  value={birthdayForm.date}
+                  onChange={(e) => setBirthdayForm((f) => ({ ...f, date: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowBirthdayModal(false)} className="game-btn !bg-transparent !border !border-border text-muted hover:text-cream">
+                  {t('familyZone.cancel')}
+                </button>
+                <button type="submit" disabled={savingBirthday} className="game-btn game-btn-blue flex items-center gap-1.5">
+                  {savingBirthday && <Loader2 size={13} className="animate-spin" />}
                   {t('familyZone.add')}
                 </button>
               </div>
