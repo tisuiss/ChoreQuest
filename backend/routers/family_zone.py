@@ -1,3 +1,4 @@
+import calendar as calendar_module
 import os
 from datetime import date, timedelta
 
@@ -9,6 +10,7 @@ from backend.database import get_db
 from backend.models import User, UserRole, FamilyEvent, WeeklyMenuEntry, FamilyPhoto, FamilyTodo, FamilyBirthday
 from backend.schemas import (
     FamilyEventCreate,
+    FamilyEventUpdate,
     FamilyEventResponse,
     WeeklyMenuUpsert,
     WeeklyMenuResponse,
@@ -17,6 +19,7 @@ from backend.schemas import (
     FamilyPhotoResponse,
     FamilyMemberResponse,
     FamilyBirthdayCreate,
+    FamilyBirthdayUpdate,
     FamilyBirthdayResponse,
     FamilyTodoCreate,
     FamilyTodoUpdate,
@@ -27,6 +30,50 @@ from backend.dependencies import require_parent
 from backend.routers.uploads import UPLOAD_DIR
 
 router = APIRouter(prefix="/api/family-zone", tags=["family-zone"])
+
+REPEAT_FREQUENCIES = ("daily", "weekly", "monthly", "yearly")
+REPEAT_MAX_OCCURRENCES = 104  # ~2 years of weekly, safety cap either way
+
+
+def _add_interval(d: date, frequency: str) -> date:
+    if frequency == "daily":
+        return d + timedelta(days=1)
+    if frequency == "weekly":
+        return d + timedelta(days=7)
+    if frequency == "monthly":
+        month = d.month + 1
+        year = d.year + (month - 1) // 12
+        month = ((month - 1) % 12) + 1
+        day = min(d.day, calendar_module.monthrange(year, month)[1])
+        return date(year, month, day)
+    # yearly -- Feb 29 on a non-leap target year falls back to Feb 28
+    try:
+        return d.replace(year=d.year + 1)
+    except ValueError:
+        return d.replace(year=d.year + 1, day=28)
+
+
+def _repeat_occurrence_dates(start: date, frequency: str, until: date) -> list[date]:
+    """Every additional occurrence date after `start`, stepping by
+    `frequency`, up to and including `until` -- capped so a mistyped "until"
+    (e.g. decades out) can't generate an unbounded number of rows."""
+    dates = []
+    current = start
+    while len(dates) < REPEAT_MAX_OCCURRENCES:
+        current = _add_interval(current, frequency)
+        if current > until:
+            break
+        dates.append(current)
+    return dates
+
+
+def _validate_birthday_day(month: int, day: int) -> None:
+    """Reject an impossible day/month combo (e.g. Feb 30) -- 2000 is a leap
+    year so Feb 29 is accepted for a birthday with no year on file."""
+    try:
+        date(2000, month, day)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid day for that month")
 
 
 # ---------- GET /events ----------
@@ -52,6 +99,46 @@ async def list_family_events(
     return result.scalars().all()
 
 
+async def _resolve_event_target(db: AsyncSession, body) -> int | None:
+    """Validate target_group/member_id and return the effective member_id.
+
+    A generic group target (parents/kids) and a specific member are
+    mutually exclusive -- the group wins if both were somehow sent.
+    """
+    if body.target_group is not None and body.target_group not in ("parents", "kids"):
+        raise HTTPException(status_code=400, detail="target_group must be 'parents' or 'kids'")
+
+    member_id = None if body.target_group else body.member_id
+    if member_id is not None:
+        member_result = await db.execute(
+            select(User).where(User.id == member_id, User.is_active == True)
+        )
+        if member_result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Member not found")
+    return member_id
+
+
+async def _create_repeat_occurrences(db: AsyncSession, base: FamilyEvent, repeat) -> None:
+    """Add one FamilyEvent row per additional occurrence of `repeat`, each a
+    copy of `base` on a later date. `base` itself is left untouched -- it's
+    already the first occurrence."""
+    if repeat is None:
+        return
+    if repeat.frequency not in REPEAT_FREQUENCIES:
+        raise HTTPException(status_code=400, detail="Invalid repeat frequency")
+
+    for occ_date in _repeat_occurrence_dates(base.date, repeat.frequency, repeat.until):
+        db.add(FamilyEvent(
+            title=base.title,
+            date=occ_date,
+            time=base.time,
+            duration_minutes=base.duration_minutes,
+            all_day=base.all_day,
+            member_id=base.member_id,
+            target_group=base.target_group,
+        ))
+
+
 # ---------- POST /events ----------
 @router.post("/events", response_model=FamilyEventResponse, status_code=201)
 async def create_family_event(
@@ -59,7 +146,8 @@ async def create_family_event(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Public: add an event from the Family Zone screen.
+    """Public: add an event from the Family Zone screen -- optionally
+    repeated, in which case one row per occurrence is created.
 
     No login required, on purpose -- this mirrors the kiosk's trust model
     (a device already physically secured in the home), so any family member
@@ -68,19 +156,7 @@ async def create_family_event(
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-events:{client_ip}", 30, 900)
 
-    if body.target_group is not None and body.target_group not in ("parents", "kids"):
-        raise HTTPException(status_code=400, detail="target_group must be 'parents' or 'kids'")
-
-    # A generic group target (parents/kids) and a specific member are
-    # mutually exclusive -- the group wins if both were somehow sent.
-    member_id = None if body.target_group else body.member_id
-
-    if member_id is not None:
-        member_result = await db.execute(
-            select(User).where(User.id == member_id, User.is_active == True)
-        )
-        if member_result.scalar_one_or_none() is None:
-            raise HTTPException(status_code=404, detail="Member not found")
+    member_id = await _resolve_event_target(db, body)
 
     # An all-day event has no meaningful start time/duration -- normalize
     # server-side regardless of what the client happened to send.
@@ -94,9 +170,61 @@ async def create_family_event(
         target_group=body.target_group,
     )
     db.add(event)
+    await _create_repeat_occurrences(db, event, body.repeat)
     await db.commit()
     await db.refresh(event)
     return event
+
+
+# ---------- PUT /events/{id} ----------
+@router.put("/events/{event_id}", response_model=FamilyEventResponse)
+async def update_family_event(
+    event_id: int,
+    body: FamilyEventUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: edit an event -- same trust model as creating one. A repeat
+    option here only adds new future occurrences; it never touches other
+    rows from a previous repeat batch."""
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limiter.check(f"family-zone-events:{client_ip}", 30, 900)
+
+    result = await db.execute(select(FamilyEvent).where(FamilyEvent.id == event_id))
+    event = result.scalar_one_or_none()
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    member_id = await _resolve_event_target(db, body)
+
+    event.title = body.title
+    event.date = body.date
+    event.time = None if body.all_day else body.time
+    event.duration_minutes = None if body.all_day else body.duration_minutes
+    event.all_day = body.all_day
+    event.member_id = member_id
+    event.target_group = body.target_group
+
+    await _create_repeat_occurrences(db, event, body.repeat)
+    await db.commit()
+    await db.refresh(event)
+    return event
+
+
+# ---------- DELETE /events/{id} ----------
+@router.delete("/events/{event_id}", status_code=204)
+async def delete_family_event(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: remove a single event occurrence."""
+    result = await db.execute(select(FamilyEvent).where(FamilyEvent.id == event_id))
+    event = result.scalar_one_or_none()
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    await db.delete(event)
+    await db.commit()
+    return None
 
 
 # ---------- GET /members ----------
@@ -138,15 +266,40 @@ async def create_birthday(
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"family-zone-birthdays:{client_ip}", 30, 900)
 
-    # Reject an impossible day/month combo (e.g. Feb 30) -- 2000 is a leap
-    # year so Feb 29 is accepted for a birthday with no year on file.
-    try:
-        date(2000, body.month, body.day)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid day for that month")
+    _validate_birthday_day(body.month, body.day)
 
     birthday = FamilyBirthday(name=body.name, month=body.month, day=body.day, year=body.year)
     db.add(birthday)
+    await db.commit()
+    await db.refresh(birthday)
+    return birthday
+
+
+# ---------- PUT /birthdays/{id} ----------
+@router.put("/birthdays/{birthday_id}", response_model=FamilyBirthdayResponse)
+async def update_birthday(
+    birthday_id: int,
+    body: FamilyBirthdayUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: edit a tracked birthday. Does not touch any calendar events
+    created from it before the edit -- use "Add to calendar" again to
+    (re)generate occurrences from the updated date."""
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limiter.check(f"family-zone-birthdays:{client_ip}", 30, 900)
+
+    result = await db.execute(select(FamilyBirthday).where(FamilyBirthday.id == birthday_id))
+    birthday = result.scalar_one_or_none()
+    if birthday is None:
+        raise HTTPException(status_code=404, detail="Birthday not found")
+
+    _validate_birthday_day(body.month, body.day)
+
+    birthday.name = body.name
+    birthday.month = body.month
+    birthday.day = body.day
+    birthday.year = body.year
     await db.commit()
     await db.refresh(birthday)
     return birthday

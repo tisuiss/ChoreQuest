@@ -54,6 +54,11 @@ class KioskLoginRequest(BaseModel):
 
 
 # Family Zone
+class FamilyEventRepeat(BaseModel):
+    frequency: str  # 'daily' | 'weekly' | 'monthly' | 'yearly'
+    until: date
+
+
 class FamilyEventCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     date: date
@@ -62,6 +67,18 @@ class FamilyEventCreate(BaseModel):
     all_day: bool = False
     member_id: int | None = None
     target_group: str | None = None
+    repeat: FamilyEventRepeat | None = None
+
+
+class FamilyEventUpdate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    date: date
+    time: OptionalTime = None
+    duration_minutes: int | None = Field(None, gt=0)
+    all_day: bool = False
+    member_id: int | None = None
+    target_group: str | None = None
+    repeat: FamilyEventRepeat | None = None
 
 
 class FamilyEventResponse(BaseModel):
@@ -110,6 +127,13 @@ class FamilyMemberResponse(BaseModel):
 
 
 class FamilyBirthdayCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    month: int = Field(ge=1, le=12)
+    day: int = Field(ge=1, le=31)
+    year: int | None = Field(None, ge=1900, le=2100)
+
+
+class FamilyBirthdayUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     month: int = Field(ge=1, le=12)
     day: int = Field(ge=1, le=31)

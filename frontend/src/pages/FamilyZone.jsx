@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Swords, Loader2, ListChecks, ChevronLeft, ChevronRight, Plus, X,
   UtensilsCrossed, Star, Pencil, ArrowLeft, CalendarDays, Images,
-  ListTodo, Check, LayoutDashboard, LogIn, Cake, CalendarPlus,
+  ListTodo, Check, LayoutDashboard, LogIn, Cake, CalendarPlus, Trash2,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -13,8 +13,26 @@ import AvatarDisplay from '../components/AvatarDisplay';
 
 // Fixed, theme-independent colors only (unlike "accent"/"sky", which shift
 // with the family's chosen color theme and could visually collide with one
-// of these) -- offered as the calendar color picker's palette.
-const MEMBER_COLORS = ['gold', 'purple', 'emerald', 'crimson', 'rose', 'cyan', 'amber', 'lime'];
+// of these) -- offered as the calendar color picker's palette (+ "sky" as a
+// 15th, deliberately-picked-only option -- see Settings.jsx).
+const MEMBER_COLORS = [
+  'gold', 'purple', 'emerald', 'crimson', 'rose', 'cyan', 'amber', 'lime',
+  'indigo', 'teal', 'orange', 'fuchsia', 'blue', 'pink',
+];
+
+// A small color swatch with the label's first letter inside -- used in the
+// calendar legend so each color is identifiable even without reading the
+// name next to it (e.g. at a glance from across the room on a wall display).
+function ColorDot({ color, label }) {
+  return (
+    <span
+      className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold text-white leading-none [text-shadow:0_1px_1px_rgba(0,0,0,0.45)]"
+      style={{ background: `var(--color-${color})` }}
+    >
+      {label?.trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
 
 const SIDEBAR_ITEMS = [
   { id: 'dashboard', labelKey: 'familyZone.navDashboard', icon: LayoutDashboard },
@@ -221,8 +239,11 @@ export default function FamilyZone() {
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState('');
   const [showEventModal, setShowEventModal] = useState(false);
-  const [eventForm, setEventForm] = useState({ title: '', date: '', time: '', duration_minutes: '60', all_day: false, member_id: '' });
+  const [editingEvent, setEditingEvent] = useState(null); // null = creating
+  const emptyEventForm = { title: '', date: '', time: '', duration_minutes: '60', all_day: false, member_id: '', repeat_frequency: '', repeat_until: '' };
+  const [eventForm, setEventForm] = useState(emptyEventForm);
   const [savingEvent, setSavingEvent] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState(false);
   const [members, setMembers] = useState([]);
 
   const fetchMembers = useCallback(async () => {
@@ -240,6 +261,7 @@ export default function FamilyZone() {
   const [birthdays, setBirthdays] = useState([]);
   const [birthdaysError, setBirthdaysError] = useState('');
   const [showBirthdayModal, setShowBirthdayModal] = useState(false);
+  const [editingBirthday, setEditingBirthday] = useState(null); // null = creating
   const [birthdayForm, setBirthdayForm] = useState({ name: '', day: '', month: '', year: '' });
   const [savingBirthday, setSavingBirthday] = useState(false);
   const [deletingBirthdayId, setDeletingBirthdayId] = useState(null);
@@ -259,7 +281,19 @@ export default function FamilyZone() {
   useEffect(() => { fetchBirthdays(); }, [fetchBirthdays]);
 
   const openBirthdayModal = () => {
+    setEditingBirthday(null);
     setBirthdayForm({ name: '', day: '', month: '', year: '' });
+    setShowBirthdayModal(true);
+  };
+
+  const openEditBirthdayModal = (birthday) => {
+    setEditingBirthday(birthday);
+    setBirthdayForm({
+      name: birthday.name,
+      day: String(birthday.day),
+      month: String(birthday.month),
+      year: birthday.year != null ? String(birthday.year) : '',
+    });
     setShowBirthdayModal(true);
   };
 
@@ -267,17 +301,24 @@ export default function FamilyZone() {
     e.preventDefault();
     if (!birthdayForm.name.trim() || !birthdayForm.day || !birthdayForm.month) return;
     setSavingBirthday(true);
+    const body = {
+      name: birthdayForm.name.trim(),
+      day: Number(birthdayForm.day),
+      month: Number(birthdayForm.month),
+      year: birthdayForm.year ? Number(birthdayForm.year) : null,
+    };
     try {
-      await api('/api/family-zone/birthdays', {
-        method: 'POST',
-        body: {
-          name: birthdayForm.name.trim(),
-          day: Number(birthdayForm.day),
-          month: Number(birthdayForm.month),
-          year: birthdayForm.year ? Number(birthdayForm.year) : null,
-        },
-      });
+      if (editingBirthday) {
+        await api(`/api/family-zone/birthdays/${editingBirthday.id}`, { method: 'PUT', body });
+      } else {
+        // Automatically populate the calendar with ~10 years of yearly
+        // occurrences as soon as the birthday is entered -- "Add to
+        // calendar" on each row stays available afterward to re-sync.
+        const created = await api('/api/family-zone/birthdays', { method: 'POST', body });
+        addBirthdayToCalendar(created);
+      }
       setShowBirthdayModal(false);
+      setEditingBirthday(null);
       await fetchBirthdays();
     } catch (err) {
       setBirthdaysError(err.message || t('familyZone.birthdaySaveError'));
@@ -360,7 +401,23 @@ export default function FamilyZone() {
   const openEventModal = () => {
     // Defaults to the selected day (itself defaulting to today), not the
     // 1st of whatever month is being browsed in month view.
-    setEventForm({ title: '', date: ymd(selectedDay), time: '', duration_minutes: '60', all_day: false, member_id: '' });
+    setEditingEvent(null);
+    setEventForm({ ...emptyEventForm, date: ymd(selectedDay) });
+    setShowEventModal(true);
+  };
+
+  const openEditEventModal = (event) => {
+    setEditingEvent(event);
+    setEventForm({
+      title: event.title,
+      date: event.date,
+      time: event.time ? event.time.slice(0, 5) : '',
+      duration_minutes: event.duration_minutes ? String(event.duration_minutes) : '',
+      all_day: event.all_day,
+      member_id: event.target_group || (event.member_id != null ? String(event.member_id) : ''),
+      repeat_frequency: '',
+      repeat_until: '',
+    });
     setShowEventModal(true);
   };
 
@@ -371,28 +428,49 @@ export default function FamilyZone() {
     // eventForm.member_id doubles as the "for" selection: '' (whole family),
     // 'parents' / 'kids' (generic group), or a member's numeric id as a string.
     const isGroup = eventForm.member_id === 'parents' || eventForm.member_id === 'kids';
+    const body = {
+      title: eventForm.title.trim(),
+      date: eventForm.date,
+      all_day: eventForm.all_day,
+      time: eventForm.all_day ? null : (eventForm.time || null),
+      duration_minutes: eventForm.all_day || !eventForm.duration_minutes ? null : Number(eventForm.duration_minutes),
+      target_group: isGroup ? eventForm.member_id : null,
+      member_id: !isGroup && eventForm.member_id ? Number(eventForm.member_id) : null,
+      repeat: eventForm.repeat_frequency && eventForm.repeat_until
+        ? { frequency: eventForm.repeat_frequency, until: eventForm.repeat_until }
+        : null,
+    };
     try {
-      await api('/api/family-zone/events', {
-        method: 'POST',
-        body: {
-          title: eventForm.title.trim(),
-          date: eventForm.date,
-          all_day: eventForm.all_day,
-          time: eventForm.all_day ? null : (eventForm.time || null),
-          duration_minutes: eventForm.all_day || !eventForm.duration_minutes ? null : Number(eventForm.duration_minutes),
-          target_group: isGroup ? eventForm.member_id : null,
-          member_id: !isGroup && eventForm.member_id ? Number(eventForm.member_id) : null,
-        },
-      });
+      if (editingEvent) {
+        await api(`/api/family-zone/events/${editingEvent.id}`, { method: 'PUT', body });
+      } else {
+        await api('/api/family-zone/events', { method: 'POST', body });
+      }
       const d = new Date(`${eventForm.date}T00:00:00`);
       if (viewMode === 'week') setWeekStart(startOfWeek(d));
       else setMonthCursor(new Date(d.getFullYear(), d.getMonth(), 1));
       setShowEventModal(false);
+      setEditingEvent(null);
       await fetchEvents();
     } catch (err) {
       setEventsError(err.message || t('familyZone.addEventError'));
     } finally {
       setSavingEvent(false);
+    }
+  };
+
+  const deleteEvent = async () => {
+    if (!editingEvent) return;
+    setDeletingEvent(true);
+    try {
+      await api(`/api/family-zone/events/${editingEvent.id}`, { method: 'DELETE' });
+      setShowEventModal(false);
+      setEditingEvent(null);
+      await fetchEvents();
+    } catch (err) {
+      setEventsError(err.message || t('familyZone.deleteEventError'));
+    } finally {
+      setDeletingEvent(false);
     }
   };
 
@@ -693,24 +771,24 @@ export default function FamilyZone() {
       {members.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 px-0.5">
           <span className="flex items-center gap-1.5 text-muted text-[10.5px]">
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForEntity('family')})` }} />
+            <ColorDot color={colorForEntity('family')} label={t('familyZone.wholeFamily')} />
             {t('familyZone.wholeFamily')}
           </span>
           {parentMembers.length > 0 && (
             <span className="flex items-center gap-1.5 text-muted text-[10.5px]">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForEntity('parents')})` }} />
+              <ColorDot color={colorForEntity('parents')} label={t('familyZone.parentsGroup')} />
               {t('familyZone.parentsGroup')}
             </span>
           )}
           {kidMembers.length > 0 && (
             <span className="flex items-center gap-1.5 text-muted text-[10.5px]">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForEntity('kids')})` }} />
+              <ColorDot color={colorForEntity('kids')} label={t('familyZone.kidsGroup')} />
               {t('familyZone.kidsGroup')}
             </span>
           )}
           {members.map((m) => (
             <span key={m.id} className="flex items-center gap-1.5 text-muted text-[10.5px]">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--color-${colorForEntity(String(m.id))})` }} />
+              <ColorDot color={colorForEntity(String(m.id))} label={m.display_name} />
               {m.display_name}
             </span>
           ))}
@@ -855,9 +933,11 @@ export default function FamilyZone() {
             {groups.map((g, gi) => (
               <div key={gi} className="flex gap-2">
                 {g.items.map((e) => (
-                  <div
+                  <button
                     key={e.id}
-                    className="flex-1 min-w-0 rounded-md bg-surface-raised px-3 py-2 border-l-2"
+                    type="button"
+                    onClick={() => openEditEventModal(e)}
+                    className="flex-1 min-w-0 text-left rounded-md bg-surface-raised px-3 py-2 border-l-2 hover:brightness-125 transition-[filter]"
                     style={{ borderColor: `var(--color-${colorForEvent(e)})` }}
                   >
                     {e.all_day ? (
@@ -866,7 +946,7 @@ export default function FamilyZone() {
                       <span className="block font-mono text-muted text-xs mb-0.5">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
                     )}
                     <span className="text-cream text-sm font-medium truncate block">{e.title}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             ))}
@@ -1100,17 +1180,23 @@ export default function FamilyZone() {
     </div>
   );
 
+  // Generates the next ~10 years of yearly occurrences at once (not just
+  // the next one) -- called automatically right after a birthday is
+  // created, and available on each row afterward to re-sync (e.g. if the
+  // generated events were since deleted, or the birthday was edited).
   const addBirthdayToCalendar = async (birthday) => {
     setAddingBirthdayId(birthday.id);
     setBirthdayMsg('');
     try {
       const occ = nextOccurrence(birthday, todayStart);
+      const until = new Date(todayStart.getFullYear() + 10, todayStart.getMonth(), todayStart.getDate());
       await api('/api/family-zone/events', {
         method: 'POST',
         body: {
           title: t('familyZone.birthdayEventTitle', { name: birthday.name }),
           date: ymd(occ),
           all_day: true,
+          repeat: { frequency: 'yearly', until: ymd(until) },
         },
       });
       setBirthdayMsg(t('familyZone.birthdayAdded', { name: birthday.name }));
@@ -1172,6 +1258,14 @@ export default function FamilyZone() {
                 >
                   {addingBirthdayId === b.id ? <Loader2 size={11} className="animate-spin" /> : <CalendarPlus size={11} />}
                   {t('familyZone.addToCalendar')}
+                </button>
+                <button
+                  onClick={() => openEditBirthdayModal(b)}
+                  className="text-muted hover:text-cream opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  aria-label={t('common.edit')}
+                  title={t('common.edit')}
+                >
+                  <Pencil size={14} />
                 </button>
                 <button
                   onClick={() => removeBirthday(b.id)}
@@ -1340,13 +1434,15 @@ export default function FamilyZone() {
         </div>
       )}
 
-      {/* Add event modal */}
+      {/* Add/edit event modal */}
       {showEventModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowEventModal(false); }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowEventModal(false); setEditingEvent(null); } }}>
           <div className="game-panel w-full max-w-sm p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-cream text-sm font-bold">{t('familyZone.addEventTitle')}</p>
-              <button onClick={() => setShowEventModal(false)} className="text-muted hover:text-cream">
+              <p className="text-cream text-sm font-bold">
+                {editingEvent ? t('familyZone.editEventTitle') : t('familyZone.addEventTitle')}
+              </p>
+              <button onClick={() => { setShowEventModal(false); setEditingEvent(null); }} className="text-muted hover:text-cream">
                 <X size={18} />
               </button>
             </div>
@@ -1445,27 +1541,78 @@ export default function FamilyZone() {
                   )}
                 </select>
               </div>
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowEventModal(false)} className="game-btn !bg-transparent !border !border-border text-muted hover:text-cream">
-                  {t('familyZone.cancel')}
-                </button>
-                <button type="submit" disabled={savingEvent} className="game-btn game-btn-blue flex items-center gap-1.5">
-                  {savingEvent && <Loader2 size={13} className="animate-spin" />}
-                  {t('familyZone.add')}
-                </button>
+              <div className="flex gap-2.5 mb-1 items-end">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                    {t('familyZone.repeatLabel')}
+                  </label>
+                  <select
+                    className="field-input"
+                    value={eventForm.repeat_frequency}
+                    onChange={(e) => setEventForm((f) => ({ ...f, repeat_frequency: e.target.value }))}
+                  >
+                    <option value="">{t('familyZone.repeatNone')}</option>
+                    <option value="daily">{t('familyZone.repeatDaily')}</option>
+                    <option value="weekly">{t('familyZone.repeatWeekly')}</option>
+                    <option value="monthly">{t('familyZone.repeatMonthly')}</option>
+                    <option value="yearly">{t('familyZone.repeatYearly')}</option>
+                  </select>
+                </div>
+                {eventForm.repeat_frequency && (
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                      {t('familyZone.repeatUntilLabel')}
+                    </label>
+                    <input
+                      type="date"
+                      className="field-input"
+                      min={eventForm.date}
+                      value={eventForm.repeat_until}
+                      onChange={(e) => setEventForm((f) => ({ ...f, repeat_until: e.target.value }))}
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+              {editingEvent && eventForm.repeat_frequency && (
+                <p className="text-muted text-xs mb-3">{t('familyZone.repeatEditHint')}</p>
+              )}
+              <div className="flex items-center justify-between gap-2 mt-4">
+                {editingEvent ? (
+                  <button
+                    type="button"
+                    onClick={deleteEvent}
+                    disabled={deletingEvent}
+                    className="game-btn game-btn-red !py-2 !px-3 flex items-center gap-1.5 !text-xs"
+                  >
+                    {deletingEvent ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    {t('common.delete')}
+                  </button>
+                ) : <span />}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setShowEventModal(false); setEditingEvent(null); }} className="game-btn !bg-transparent !border !border-border text-muted hover:text-cream">
+                    {t('familyZone.cancel')}
+                  </button>
+                  <button type="submit" disabled={savingEvent} className="game-btn game-btn-blue flex items-center gap-1.5">
+                    {savingEvent && <Loader2 size={13} className="animate-spin" />}
+                    {editingEvent ? t('common.save') : t('familyZone.add')}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Add birthday modal */}
+      {/* Add/edit birthday modal */}
       {showBirthdayModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowBirthdayModal(false); }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowBirthdayModal(false); setEditingBirthday(null); } }}>
           <div className="game-panel w-full max-w-sm p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-cream text-sm font-bold">{t('familyZone.addBirthdayTitle')}</p>
-              <button onClick={() => setShowBirthdayModal(false)} className="text-muted hover:text-cream">
+              <p className="text-cream text-sm font-bold">
+                {editingBirthday ? t('familyZone.editBirthdayTitle') : t('familyZone.addBirthdayTitle')}
+              </p>
+              <button onClick={() => { setShowBirthdayModal(false); setEditingBirthday(null); }} className="text-muted hover:text-cream">
                 <X size={18} />
               </button>
             </div>
@@ -1533,12 +1680,12 @@ export default function FamilyZone() {
               </div>
               <p className="text-muted text-xs mb-4">{t('familyZone.birthdayYearHint')}</p>
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowBirthdayModal(false)} className="game-btn !bg-transparent !border !border-border text-muted hover:text-cream">
+                <button type="button" onClick={() => { setShowBirthdayModal(false); setEditingBirthday(null); }} className="game-btn !bg-transparent !border !border-border text-muted hover:text-cream">
                   {t('familyZone.cancel')}
                 </button>
                 <button type="submit" disabled={savingBirthday} className="game-btn game-btn-blue flex items-center gap-1.5">
                   {savingBirthday && <Loader2 size={13} className="animate-spin" />}
-                  {t('familyZone.add')}
+                  {editingBirthday ? t('common.save') : t('familyZone.add')}
                 </button>
               </div>
             </form>

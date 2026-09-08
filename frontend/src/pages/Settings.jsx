@@ -51,7 +51,10 @@ const TABS = [
 // Fixed, theme-independent colors -- must match the palette FamilyZone.jsx
 // picks defaults from, so a manual override here actually looks distinct
 // from the cyclic default it's replacing.
-const CALENDAR_COLOR_OPTIONS = ['gold', 'purple', 'emerald', 'crimson', 'rose', 'cyan', 'amber', 'lime', 'sky'];
+const CALENDAR_COLOR_OPTIONS = [
+  'gold', 'purple', 'emerald', 'crimson', 'rose', 'cyan', 'amber', 'lime',
+  'indigo', 'teal', 'orange', 'fuchsia', 'blue', 'pink', 'sky',
+];
 const CALENDAR_COLOR_DEFAULTS = { family: 'sky', parents: 'purple', kids: 'emerald' };
 
 export default function Settings() {
