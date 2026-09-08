@@ -207,7 +207,16 @@ export default function FamilyZone() {
     }
   }, [rangeStart, rangeEnd, t]);
 
-  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  // This screen is meant to stay open indefinitely (a wall display), so a
+  // transient failure (e.g. the backend restarting during a deploy) must
+  // not leave a stale error banner stuck forever -- poll every 20s like
+  // kids/stars below, instead of only refetching when the viewed range
+  // changes, so it self-heals on its own shortly after.
+  useEffect(() => {
+    fetchEvents();
+    const interval = setInterval(fetchEvents, 20000);
+    return () => clearInterval(interval);
+  }, [fetchEvents]);
 
   const eventsFor = (dateStr) =>
     events.filter((e) => e.date === dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
@@ -224,7 +233,11 @@ export default function FamilyZone() {
     } catch { /* calendar just omits dishes on failure */ }
   }, [rangeStart, rangeEnd]);
 
-  useEffect(() => { fetchCalendarMenu(); }, [fetchCalendarMenu]);
+  useEffect(() => {
+    fetchCalendarMenu();
+    const interval = setInterval(fetchCalendarMenu, 20000);
+    return () => clearInterval(interval);
+  }, [fetchCalendarMenu]);
 
   const dishForCalendar = (dateStr) => calendarMenu.find((m) => m.date === dateStr)?.dish || '';
 
