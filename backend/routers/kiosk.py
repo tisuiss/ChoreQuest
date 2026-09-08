@@ -61,8 +61,8 @@ async def list_kiosk_kids(
     user only (family names/avatars, not meant for random visitors).
 
     Only exposes what's needed to render tappable tiles: id, display name,
-    avatar, whether a PIN gate is needed, and today's pending chore count.
-    Never exposes the PIN hash.
+    avatar, whether a PIN gate is needed, and the active pending chore
+    count. Never exposes the PIN hash.
     """
     result = await db.execute(
         select(User).where(User.role == UserRole.kid, User.is_active == True)
@@ -73,6 +73,13 @@ async def list_kiosk_kids(
     pending_counts = {}
     if kid_ids:
         today = date.today()
+        # "Active" = due today or still overdue from a prior day (the daily
+        # reset closes yesterday's leftovers out to "skipped" once it runs,
+        # but there's a window right after midnight, before that reset has
+        # fired yet, where they're still legitimately pending) -- but never
+        # a future date, even though a week's worth of assignments may
+        # already exist once the calendar view has generated them ahead of
+        # time (auto_generate_week_assignments).
         count_result = await db.execute(
             select(
                 ChoreAssignment.user_id,
@@ -81,7 +88,7 @@ async def list_kiosk_kids(
             .join(Chore, ChoreAssignment.chore_id == Chore.id)
             .where(
                 ChoreAssignment.user_id.in_(kid_ids),
-                ChoreAssignment.date == today,
+                ChoreAssignment.date <= today,
                 ChoreAssignment.status == AssignmentStatus.pending,
                 Chore.is_active == True,
             )
