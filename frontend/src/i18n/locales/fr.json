@@ -121,6 +121,7 @@
     "menuSaveError": "Impossible d'enregistrer le menu",
     "starsTitle": "Étoiles",
     "starsLoadError": "Impossible de charger le classement",
+    "configureMenus": "Menus",
     "photoFrame": "Cadre photo",
     "exitPhotoFrame": "Quitter le cadre photo",
     "photoFrameEmpty": "Aucune photo configurée pour l'instant.",

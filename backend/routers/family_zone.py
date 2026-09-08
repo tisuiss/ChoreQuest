@@ -100,18 +100,33 @@ async def list_family_members(db: AsyncSession = Depends(get_db)):
 # ---------- GET /menu ----------
 @router.get("/menu", response_model=list[WeeklyMenuResponse])
 async def get_weekly_menu(
-    week_start: date = Query(..., description="ISO date for the Monday of the desired week"),
+    week_start: date | None = Query(None, description="ISO date for the Monday of the desired week -- fetches that 7-day week"),
+    start: date | None = Query(None, description="Range start, used together with `end` instead of `week_start` (e.g. for a month-view calendar)"),
+    end: date | None = Query(None, description="Range end (inclusive), used together with `start`"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Public: the planned dinners for the 7 days starting at week_start."""
-    if week_start.weekday() != 0:
-        raise HTTPException(status_code=400, detail="week_start must be a Monday")
+    """Public: planned dinners, either for one Monday-start week (`week_start`)
+    or an arbitrary range (`start`/`end`) -- the latter powers the Family Zone
+    calendar's month/week view, which can span more than a single week.
+    """
+    if week_start is not None:
+        if week_start.weekday() != 0:
+            raise HTTPException(status_code=400, detail="week_start must be a Monday")
+        range_start = week_start
+        range_end = week_start + timedelta(days=6)
+    elif start is not None and end is not None:
+        if end < start:
+            raise HTTPException(status_code=400, detail="end must be on or after start")
+        if (end - start).days > 62:
+            raise HTTPException(status_code=400, detail="Date range too large")
+        range_start, range_end = start, end
+    else:
+        raise HTTPException(status_code=400, detail="Provide week_start, or both start and end")
 
-    week_end = week_start + timedelta(days=6)
     result = await db.execute(
         select(WeeklyMenuEntry).where(
-            WeeklyMenuEntry.date >= week_start,
-            WeeklyMenuEntry.date <= week_end,
+            WeeklyMenuEntry.date >= range_start,
+            WeeklyMenuEntry.date <= range_end,
         )
     )
     return result.scalars().all()

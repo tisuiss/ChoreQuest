@@ -212,6 +212,22 @@ export default function FamilyZone() {
   const eventsFor = (dateStr) =>
     events.filter((e) => e.date === dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
 
+  // Planned dinners shown directly in the calendar cells (week + month),
+  // covering whichever range is currently visible -- separate from the
+  // week-scoped `menu` state used by the meal-config modal below.
+  const [calendarMenu, setCalendarMenu] = useState([]);
+
+  const fetchCalendarMenu = useCallback(async () => {
+    try {
+      const data = await api(`/api/family-zone/menu?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`);
+      setCalendarMenu(Array.isArray(data) ? data : []);
+    } catch { /* calendar just omits dishes on failure */ }
+  }, [rangeStart, rangeEnd]);
+
+  useEffect(() => { fetchCalendarMenu(); }, [fetchCalendarMenu]);
+
+  const dishForCalendar = (dateStr) => calendarMenu.find((m) => m.date === dateStr)?.dish || '';
+
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
@@ -267,6 +283,7 @@ export default function FamilyZone() {
   // ---------------------------------------------------------------------
   // Weekly menu
   // ---------------------------------------------------------------------
+  const [menuConfigOpen, setMenuConfigOpen] = useState(false);
   const [menuWeekStart, setMenuWeekStart] = useState(() => startOfWeek(new Date()));
   const [menu, setMenu] = useState([]);
   const [menuError, setMenuError] = useState('');
@@ -306,7 +323,7 @@ export default function FamilyZone() {
     setSavingDish(true);
     try {
       await api('/api/family-zone/menu', { method: 'PUT', body: { date: dateStr, dish: dishDraft.trim() } });
-      await fetchMenu();
+      await Promise.all([fetchMenu(), fetchCalendarMenu()]);
       setEditingDish(null);
     } catch (err) {
       setMenuError(err.message || t('familyZone.menuSaveError'));
@@ -566,6 +583,7 @@ export default function FamilyZone() {
             const dStr = ymd(d);
             const isToday = sameDate(d, today);
             const dayEvts = eventsFor(dStr);
+            const dish = dishForCalendar(dStr);
             return (
               <div
                 key={dStr}
@@ -581,6 +599,12 @@ export default function FamilyZone() {
                     {d.getDate()}
                   </span>
                 </div>
+                {dish && (
+                  <div className="flex items-center gap-1 text-[10.5px] leading-tight text-muted">
+                    <UtensilsCrossed size={10} className="text-accent flex-shrink-0" />
+                    <span className="truncate">{dish}</span>
+                  </div>
+                )}
                 {dayEvts.map((e) => (
                   <div key={e.id} className="rounded bg-surface-raised px-1.5 py-1 text-[10.5px] leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}>
                     {e.time && <span className="block font-mono text-muted text-[9px]">{e.time.slice(0, 5)}</span>}
@@ -606,6 +630,7 @@ export default function FamilyZone() {
             const dayEvts = eventsFor(dStr);
             const shown = dayEvts.slice(0, 2);
             const rest = dayEvts.length - shown.length;
+            const dish = dishForCalendar(dStr);
             return (
               <div
                 key={dStr}
@@ -617,6 +642,12 @@ export default function FamilyZone() {
                   <X size={36} strokeWidth={2.5} className="absolute inset-0 m-auto text-crimson/35 pointer-events-none" />
                 )}
                 <span className={`text-[11px] font-bold font-mono ${isToday ? 'text-accent-light' : 'text-cream'}`}>{d.getDate()}</span>
+                {dish && (
+                  <div className="hidden sm:flex items-center gap-0.5 text-[9px] leading-tight text-muted">
+                    <UtensilsCrossed size={8} className="text-accent flex-shrink-0" />
+                    <span className="truncate">{dish}</span>
+                  </div>
+                )}
                 {shown.map((e) => (
                   <div key={e.id} className="hidden sm:block rounded bg-surface-raised px-1 py-[1px] text-[9px] leading-tight truncate border-l-2" style={{ borderColor: `var(--color-${colorForMember(e.member_id)})` }}>
                     {e.title}
@@ -872,8 +903,15 @@ export default function FamilyZone() {
             <p className="text-muted text-xs">{t('familyZone.subtitle')}</p>
           </div>
           <button
-            onClick={openPhotoFrame}
+            onClick={() => setMenuConfigOpen(true)}
             className="ml-auto game-btn !bg-surface !border !border-border text-muted hover:text-cream flex items-center gap-1.5 !text-xs"
+          >
+            <UtensilsCrossed size={14} />
+            {t('familyZone.configureMenus')}
+          </button>
+          <button
+            onClick={openPhotoFrame}
+            className="game-btn !bg-surface !border !border-border text-muted hover:text-cream flex items-center gap-1.5 !text-xs"
           >
             <Images size={14} />
             {t('familyZone.photoFrame')}
@@ -923,7 +961,7 @@ export default function FamilyZone() {
             <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4 items-start">
               {calendarSection}
               <div className="flex flex-col gap-4">
-                {menuSection}
+                {todayDetailSection}
                 {todoSection}
                 {starsSection}
               </div>
@@ -1061,6 +1099,24 @@ export default function FamilyZone() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Meal menu configuration modal */}
+      {menuConfigOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setMenuConfigOpen(false); }}
+        >
+          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <p className="text-cream text-sm font-bold">{t('familyZone.configureMenus')}</p>
+              <button onClick={() => setMenuConfigOpen(false)} className="text-muted hover:text-cream">
+                <X size={20} />
+              </button>
+            </div>
+            {menuSection}
           </div>
         </div>
       )}

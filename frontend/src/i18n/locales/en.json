@@ -121,6 +121,7 @@
     "menuSaveError": "Could not save the menu",
     "starsTitle": "Stars",
     "starsLoadError": "Could not load the star rankings",
+    "configureMenus": "Meals",
     "photoFrame": "Photo frame",
     "exitPhotoFrame": "Exit photo frame",
     "photoFrameEmpty": "No photos set up yet.",
