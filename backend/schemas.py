@@ -67,6 +67,7 @@ class FamilyEventCreate(BaseModel):
     all_day: bool = False
     member_id: int | None = None
     target_group: str | None = None
+    icon: str | None = Field(None, max_length=30)
     repeat: FamilyEventRepeat | None = None
 
 
@@ -78,6 +79,7 @@ class FamilyEventUpdate(BaseModel):
     all_day: bool = False
     member_id: int | None = None
     target_group: str | None = None
+    icon: str | None = Field(None, max_length=30)
     repeat: FamilyEventRepeat | None = None
 
 
@@ -90,6 +92,7 @@ class FamilyEventResponse(BaseModel):
     all_day: bool = False
     member_id: int | None
     target_group: str | None = None
+    icon: str | None = None
 
     model_config = {"from_attributes": True}
 

@@ -66,6 +66,7 @@ async def init_db():
             ("family_events", "duration_minutes", "INTEGER"),
             ("family_events", "all_day", "BOOLEAN DEFAULT 0"),
             ("family_events", "target_group", "VARCHAR(10)"),
+            ("family_events", "icon", "VARCHAR(30)"),
             ("family_birthdays", "month", "INTEGER"),
             ("family_birthdays", "day", "INTEGER"),
             ("family_birthdays", "year", "INTEGER"),

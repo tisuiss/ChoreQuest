@@ -11,6 +11,19 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import AvatarDisplay from '../components/AvatarDisplay';
 import AppLogo from '../components/AppLogo';
+import ChoreIcon from '../components/ChoreIcon';
+
+// Picked from the Family Zone event form; a birthday auto-added to the
+// calendar always gets 'cake' regardless of this list. Kebab-case names --
+// each must exist in lucide-react (ChoreIcon falls back to a plain dot
+// otherwise) since they're resolved dynamically, not imported one by one.
+const EVENT_ICON_OPTIONS = [
+  'cake', 'gift', 'party-popper', 'cocktail',
+  'tooth', 'cross', 'stethoscope',
+  'book-open', 'graduation-cap', 'pencil',
+  'football', 'dumbbell', 'music', 'clapperboard',
+  'plane', 'car', 'bike', 'scissors',
+];
 
 // Fixed, theme-independent colors only (unlike "accent"/"sky", which shift
 // with the family's chosen color theme and could visually collide with one
@@ -250,7 +263,7 @@ export default function FamilyZone() {
   const [eventsError, setEventsError] = useState('');
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null); // null = creating
-  const emptyEventForm = { title: '', date: '', time: '', duration_minutes: '60', all_day: false, member_id: '', repeat_frequency: '', repeat_until: '' };
+  const emptyEventForm = { title: '', date: '', time: '', duration_minutes: '60', all_day: false, member_id: '', icon: '', repeat_frequency: '', repeat_until: '' };
   const [eventForm, setEventForm] = useState(emptyEventForm);
   const [savingEvent, setSavingEvent] = useState(false);
   const [deletingEvent, setDeletingEvent] = useState(false);
@@ -425,6 +438,7 @@ export default function FamilyZone() {
       duration_minutes: event.duration_minutes ? String(event.duration_minutes) : '',
       all_day: event.all_day,
       member_id: event.target_group || (event.member_id != null ? String(event.member_id) : ''),
+      icon: event.icon || '',
       repeat_frequency: '',
       repeat_until: '',
     });
@@ -446,6 +460,7 @@ export default function FamilyZone() {
       duration_minutes: eventForm.all_day || !eventForm.duration_minutes ? null : Number(eventForm.duration_minutes),
       target_group: isGroup ? eventForm.member_id : null,
       member_id: !isGroup && eventForm.member_id ? Number(eventForm.member_id) : null,
+      icon: eventForm.icon || null,
       repeat: eventForm.repeat_frequency && eventForm.repeat_until
         ? { frequency: eventForm.repeat_frequency, until: eventForm.repeat_until }
         : null,
@@ -849,7 +864,10 @@ export default function FamilyZone() {
                     ) : e.time && (
                       <span className="block font-mono text-muted text-[9px]">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
                     )}
-                    <span className="text-cream font-medium">{e.title}</span>
+                    <span className="text-cream font-medium flex items-center gap-1">
+                      {e.icon && <ChoreIcon name={e.icon} size={11} className="flex-shrink-0" />}
+                      <span className="truncate">{e.title}</span>
+                    </span>
                   </div>
                 ))}
               </button>
@@ -893,8 +911,9 @@ export default function FamilyZone() {
                   </div>
                 )}
                 {shown.map((e) => (
-                  <div key={e.id} className="hidden sm:block rounded bg-surface-raised px-1 py-[1px] text-[9px] leading-tight truncate border-l-2" style={{ borderColor: `var(--color-${colorForEvent(e)})` }}>
-                    {e.title}
+                  <div key={e.id} className="hidden sm:flex items-center gap-0.5 rounded bg-surface-raised px-1 py-[1px] text-[9px] leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForEvent(e)})` }}>
+                    {e.icon && <ChoreIcon name={e.icon} size={8} className="flex-shrink-0" />}
+                    <span className="truncate">{e.title}</span>
                   </div>
                 ))}
                 {rest > 0 && <span className="hidden sm:block text-[9px] text-muted pl-0.5">+{rest}</span>}
@@ -955,7 +974,10 @@ export default function FamilyZone() {
                     ) : e.time && (
                       <span className="block font-mono text-muted text-xs mb-0.5">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
                     )}
-                    <span className="text-cream text-sm font-medium truncate block">{e.title}</span>
+                    <span className="text-cream text-sm font-medium flex items-center gap-1.5">
+                      {e.icon && <ChoreIcon name={e.icon} size={14} className="flex-shrink-0" />}
+                      <span className="truncate">{e.title}</span>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -1206,6 +1228,7 @@ export default function FamilyZone() {
           title: t('familyZone.birthdayEventTitle', { name: birthday.name }),
           date: ymd(occ),
           all_day: true,
+          icon: 'cake',
           repeat: { frequency: 'yearly', until: ymd(until) },
         },
       });
@@ -1467,6 +1490,38 @@ export default function FamilyZone() {
                   required
                   maxLength={200}
                 />
+              </div>
+              <div className="mb-3">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1.5">
+                  {t('familyZone.iconLabel')}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setEventForm((f) => ({ ...f, icon: '' }))}
+                    className={`w-8 h-8 rounded-md border flex items-center justify-center transition-colors ${
+                      !eventForm.icon ? 'border-accent bg-accent/10 text-accent' : 'border-border text-muted hover:border-border-light'
+                    }`}
+                    title={t('familyZone.iconNone')}
+                    aria-label={t('familyZone.iconNone')}
+                  >
+                    <X size={14} />
+                  </button>
+                  {EVENT_ICON_OPTIONS.map((icon) => (
+                    <button
+                      key={icon}
+                      type="button"
+                      onClick={() => setEventForm((f) => ({ ...f, icon }))}
+                      className={`w-8 h-8 rounded-md border flex items-center justify-center transition-colors ${
+                        eventForm.icon === icon ? 'border-accent bg-accent/10 text-accent' : 'border-border text-muted hover:border-border-light'
+                      }`}
+                      title={icon}
+                      aria-label={icon}
+                    >
+                      <ChoreIcon name={icon} size={15} />
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-2.5 mb-3 items-end">
                 <div className="flex-1">

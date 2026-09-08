@@ -132,6 +132,8 @@
     "editEventTitle": "Modifier l'événement",
     "eventTitleLabel": "Titre",
     "eventTitlePlaceholder": "Ex. Rendez-vous dentiste",
+    "iconLabel": "Icône",
+    "iconNone": "Aucune icône",
     "dateLabel": "Date",
     "allDay": "Toute la journée",
     "timeLabel": "Heure",

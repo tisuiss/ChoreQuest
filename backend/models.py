@@ -494,6 +494,10 @@ class FamilyEvent(Base):
     all_day: Mapped[bool] = mapped_column(Boolean, default=False)
     member_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     target_group: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # A kebab-case Lucide icon name (e.g. "tooth", "cake"), chosen when the
+    # event is created or auto-set to "cake" for birthdays. None falls back
+    # to a generic marker on the frontend.
+    icon: Mapped[str | None] = mapped_column(String(30), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     member = relationship("User")

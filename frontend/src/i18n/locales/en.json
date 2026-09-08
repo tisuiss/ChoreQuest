@@ -132,6 +132,8 @@
     "editEventTitle": "Edit event",
     "eventTitleLabel": "Title",
     "eventTitlePlaceholder": "e.g. Dentist appointment",
+    "iconLabel": "Icon",
+    "iconNone": "No icon",
     "dateLabel": "Date",
     "allDay": "All day",
     "timeLabel": "Time",

@@ -137,6 +137,7 @@ async def _create_repeat_occurrences(db: AsyncSession, base: FamilyEvent, repeat
             all_day=base.all_day,
             member_id=base.member_id,
             target_group=base.target_group,
+            icon=base.icon,
         ))
 
 
@@ -170,6 +171,7 @@ async def create_family_event(
         all_day=body.all_day,
         member_id=member_id,
         target_group=body.target_group,
+        icon=body.icon,
     )
     db.add(event)
     await _create_repeat_occurrences(db, event, body.repeat)
@@ -207,6 +209,7 @@ async def update_family_event(
     event.all_day = body.all_day
     event.member_id = member_id
     event.target_group = body.target_group
+    event.icon = body.icon
 
     await _create_repeat_occurrences(db, event, body.repeat)
     await db.commit()
