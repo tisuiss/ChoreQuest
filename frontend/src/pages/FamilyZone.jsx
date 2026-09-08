@@ -183,13 +183,22 @@ export default function FamilyZone() {
   const attemptLogin = useCallback(async (kidId, pinStr) => {
     setSubmitting(true);
     setPinError('');
+    setKidsError('');
     try {
       await kioskLogin(kidId, pinStr || null);
       navigate('/');
     } catch (err) {
-      setPinError(err.message || t('kiosk.invalidPin'));
-      setPin(['', '', '', '']);
-      pinRefs.current[0]?.focus();
+      // Two different places show the error depending on which flow failed:
+      // the PIN pad (selectedKid open) uses pinError; a PIN-less kid clicked
+      // directly from the grid has no PIN pad open, so surface it via the
+      // kids-list banner instead of failing silently.
+      if (pinStr !== null) {
+        setPinError(err.message || t('kiosk.invalidPin'));
+        setPin(['', '', '', '']);
+        pinRefs.current[0]?.focus();
+      } else {
+        setKidsError(err.message || t('kiosk.invalidPin'));
+      }
     } finally {
       setSubmitting(false);
     }

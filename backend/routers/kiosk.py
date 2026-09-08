@@ -132,9 +132,14 @@ async def kiosk_login(
             raise HTTPException(status_code=401, detail="Invalid PIN")
     else:
         # No PIN set on this kid — nothing else secret-checks this login, so
-        # require the paired kiosk device (same trust boundary as login-direct)
-        # instead of leaving it open to anyone who can guess/enumerate a kid_id.
-        await require_device_token(request, db)
+        # require the paired kiosk device OR an already logged-in user (same
+        # trust boundary as the rest of /kiosk and /family-zone). Deliberately
+        # NOT device-token-only like login-direct: this is an explicit click
+        # on a kid tile from a screen a family member is already looking at
+        # (Kiosk or Family Zone), not a silent/bookmarkable bypass URL — a
+        # logged-in parent picking a PIN-less kid from Family Zone must not
+        # be blocked just because their own device was never paired.
+        await require_family_access(request, db)
 
     audit = AuditLog(
         user_id=kid.id,

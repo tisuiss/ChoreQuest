@@ -21,6 +21,7 @@ export default function Kiosk() {
   const [selectedKid, setSelectedKid] = useState(null);
   const [pin, setPin] = useState(['', '', '', '']);
   const [pinError, setPinError] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const pinRefs = useRef([]);
@@ -68,13 +69,20 @@ export default function Kiosk() {
   const attemptLogin = useCallback(async (kidId, pinStr) => {
     setSubmitting(true);
     setPinError('');
+    setLoginError('');
     try {
       await kioskLogin(kidId, pinStr || null);
       navigate('/');
     } catch (err) {
-      setPinError(err.message || t('kiosk.invalidPin'));
-      setPin(['', '', '', '']);
-      pinRefs.current[0]?.focus();
+      // A PIN-less kid tapped directly (no PIN pad open) has nowhere to show
+      // pinError -- surface it above the tile grid instead of failing silently.
+      if (pinStr !== null) {
+        setPinError(err.message || t('kiosk.invalidPin'));
+        setPin(['', '', '', '']);
+        pinRefs.current[0]?.focus();
+      } else {
+        setLoginError(err.message || t('kiosk.invalidPin'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -185,7 +193,13 @@ export default function Kiosk() {
             ) : kids.length === 0 ? (
               <p className="text-muted text-center text-sm">{t('kiosk.noKids')}</p>
             ) : (
-              <div className="flex flex-wrap justify-center gap-6">
+              <div>
+                {loginError && (
+                  <div className="max-w-sm mx-auto mb-6 p-2.5 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-sm text-center">
+                    {loginError}
+                  </div>
+                )}
+                <div className="flex flex-wrap justify-center gap-6">
                 {kids.map((kid) => (
                   <button
                     key={kid.id}
@@ -202,6 +216,7 @@ export default function Kiosk() {
                     </span>
                   </button>
                 ))}
+                </div>
               </div>
             )}
           </>
