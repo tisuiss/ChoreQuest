@@ -805,7 +805,7 @@ export default function Settings() {
           {activeTab === 'security' && (
             <>
               {/* Trusted kiosk device pairing */}
-              <TrustedDeviceSettings paired={!!settings.kiosk_device_token} />
+              <TrustedDeviceSettings />
             </>
           )}
 

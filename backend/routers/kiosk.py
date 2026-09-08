@@ -1,4 +1,3 @@
-import secrets
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -6,7 +5,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import User, UserRole, AuditLog, AppSetting, Chore, ChoreAssignment, AssignmentStatus
+from backend.models import User, UserRole, AuditLog, AppSetting, TrustedDevice, Chore, ChoreAssignment, AssignmentStatus
 from backend.schemas import KioskKidResponse, KioskLoginRequest, AuthResponse
 from backend.auth import verify_pin, issue_tokens
 from backend.rate_limit import rate_limiter
@@ -165,9 +164,8 @@ async def check_pairing_token(token: str, request: Request, db: AsyncSession = D
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter.check(f"pair-check:{client_ip}", 10, 900)
 
-    result = await db.execute(select(AppSetting).where(AppSetting.key == "kiosk_device_token"))
-    setting = result.scalar_one_or_none()
-    valid = bool(setting and setting.value and secrets.compare_digest(token, setting.value))
+    result = await db.execute(select(TrustedDevice).where(TrustedDevice.token == token))
+    valid = result.scalar_one_or_none() is not None
     return {"valid": valid}
 
 

@@ -189,16 +189,22 @@
     "removeError": "Could not remove the photo"
   },
   "trustedDevice": {
-    "title": "Trusted device",
-    "hint": "Only the paired kiosk screen can open Kiosk and Family Zone without logging in. Every other device needs an account login. Generate a pairing link and open it once on the internal screen.",
-    "statusPaired": "A device is currently paired.",
-    "statusNotPaired": "No device paired yet — Kiosk and Family Zone will ask for a login until you pair one.",
-    "generate": "Generate pairing link",
-    "regenerate": "Regenerate pairing link",
-    "regenerateWarning": "Regenerating immediately signs the previously paired screen out — it will need to be re-paired with the new link.",
+    "title": "Trusted devices",
+    "hint": "Only paired screens can open Kiosk and Family Zone without logging in. Every other device needs an account login. Pair as many screens as you like — each gets its own link and can be renamed or revoked on its own.",
+    "empty": "No device paired yet — Kiosk and Family Zone will ask for a login until you pair one.",
+    "namePlaceholder": "e.g. Kitchen screen",
+    "defaultName": "New device",
+    "addDevice": "Add a device",
+    "pairedAs": "\"{{name}}\" paired",
     "copy": "Copy link",
-    "openOnce": "Open this link once on the internal screen — it will stay signed in from then on.",
-    "generateError": "Could not generate a pairing link"
+    "openOnce": "Open this link once on that screen — it will stay signed in from then on.",
+    "revoke": "Revoke",
+    "lastUsed": "Last used {{date}}",
+    "neverUsed": "Never used yet",
+    "loadError": "Could not load trusted devices",
+    "generateError": "Could not pair a new device",
+    "renameError": "Could not rename this device",
+    "removeError": "Could not revoke this device"
   },
   "pairDevice": {
     "invalid": "This pairing link is invalid or has expired.",

@@ -189,16 +189,22 @@
     "removeError": "Impossible de supprimer la photo"
   },
   "trustedDevice": {
-    "title": "Appareil de confiance",
-    "hint": "Seul l'écran kiosk appairé peut ouvrir Kiosk et Family Zone sans se connecter. Tout autre appareil doit se connecter avec un compte. Génère un lien d'appairage et ouvre-le une seule fois sur l'écran interne.",
-    "statusPaired": "Un appareil est actuellement appairé.",
-    "statusNotPaired": "Aucun appareil appairé pour l'instant — Kiosk et Family Zone demanderont une connexion tant que rien n'est appairé.",
-    "generate": "Générer un lien d'appairage",
-    "regenerate": "Régénérer le lien d'appairage",
-    "regenerateWarning": "Régénérer déconnecte immédiatement l'écran appairé précédemment — il devra être ré-appairé avec le nouveau lien.",
+    "title": "Appareils de confiance",
+    "hint": "Seuls les écrans appairés peuvent ouvrir Kiosk et Family Zone sans se connecter. Tout autre appareil doit se connecter avec un compte. Appaire autant d'écrans que tu veux — chacun a son propre lien et peut être renommé ou révoqué indépendamment.",
+    "empty": "Aucun appareil appairé pour l'instant — Kiosk et Family Zone demanderont une connexion tant que rien n'est appairé.",
+    "namePlaceholder": "ex. Écran cuisine",
+    "defaultName": "Nouvel appareil",
+    "addDevice": "Ajouter un appareil",
+    "pairedAs": "« {{name}} » appairé",
     "copy": "Copier le lien",
-    "openOnce": "Ouvre ce lien une seule fois sur l'écran interne — il restera connecté ensuite.",
-    "generateError": "Impossible de générer un lien d'appairage"
+    "openOnce": "Ouvre ce lien une seule fois sur cet écran — il restera connecté ensuite.",
+    "revoke": "Révoquer",
+    "lastUsed": "Vu pour la dernière fois le {{date}}",
+    "neverUsed": "Jamais utilisé",
+    "loadError": "Impossible de charger les appareils de confiance",
+    "generateError": "Impossible d'appairer un nouvel appareil",
+    "renameError": "Impossible de renommer cet appareil",
+    "removeError": "Impossible de révoquer cet appareil"
   },
   "pairDevice": {
     "invalid": "Ce lien d'appairage est invalide ou a expiré.",

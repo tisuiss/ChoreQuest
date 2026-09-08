@@ -106,15 +106,22 @@ export function AuthProvider({ children }) {
     // Uses a direct fetch (not the shared api() helper): there is no prior
     // session to refresh at this point, so api()'s 401-triggers-refresh
     // retry would just mask a wrong-PIN error behind a misleading
-    // "Session expired" message. Attach the device token too: a kid with no
-    // PIN set requires it server-side (same trust boundary as login-direct).
+    // "Session expired" message. Attach the device token AND the current
+    // access token (if any): a kid with no PIN set requires either the
+    // paired device or an already-logged-in user server-side (same trust
+    // boundary as the rest of /kiosk and /family-zone) — without the
+    // Authorization header, a logged-in parent picking a PIN-less kid from
+    // Family Zone would 401 with "Not authenticated" even though they're
+    // signed in, since this raw fetch never sent their own session's token.
     const deviceToken = getDeviceToken();
+    const currentToken = getAccessToken();
     const res = await fetch('/api/kiosk/login', {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(deviceToken ? { 'X-Device-Token': deviceToken } : {}),
+        ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {}),
       },
       body: JSON.stringify({ kid_id: kidId, pin }),
     });

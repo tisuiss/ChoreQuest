@@ -397,6 +397,20 @@ class AppSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class TrustedDevice(Base):
+    """A paired screen (kiosk display, Family Zone tablet, etc.) that gets
+    direct access to /kiosk and /family-zone with no login, via a
+    high-entropy token stored in its browser's localStorage (see the /pair
+    page). Any number of devices can be paired independently; each is
+    named and individually revocable from Settings."""
+    __tablename__ = "trusted_devices"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class InviteCode(Base):
     __tablename__ = "invite_codes"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

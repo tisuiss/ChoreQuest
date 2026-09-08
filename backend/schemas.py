@@ -179,6 +179,29 @@ class FamilyPhotoResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TrustedDeviceCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class TrustedDeviceRename(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class TrustedDeviceResponse(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+    last_used_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class TrustedDeviceCreateResponse(TrustedDeviceResponse):
+    # Only ever returned once, at creation time -- the raw token is never
+    # retrievable again afterwards (same pattern as any other API secret).
+    token: str
+
+
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = Field(None, max_length=10)
     avatar_config: dict | None = None

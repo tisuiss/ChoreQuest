@@ -1,3 +1,6 @@
+from datetime import datetime
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from backend.config import settings
@@ -28,6 +31,7 @@ async def init_db():
             InviteCode, RefreshToken, PushSubscription,
             Shoutout, VacationPeriod, ChoreVacationPeriod, KidVacationPeriod,
             FamilyEvent, WeeklyMenuEntry, FamilyPhoto, FamilyTodo, FamilyBirthday,
+            TrustedDevice,
         )
         await conn.run_sync(Base.metadata.create_all)
 
@@ -91,6 +95,28 @@ async def init_db():
             await conn.exec_driver_sql("ALTER TABLE family_birthdays DROP COLUMN date")
         except Exception:
             pass  # already dropped, or SQLite too old to support DROP COLUMN
+
+        # The trusted-device pairing feature used to store a single shared
+        # token as an AppSetting ("kiosk_device_token"). Carry any
+        # already-paired device over into the new multi-device table (as a
+        # one-time migration) so an upgrade doesn't silently log it out.
+        try:
+            count_result = await conn.execute(text("SELECT COUNT(*) FROM trusted_devices"))
+            if count_result.scalar() == 0:
+                token_result = await conn.execute(
+                    text("SELECT value FROM app_settings WHERE key = 'kiosk_device_token'")
+                )
+                old_token = token_result.scalar()
+                if old_token:
+                    await conn.execute(
+                        text(
+                            "INSERT INTO trusted_devices (name, token, created_at) "
+                            "VALUES (:name, :token, :now)"
+                        ),
+                        {"name": "Appareil existant", "token": old_token, "now": datetime.utcnow()},
+                    )
+        except Exception:
+            pass
 
 
 async def get_db():

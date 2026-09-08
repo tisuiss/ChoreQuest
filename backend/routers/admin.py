@@ -10,7 +10,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import User, ApiKey, InviteCode, AuditLog, AppSetting
+from backend.models import User, ApiKey, InviteCode, AuditLog, AppSetting, TrustedDevice
 from backend.schemas import (
     UserResponse,
     AdminUserUpdate,
@@ -21,6 +21,10 @@ from backend.schemas import (
     InviteCodeResponse,
     AuditLogResponse,
     SettingsUpdate,
+    TrustedDeviceCreate,
+    TrustedDeviceRename,
+    TrustedDeviceResponse,
+    TrustedDeviceCreateResponse,
 )
 from backend.auth import hash_password
 from backend.dependencies import require_admin, require_parent, get_current_user
@@ -359,23 +363,76 @@ async def update_settings(
     return {"detail": "Settings updated"}
 
 
-# ---------- POST /kiosk-device-token/regenerate ----------
-@router.post("/kiosk-device-token/regenerate")
-async def regenerate_kiosk_device_token(
+# ============================================================
+# Trusted devices (kiosk / family-zone pairing)
+# ============================================================
+# Any number of screens can be paired independently -- each gets its own
+# token and can be renamed or revoked on its own without affecting the
+# others. See backend/dependencies.py's require_family_access /
+# require_device_token for how a paired device's token is checked.
+
+# ---------- GET /trusted-devices ----------
+@router.get("/trusted-devices", response_model=list[TrustedDeviceResponse])
+async def list_trusted_devices(
     db: AsyncSession = Depends(get_db),
     _parent: User = Depends(require_parent),
 ):
-    """Generate a new pairing token for the trusted kiosk device, invalidating
-    any previously paired device (single active token -- one paired screen
-    at a time, by design). The frontend turns this into a one-time
-    /pair?token=... link to open on the physical screen."""
-    new_token = secrets.token_urlsafe(32)
-    result = await db.execute(select(AppSetting).where(AppSetting.key == "kiosk_device_token"))
-    existing = result.scalar_one_or_none()
-    if existing:
-        existing.value = new_token
-        existing.updated_at = datetime.now(timezone.utc)
-    else:
-        db.add(AppSetting(key="kiosk_device_token", value=new_token))
+    """List every paired device (name + timestamps only -- the token itself
+    is never returned again after creation)."""
+    result = await db.execute(select(TrustedDevice).order_by(TrustedDevice.created_at))
+    return result.scalars().all()
+
+
+# ---------- POST /trusted-devices ----------
+@router.post("/trusted-devices", response_model=TrustedDeviceCreateResponse, status_code=201)
+async def create_trusted_device(
+    body: TrustedDeviceCreate,
+    db: AsyncSession = Depends(get_db),
+    _parent: User = Depends(require_parent),
+):
+    """Pair a new device: generates a token and returns it once. The
+    frontend turns this into a one-time /pair?token=... link to open on the
+    physical screen -- after this response, the raw token can't be
+    retrieved again (only revoked and replaced with a new one)."""
+    device = TrustedDevice(name=body.name, token=secrets.token_urlsafe(32))
+    db.add(device)
     await db.commit()
-    return {"token": new_token}
+    await db.refresh(device)
+    return device
+
+
+# ---------- PUT /trusted-devices/{id} ----------
+@router.put("/trusted-devices/{device_id}", response_model=TrustedDeviceResponse)
+async def rename_trusted_device(
+    device_id: int,
+    body: TrustedDeviceRename,
+    db: AsyncSession = Depends(get_db),
+    _parent: User = Depends(require_parent),
+):
+    """Rename a paired device (does not affect its token/access)."""
+    result = await db.execute(select(TrustedDevice).where(TrustedDevice.id == device_id))
+    device = result.scalar_one_or_none()
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    device.name = body.name
+    await db.commit()
+    await db.refresh(device)
+    return device
+
+
+# ---------- DELETE /trusted-devices/{id} ----------
+@router.delete("/trusted-devices/{device_id}", status_code=204)
+async def revoke_trusted_device(
+    device_id: int,
+    db: AsyncSession = Depends(get_db),
+    _parent: User = Depends(require_parent),
+):
+    """Revoke a paired device -- it immediately loses direct access and
+    falls back to requiring a normal login, same as any unpaired device."""
+    result = await db.execute(select(TrustedDevice).where(TrustedDevice.id == device_id))
+    device = result.scalar_one_or_none()
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    await db.delete(device)
+    await db.commit()
+    return None

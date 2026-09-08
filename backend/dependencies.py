@@ -1,11 +1,11 @@
-import secrets
+from datetime import datetime
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.auth import decode_access_token
-from backend.models import User, UserRole, AppSetting
+from backend.models import User, UserRole, TrustedDevice
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
@@ -43,14 +43,19 @@ async def require_kid(user: User = Depends(get_current_user)) -> User:
 
 
 async def _check_device_token(request: Request, db: AsyncSession) -> bool:
-    """Compare the X-Device-Token header against the paired kiosk device's
-    token (a single active AppSetting value, regenerated to revoke)."""
+    """Match the X-Device-Token header against any paired device (any number
+    of devices can be paired at once; each has its own token). Bumps
+    last_used_at on a match so Settings can show when each was last seen."""
     token = request.headers.get("X-Device-Token")
     if not token:
         return False
-    result = await db.execute(select(AppSetting).where(AppSetting.key == "kiosk_device_token"))
-    setting = result.scalar_one_or_none()
-    return bool(setting and setting.value and secrets.compare_digest(token, setting.value))
+    result = await db.execute(select(TrustedDevice).where(TrustedDevice.token == token))
+    device = result.scalar_one_or_none()
+    if device is None:
+        return False
+    device.last_used_at = datetime.utcnow()
+    await db.commit()
+    return True
 
 
 async def require_device_token(request: Request, db: AsyncSession = Depends(get_db)) -> None:
