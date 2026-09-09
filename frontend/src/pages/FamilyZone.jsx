@@ -795,24 +795,24 @@ export default function FamilyZone() {
       {/* Legend -- which color on the calendar belongs to whom */}
       {members.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 px-0.5">
-          <span className="flex items-center gap-1.5 text-muted text-[10.5px] lg:text-xs">
+          <span className="flex items-center gap-1.5 text-muted text-[clamp(10.5px,0.85vw,13px)]">
             <ColorDot color={colorForEntity('family')} label={t('familyZone.wholeFamily')} />
             {t('familyZone.wholeFamily')}
           </span>
           {parentMembers.length > 0 && (
-            <span className="flex items-center gap-1.5 text-muted text-[10.5px] lg:text-xs">
+            <span className="flex items-center gap-1.5 text-muted text-[clamp(10.5px,0.85vw,13px)]">
               <ColorDot color={colorForEntity('parents')} label={t('familyZone.parentsGroup')} />
               {t('familyZone.parentsGroup')}
             </span>
           )}
           {kidMembers.length > 0 && (
-            <span className="flex items-center gap-1.5 text-muted text-[10.5px] lg:text-xs">
+            <span className="flex items-center gap-1.5 text-muted text-[clamp(10.5px,0.85vw,13px)]">
               <ColorDot color={colorForEntity('kids')} label={t('familyZone.kidsGroup')} />
               {t('familyZone.kidsGroup')}
             </span>
           )}
           {members.map((m) => (
-            <span key={m.id} className="flex items-center gap-1.5 text-muted text-[10.5px] lg:text-xs">
+            <span key={m.id} className="flex items-center gap-1.5 text-muted text-[clamp(10.5px,0.85vw,13px)]">
               <ColorDot color={colorForEntity(String(m.id))} label={m.display_name} />
               {m.display_name}
             </span>
@@ -827,7 +827,7 @@ export default function FamilyZone() {
       )}
 
       {viewMode === 'week' ? (
-        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 lg:gap-3">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-[clamp(6px,0.8vw,12px)]">
           {weekDays.map((d) => {
             const dStr = ymd(d);
             const isToday = sameDate(d, today);
@@ -839,30 +839,30 @@ export default function FamilyZone() {
                 key={dStr}
                 type="button"
                 onClick={() => setSelectedDay(d)}
-                className={`text-left rounded-md border p-2 lg:p-3 min-h-[150px] lg:min-h-[190px] xl:min-h-[220px] flex flex-col gap-1.5 lg:gap-2 transition-colors hover:border-accent/60 ${
+                className={`text-left rounded-md border p-[clamp(8px,1vw,14px)] min-h-[clamp(150px,15vw,240px)] flex flex-col gap-[clamp(5px,0.6vw,9px)] transition-colors hover:border-accent/60 ${
                   isSelected ? 'ring-1 ring-accent' : ''
                 } ${isToday ? 'border-accent bg-accent/5' : 'border-border bg-navy'}`}
               >
                 <div className="flex items-baseline justify-between">
-                  <span className={`text-[10px] lg:text-xs font-bold uppercase tracking-wide ${isToday ? 'text-accent-light' : 'text-muted'}`}>
+                  <span className={`text-[clamp(10px,0.75vw,13px)] font-bold uppercase tracking-wide ${isToday ? 'text-accent-light' : 'text-muted'}`}>
                     {weekdayFmt.format(d)}
                   </span>
-                  <span className={`text-xs lg:text-base font-bold font-mono ${isToday ? 'text-accent-light' : 'text-cream'}`}>
+                  <span className={`text-[clamp(12px,1.3vw,18px)] font-bold font-mono ${isToday ? 'text-accent-light' : 'text-cream'}`}>
                     {d.getDate()}
                   </span>
                 </div>
                 {dish && (
-                  <div className="flex items-center gap-1 text-[10.5px] lg:text-xs leading-tight text-muted">
+                  <div className="flex items-center gap-1 text-[clamp(10.5px,0.85vw,13px)] leading-tight text-muted">
                     <UtensilsCrossed size={10} className="text-accent flex-shrink-0" />
                     <span className="truncate">{dish}</span>
                   </div>
                 )}
                 {dayEvts.map((e) => (
-                  <div key={e.id} className="rounded bg-surface-raised px-1.5 py-1 lg:px-2 lg:py-1.5 text-[10.5px] lg:text-xs leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForEvent(e)})` }}>
+                  <div key={e.id} className="rounded bg-surface-raised px-[clamp(6px,0.6vw,9px)] py-[clamp(4px,0.4vw,7px)] text-[clamp(10.5px,0.85vw,13px)] leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForEvent(e)})` }}>
                     {e.all_day ? (
-                      <span className="block font-mono text-accent-light text-[9px] lg:text-[10.5px]">{t('familyZone.allDay')}</span>
+                      <span className="block font-mono text-accent-light text-[clamp(9px,0.7vw,11px)]">{t('familyZone.allDay')}</span>
                     ) : e.time && (
-                      <span className="block font-mono text-muted text-[9px] lg:text-[10.5px]">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
+                      <span className="block font-mono text-muted text-[clamp(9px,0.7vw,11px)]">{formatEventTimeRange(e.time, e.duration_minutes)}</span>
                     )}
                     <span className="text-cream font-medium flex items-center gap-1">
                       {e.icon && <ChoreIcon name={e.icon} size={11} className="flex-shrink-0" />}
@@ -875,9 +875,9 @@ export default function FamilyZone() {
           })}
         </div>
       ) : (
-        <div className="grid grid-cols-7 gap-1.5 lg:gap-2">
+        <div className="grid grid-cols-7 gap-[clamp(6px,0.7vw,10px)]">
           {monthDays.slice(0, 7).map((d, i) => (
-            <div key={i} className="text-[10px] lg:text-xs font-bold uppercase tracking-wide text-muted text-center pb-1">
+            <div key={i} className="text-[clamp(10px,0.75vw,13px)] font-bold uppercase tracking-wide text-muted text-center pb-1">
               {weekdayFmt.format(d)}
             </div>
           ))}
@@ -896,27 +896,27 @@ export default function FamilyZone() {
                 key={dStr}
                 type="button"
                 onClick={() => setSelectedDay(d)}
-                className={`relative text-left rounded-md border p-1 lg:p-1.5 min-h-[64px] sm:min-h-[76px] lg:min-h-[100px] xl:min-h-[118px] flex flex-col gap-0.5 lg:gap-1 transition-colors hover:border-accent/60 ${
+                className={`relative text-left rounded-md border p-[clamp(4px,0.5vw,8px)] min-h-[clamp(64px,9vw,130px)] flex flex-col gap-[clamp(2px,0.3vw,5px)] transition-colors hover:border-accent/60 ${
                   outside ? 'opacity-35' : ''
                 } ${isSelected ? 'ring-1 ring-accent' : ''} ${isToday ? 'border-accent bg-accent/5' : 'border-border bg-navy'}`}
               >
                 {isPast && (
                   <X size={36} strokeWidth={2.5} className="absolute inset-0 m-auto text-crimson/35 pointer-events-none" />
                 )}
-                <span className={`text-[11px] lg:text-sm font-bold font-mono ${isToday ? 'text-accent-light' : 'text-cream'}`}>{d.getDate()}</span>
+                <span className={`text-[clamp(11px,1vw,15px)] font-bold font-mono ${isToday ? 'text-accent-light' : 'text-cream'}`}>{d.getDate()}</span>
                 {dish && (
-                  <div className="hidden sm:flex items-center gap-0.5 text-[9px] lg:text-[11px] leading-tight text-muted">
+                  <div className="hidden sm:flex items-center gap-0.5 text-[clamp(9px,0.7vw,11.5px)] leading-tight text-muted">
                     <UtensilsCrossed size={8} className="text-accent flex-shrink-0" />
                     <span className="truncate">{dish}</span>
                   </div>
                 )}
                 {shown.map((e) => (
-                  <div key={e.id} className="hidden sm:flex items-center gap-0.5 rounded bg-surface-raised px-1 py-[1px] lg:py-0.5 text-[9px] lg:text-[11px] leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForEvent(e)})` }}>
+                  <div key={e.id} className="hidden sm:flex items-center gap-0.5 rounded bg-surface-raised px-1 py-[1px] text-[clamp(9px,0.7vw,11.5px)] leading-tight border-l-2" style={{ borderColor: `var(--color-${colorForEvent(e)})` }}>
                     {e.icon && <ChoreIcon name={e.icon} size={8} className="flex-shrink-0" />}
                     <span className="truncate">{e.title}</span>
                   </div>
                 ))}
-                {rest > 0 && <span className="hidden sm:block text-[9px] lg:text-[11px] text-muted pl-0.5">+{rest}</span>}
+                {rest > 0 && <span className="hidden sm:block text-[clamp(9px,0.7vw,11.5px)] text-muted pl-0.5">+{rest}</span>}
               </button>
             );
           })}
@@ -1410,8 +1410,12 @@ export default function FamilyZone() {
           </aside>
 
           <div className="flex-1 min-w-0 w-full">
+            {/* Right column keeps a comfortable, fluidly-sized reading
+                width (clamped between 300-420px); the calendar naturally
+                claims whatever space is left, so it keeps growing as the
+                screen gets wider instead of jumping between fixed ratios. */}
             {sidebarView === 'dashboard' && (
-              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] xl:grid-cols-[2.4fr_1fr] gap-4 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_clamp(300px,26vw,420px)] gap-4 items-start">
                 {calendarSection}
                 <div className="flex flex-col gap-4">
                   {todayDetailSection}
