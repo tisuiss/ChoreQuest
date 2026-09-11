@@ -205,6 +205,57 @@ class TrustedDeviceCreateResponse(TrustedDeviceResponse):
     token: str
 
 
+# --- EcoleDirecte ("École" tab) --------------------------------------------
+# The stored password / tokens / cn-cv are NEVER echoed by any response model.
+
+class EcoleCredentialsIn(BaseModel):
+    username: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class EcoleQcmAnswerIn(BaseModel):
+    proposition_index: int = Field(ge=0, le=50)
+
+
+class EcoleQcmProposition(BaseModel):
+    index: int
+    text: str
+
+
+class EcoleCredentialsPutResponse(BaseModel):
+    status: str  # ok | qcm_required | totp_unsupported | error
+    message: str | None = None
+    question: str | None = None
+    propositions: list[EcoleQcmProposition] | None = None
+
+
+class EcoleCredentialsStatus(BaseModel):
+    configured: bool
+    username_masked: str | None = None
+    children: list[str] = []
+    last_sync_at: str | None = None
+    last_error: str | None = None
+    qcm_pending: bool = False
+    qcm_question: str | None = None
+    qcm_propositions: list[EcoleQcmProposition] | None = None
+
+
+class EcoleChild(BaseModel):
+    eleve_id: str
+    prenom: str | None = None
+    nom: str | None = None
+    classe: str | None = None
+
+
+class EcoleOverviewResponse(BaseModel):
+    configured: bool
+    children: list[EcoleChild] = []
+    snapshot: dict = {}  # keyed by eleve_id; opaque normalized blobs
+    last_sync_at: str | None = None
+    last_error: str | None = None
+    qcm_pending: bool = False
+
+
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = Field(None, max_length=10)
     avatar_config: dict | None = None

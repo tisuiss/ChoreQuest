@@ -289,6 +289,29 @@ async def daily_reset_task():
             logger.exception("Daily reset error")
 
 
+async def ecoledirecte_refresh_task():
+    """Periodically mirror EcoleDirecte data into the account snapshot.
+
+    No-ops when no EcoleDirecte account is configured (or a security question
+    is pending). Never raises -- logs and keeps looping. Interval is
+    deliberately slow: EcoleDirecte is anti-bot and a single shared login.
+    """
+    from backend.models import EcoleDirecteAccount
+    from backend.services import ecoledirecte as ed
+
+    await asyncio.sleep(60)  # let init_db / seed settle
+    while True:
+        try:
+            async with async_session() as db:
+                result = await db.execute(select(EcoleDirecteAccount).limit(1))
+                row = result.scalar_one_or_none()
+                if row is not None and row.username_enc and not row.qcm_pending:
+                    await ed.refresh_snapshot(db)
+        except Exception:
+            logger.exception("EcoleDirecte refresh task error")
+        await asyncio.sleep(25 * 60)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
@@ -297,8 +320,10 @@ async def lifespan(app: FastAPI):
         await seed_database(db)
         await apply_family_timezone(db)
     task = asyncio.create_task(daily_reset_task())
+    ecole_task = asyncio.create_task(ecoledirecte_refresh_task())
     yield
     task.cancel()
+    ecole_task.cancel()
 
 
 app = FastAPI(title="KidTasks", lifespan=lifespan)
@@ -344,6 +369,7 @@ from backend.routers import (  # noqa: E402
     auth, chores, rewards, points, stats, calendar,
     notifications, admin, avatar, wishlist, rotations, uploads, push,
     shoutouts, vacation, progress, emotes, announcements, kiosk, family_zone,
+    ecole,
 )
 
 app.include_router(auth.router)
@@ -366,6 +392,7 @@ app.include_router(emotes.router)
 app.include_router(announcements.router)
 app.include_router(kiosk.router)
 app.include_router(family_zone.router)
+app.include_router(ecole.router)
 
 
 @app.get("/api/health")

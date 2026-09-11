@@ -31,7 +31,7 @@ async def init_db():
             InviteCode, RefreshToken, PushSubscription,
             Shoutout, VacationPeriod, ChoreVacationPeriod, KidVacationPeriod,
             FamilyEvent, WeeklyMenuEntry, FamilyPhoto, FamilyTodo, FamilyBirthday,
-            TrustedDevice,
+            TrustedDevice, EcoleDirecteAccount,
         )
         await conn.run_sync(Base.metadata.create_all)
 

@@ -26,6 +26,7 @@ import VacationSettings from '../components/VacationSettings';
 import KidVacationSettings from '../components/KidVacationSettings';
 import FamilyPhotoSettings from '../components/FamilyPhotoSettings';
 import TrustedDeviceSettings from '../components/TrustedDeviceSettings';
+import SchoolCredentialsSettings from '../components/SchoolCredentialsSettings';
 import { SUPPORTED_LANGUAGES } from '../hooks/useLanguage';
 
 const DAY_KEYS = ['calendar.days.mon', 'calendar.days.tue', 'calendar.days.wed', 'calendar.days.thu', 'calendar.days.fri', 'calendar.days.sat', 'calendar.days.sun'];
@@ -799,6 +800,9 @@ export default function Settings() {
 
               {/* Photo-frame source */}
               <FamilyPhotoSettings />
+
+              {/* EcoleDirecte account for the École tab */}
+              <SchoolCredentialsSettings />
             </>
           )}
 

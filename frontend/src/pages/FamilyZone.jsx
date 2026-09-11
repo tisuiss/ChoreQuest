@@ -5,6 +5,7 @@ import {
   Loader2, ListChecks, ChevronLeft, ChevronRight, Plus, X,
   UtensilsCrossed, Star, Pencil, ArrowLeft, CalendarDays, Images,
   ListTodo, Check, LayoutDashboard, LogIn, Cake, CalendarPlus, Trash2,
+  GraduationCap, BookOpen, Clock, AlertTriangle,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -53,6 +54,7 @@ const SIDEBAR_ITEMS = [
   { id: 'menu', labelKey: 'familyZone.navMenu', icon: UtensilsCrossed },
   { id: 'todo', labelKey: 'familyZone.navTodo', icon: ListTodo },
   { id: 'birthdays', labelKey: 'familyZone.navBirthdays', icon: Cake },
+  { id: 'school', labelKey: 'familyZone.navSchool', icon: GraduationCap },
 ];
 
 // Duration presets (minutes) offered on the add-event form.
@@ -302,6 +304,25 @@ export default function FamilyZone() {
   }, [t]);
 
   useEffect(() => { fetchBirthdays(); }, [fetchBirthdays]);
+
+  // École tab -- reads a cached snapshot the backend mirrors from
+  // EcoleDirecte (~every 25 min). Poll modestly; the data barely moves.
+  const [school, setSchool] = useState(null);
+  const [schoolError, setSchoolError] = useState('');
+  const fetchSchool = useCallback(async () => {
+    try {
+      const data = await api('/api/ecole/overview');
+      setSchool(data);
+      setSchoolError('');
+    } catch (err) {
+      setSchoolError(err.message || t('school.loadError'));
+    }
+  }, [t]);
+  useEffect(() => {
+    fetchSchool();
+    const id = setInterval(fetchSchool, 120000);
+    return () => clearInterval(id);
+  }, [fetchSchool]);
 
   const openBirthdayModal = () => {
     setEditingBirthday(null);
@@ -1354,6 +1375,168 @@ export default function FamilyZone() {
     </div>
   );
 
+  // ---- École tab ----------------------------------------------------------
+  // Plain helper (not a nested component) so the subtree isn't remounted on
+  // every poll re-render.
+  const schoolBlock = (Icon, title, empty, children) => (
+    <div>
+      <p className="text-cream text-[11px] font-bold uppercase tracking-wide flex items-center gap-1 mb-1">
+        <Icon size={11} className="text-accent" /> {title}
+      </p>
+      {empty ? <p className="text-muted text-[11px]">{t('school.nothingToShow')}</p> : children}
+    </div>
+  );
+
+  const schoolTodayLessons = (timetable) => {
+    const list = Array.isArray(timetable) ? timetable : [];
+    const dayKey = ymd(today);
+    const today_ = list.filter((l) => (l.start || '').slice(0, 10) === dayKey);
+    if (today_.length) return today_;
+    // Weekend / school break -> show the earliest upcoming day that has lessons.
+    const future = list.filter((l) => (l.start || '').slice(0, 10) > dayKey);
+    if (!future.length) return [];
+    const nextDay = future.reduce((m, l) => (l.start < m ? l.start : m), future[0].start).slice(0, 10);
+    return future.filter((l) => (l.start || '').slice(0, 10) === nextDay);
+  };
+  const schoolTime = (iso) => (iso || '').slice(11, 16);
+
+  const schoolSection = (
+    <div className="space-y-4">
+      <div className="game-panel p-4">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className="text-cream text-sm font-bold flex items-center gap-1.5">
+            <GraduationCap size={15} className="text-accent" />
+            {t('school.title')}
+          </p>
+          {school?.last_sync_at && (
+            <span className="text-muted text-[11px]">
+              {t('school.lastSync', {
+                date: new Date(school.last_sync_at).toLocaleString(i18n.language, {
+                  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                }),
+              })}
+            </span>
+          )}
+        </div>
+        {schoolError && (
+          <div className="mt-2 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
+            {schoolError}
+          </div>
+        )}
+        {school && !school.configured && (
+          <p className="text-muted text-xs mt-2">{t('school.notConfigured')}</p>
+        )}
+        {school?.qcm_pending && (
+          <div className="mt-2 p-2 rounded-md border border-gold/40 bg-gold/10 text-gold-light text-xs">
+            {t('school.qcmPending')}
+          </div>
+        )}
+        {school?.configured && school.last_error && !school.qcm_pending && (
+          <div className="mt-2 p-2 rounded-md border border-crimson/30 bg-crimson/10 text-crimson text-xs">
+            {t('school.syncError', { error: school.last_error })}
+          </div>
+        )}
+      </div>
+
+      {school?.configured && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {(school.children || []).map((child) => {
+            const s = (school.snapshot || {})[child.eleve_id] || {};
+            const homework = (s.homework || []);
+            const notes = (s.grades?.notes || []);
+            const lessons = schoolTodayLessons(s.timetable);
+            const vs = [
+              ...(s.viescolaire?.absences_retards || []),
+              ...(s.viescolaire?.sanctions || []),
+            ];
+            return (
+              <div key={child.eleve_id} className="game-panel p-4 space-y-3">
+                <div>
+                  <p className="text-cream text-sm font-semibold">
+                    {[child.prenom, child.nom].filter(Boolean).join(' ') || child.eleve_id}
+                  </p>
+                  {child.classe && <p className="text-muted text-[11px]">{child.classe}</p>}
+                </div>
+                {s.error && (
+                  <p className="text-crimson text-[11px]">{s.error}</p>
+                )}
+
+                {schoolBlock(BookOpen, t('school.homework'), homework.length === 0, (
+                  <ul className="space-y-1">
+                    {homework.slice(0, 6).map((h, i) => (
+                      <li key={i} className="text-[12px] leading-snug">
+                        <span className="text-muted font-mono">{(h.date || '').slice(5)}</span>{' '}
+                        <span className={`text-cream font-medium ${h.effectue ? 'line-through opacity-60' : ''}`}>
+                          {h.matiere}
+                        </span>
+                        {h.interro && <span className="ml-1 text-crimson text-[10px]">{t('school.interro')}</span>}
+                        {h.contenu && <span className="text-muted line-clamp-2"> — {h.contenu}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+
+                {schoolBlock(ListChecks, t('school.grades'), notes.length === 0, (
+                  <>
+                    {s.grades?.periode?.periode && (
+                      <p className="text-muted text-[10px] mb-1">{s.grades.periode.periode}</p>
+                    )}
+                    <ul className="space-y-1">
+                      {notes.slice(0, 6).map((n, i) => (
+                        <li key={i} className="text-[12px] leading-snug flex items-baseline gap-1.5">
+                          <span className="text-cream font-bold font-mono">
+                            {t('school.gradeValue', { value: n.valeur ?? '–', outOf: n.sur ?? '20' })}
+                          </span>
+                          <span className="text-cream truncate">{n.matiere}</span>
+                          {n.moyenne_classe != null && (
+                            <span className="text-muted text-[10px] flex-shrink-0">
+                              {t('school.gradeClassAvg', { avg: n.moyenne_classe })}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ))}
+
+                {schoolBlock(Clock, t('school.timetable'), lessons.length === 0, (
+                  <ul className="space-y-1">
+                    {lessons.map((l, i) => (
+                      <li key={i} className={`text-[12px] leading-snug flex items-baseline gap-1.5 ${l.annule ? 'line-through opacity-60' : ''}`}>
+                        <span className="text-muted font-mono flex-shrink-0">
+                          {schoolTime(l.start)}–{schoolTime(l.end)}
+                        </span>
+                        <span className="text-cream truncate">{l.matiere}</span>
+                        {l.salle && <span className="text-muted text-[10px] flex-shrink-0">{l.salle}</span>}
+                        {l.annule && <span className="text-crimson text-[10px] flex-shrink-0">{t('school.timetableCancelled')}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+
+                {schoolBlock(AlertTriangle, t('school.vieScolaire'), vs.length === 0, (
+                  <ul className="space-y-1">
+                    {vs.slice(0, 5).map((v, i) => (
+                      <li key={i} className="text-[12px] leading-snug">
+                        <span className="text-cream">{v.type || v.libelle}</span>
+                        {v.display && <span className="text-muted"> · {v.display}</span>}
+                        {v.type && /absence|retard/i.test(v.type) && (
+                          <span className={`ml-1 text-[10px] ${v.justifie ? 'text-emerald' : 'text-crimson'}`}>
+                            {v.justifie ? t('school.justified') : t('school.unjustified')}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-navy p-4 md:p-6">
       <div className="w-full">
@@ -1427,6 +1610,7 @@ export default function FamilyZone() {
             {sidebarView === 'menu' && menuSection}
             {sidebarView === 'todo' && todoByUserSection}
             {sidebarView === 'birthdays' && birthdaysSection}
+            {sidebarView === 'school' && schoolSection}
           </div>
         </div>
       </div>

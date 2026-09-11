@@ -411,6 +411,41 @@ class TrustedDevice(Base):
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class EcoleDirecteAccount(Base):
+    """The single EcoleDirecte *parent* account used to mirror every child's
+    school data (homework / grades / timetable / attendance) into the Family
+    Zone "École" tab. Credentials are Fernet-encrypted at rest
+    (backend/crypto.py). Exactly one row is kept -- the router enforces the
+    singleton (first PUT creates it, DELETE removes it)."""
+    __tablename__ = "ecoledirecte_account"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username_enc: Mapped[str] = mapped_column(Text, nullable=False)
+    password_enc: Mapped[str] = mapped_column(Text, nullable=False)
+    # QCM double-auth answer proof -- reusable across future logins to skip
+    # the security question (sent back in the `fa` array). Encrypted.
+    qcm_cn_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    qcm_cv_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Latest EcoleDirecte X-Token (short-lived). Encrypted; nullable.
+    ecole_token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Resolved children: JSON list of {eleve_id, prenom, nom, classe}.
+    children_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Compact per-child snapshot JSON, keyed by eleve_id:
+    #   {"<id>": {"homework": [...], "grades": {...},
+    #             "timetable": [...], "viescolaire": {...}, "error": "..."}}
+    snapshot_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Set when login returned code:250 mid-QCM. Blocks the refresh task and
+    # tells the Settings panel a security question is waiting. The question +
+    # choices are stashed so the panel can render them on a fresh page load,
+    # not only in the PUT response. Cleared once answered.
+    qcm_pending: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    qcm_question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    qcm_propositions_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class InviteCode(Base):
     __tablename__ = "invite_codes"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
