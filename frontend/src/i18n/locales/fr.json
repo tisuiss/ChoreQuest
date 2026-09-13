@@ -583,7 +583,8 @@
     "signIn": "Se connecter",
     "newHere": "Nouveau ici ?",
     "createAccount": "Créer un compte",
-    "kioskMode": "Mode kiosque"
+    "kioskMode": "Mode kiosque",
+    "familyZoneMode": "Family Zone"
   },
   "register": {
     "usernameRequired": "Le nom d'utilisateur est requis",

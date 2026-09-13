@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import AppLogo from '../components/AppLogo';
+import { Tv, LayoutGrid } from 'lucide-react';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -172,12 +173,26 @@ export default function Login() {
           </Link>
         </p>
 
-        {/* Kiosk mode link */}
-        <p className="text-center mt-2 text-muted text-sm">
-          <Link to="/kiosk" className="text-accent hover:text-accent-light font-medium transition-colors">
+        {/* Kiosk / Family Zone quick access -- handy on a wall-mounted screen
+            so it never needs the URL typed in. Only actually usable once
+            this device is paired (or you're logged in): otherwise these
+            just bounce back to /login, same as typing the URL directly. */}
+        <div className="flex gap-2 mt-4">
+          <Link
+            to="/kiosk"
+            className="game-btn flex-1 !bg-surface !border !border-border text-muted hover:text-cream flex items-center justify-center gap-1.5 !text-xs"
+          >
+            <Tv size={14} />
             {t('login.kioskMode')}
           </Link>
-        </p>
+          <Link
+            to="/familyzone"
+            className="game-btn flex-1 !bg-surface !border !border-border text-muted hover:text-cream flex items-center justify-center gap-1.5 !text-xs"
+          >
+            <LayoutGrid size={14} />
+            {t('login.familyZoneMode')}
+          </Link>
+        </div>
       </form>
     </div>
   );
